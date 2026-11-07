@@ -28,6 +28,10 @@ try {
   const until = async (test, seconds, each) => { const t = Date.now(); while (Date.now() - t < seconds * 1000) { const s = await state(); if (each) await each(s); if (test(s)) return s; await sleep(50); } return state(); };
 
   check(await open('wind=5&from=180'), 'the range loads');
+  // The panel's switches (launch mode, flight model, skim assist) lead to pages that exist and keep the other options.
+  const links = JSON.parse(await page.eval(`JSON.stringify(['launchSwitch', 'modelSwitch', 'assistSwitch'].map(id => document.getElementById(id).href))`));
+  const reached = await Promise.all(links.map(async href => (await fetch(href)).status));
+  check(reached.every(s => s === 200) && links[0].includes('launch=real') && links.every(h => h.includes('wind=5')), "the panel's switches lead to the range", links.map((h, i) => `${new URL(h).pathname}${new URL(h).search} ${reached[i]}`).join(', '));
   await page.eval(`document.getElementById('panel').classList.add('hidden'); 1`);
 
   // An easy launch from the ramp: it runs itself and flies off the lip.

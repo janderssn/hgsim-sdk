@@ -1,5 +1,5 @@
 /**
- * above-core: the hang-glider simulation from Above. Plain ES modules with no dependencies; metres, seconds, radians.
+ * hgsim: the hang-glider simulation from Above. Plain ES modules with no dependencies; metres, seconds, radians.
  *
  * - Flight (flight.js): a force model of the wing (lift, drag, ground effect, stall, flare), the air it flies in (wind, thermals,
  *   ridge lift) and the judgement of a touchdown. flight-classic.js is the older, simpler model kept for comparison.

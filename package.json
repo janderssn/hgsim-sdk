@@ -1,5 +1,5 @@
 {
-  "name": "above-core",
+  "name": "hgsim",
   "version": "0.1.0",
   "private": true,
   "description": "Hang-glider flight, launch and landing simulation from Above, with the landing range used to tune it.",

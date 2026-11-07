@@ -1,4 +1,4 @@
-# above-core
+# hgsim
 
 The hang-glider simulation from **Above**, and the landing range used to tune it.
 
@@ -20,7 +20,7 @@ No install step is needed. Three.js is vendored under `range/vendor/`, and nothi
 ## The library
 
 ```js
-import { createSoaringState, stepSoaring } from 'above-core';
+import { createSoaringState, stepSoaring } from 'hgsim';
 
 const glider = createSoaringState({ x: 0, y: 60, z: 0, heading: 0 });
 const environment = { terrainHeight: (x, z) => 0, wind: { x: 0, z: -3 }, thermals: [] };
@@ -55,7 +55,7 @@ $ node examples/launch.mjs
 | `wind.js` | Live wind: a mean speed and direction with a meander and gusts. |
 | `flight-recorder.js` | Records each round as samples and marked moments. `tools/flight-report.mjs` reads them back. |
 
-`src/index.js` re-exports the public API. You can also import the files directly, for example `above-core/launch`.
+`src/index.js` re-exports the public API. You can also import the files directly, for example `hgsim/launch`.
 
 ### Conventions
 

@@ -8,7 +8,7 @@
     ".": "./src/index.js",
     "./*": "./src/*.js"
   },
-  "files": ["src"],
+  "files": ["src", "range", "server.mjs", "tools"],
   "scripts": {
     "start": "node server.mjs",
     "test": "node --test \"tests/*.test.mjs\"",

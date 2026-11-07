@@ -30,61 +30,32 @@ function drawnHeight(geometry, x, z) {
     : positions.getY(c) + (positions.getY(b) - positions.getY(c)) * (1 - u) + (positions.getY(d) - positions.getY(c)) * (1 - v);
 }
 
-test('quality changes only terrain detail and reuses geometry when quality recovers', () => {
+test('drawing quality never changes the terrain: the drawn ground stays where the glider touches it', () => {
   const { scene, scenery, terrain } = createScenery();
-  const children = [...scene.children];
-  const otherGeometry = children.filter(object => object !== terrain).map(object => object.geometry);
-  const material = terrain.material;
-  const high = terrain.geometry;
-  assert.equal(high.index.count / 3, 115_200);
-
-  scenery.setQuality('medium');
-  const medium = terrain.geometry;
-  assert.equal(medium.index.count / 3, 51_200);
-  scenery.setQuality('low');
-  const low = terrain.geometry;
-  assert.equal(low.index.count / 3, 18_432);
-  scenery.setQuality('high');
-  assert.equal(terrain.geometry, high);
-  scenery.setQuality('medium');
-  assert.equal(terrain.geometry, medium);
-  scenery.setQuality('low');
-  assert.equal(terrain.geometry, low);
-  assert.equal(scenery.setQuality('low'), false);
-  assert.equal(scenery.setQuality('unknown'), false);
-  assert.equal(terrain.material, material);
-  assert.equal(terrain.receiveShadow, true);
-  assert.deepEqual(scene.children, children);
-  assert.deepEqual(children.filter(object => object !== terrain).map(object => object.geometry), otherGeometry);
-});
-
-test('coarse terrain preserves the shared world and critical launch and field surfaces', () => {
-  const { scenery, terrain } = createScenery();
-  const high = terrain.geometry;
-  for (const level of ['medium', 'low']) {
+  const geometry = terrain.geometry, material = terrain.material;
+  assert.equal(geometry.index.count / 3, 115_200);
+  for (const level of ['medium', 'low', 'high', 'low']) {
     scenery.setQuality(level);
-    const geometry = terrain.geometry;
-    const positions = geometry.attributes.position;
-    for (let index = 0; index < positions.count; index += 31) {
-      assert.ok(Math.abs(positions.getY(index) - terrainHeight(positions.getX(index), positions.getZ(index))) < 1e-4);
-    }
-    const points = [];
-    for (let x = -8; x <= 8; x += 1) {
-      for (let z = LAUNCH.z + DECK_BACK - 5; z <= LAUNCH.z + DECK_LIP + 10; z += 1) points.push([x, z]);
-    }
-    for (let x = -85; x <= 85; x += 5) {
-      for (let z = -85; z <= 85; z += 5) points.push([x, z]);
-    }
-    for (let x = CLIFF.x - 10; x <= CLIFF.x + 10; x += 2) {
-      for (let z = CLIFF.z - 10; z <= CLIFF.z + 10; z += 2) points.push([x, z]);
-    }
-    for (const [x, z] of points) {
-      const difference = Math.abs(drawnHeight(geometry, x, z) - drawnHeight(high, x, z));
-      assert.ok(difference < 1, `${level} terrain differs by ${difference} m at ${x}, ${z}`);
-    }
-    assert.equal(drawnHeight(geometry, 0, 0), drawnHeight(high, 0, 0));
-    assert.ok(geometry.attributes.color && geometry.attributes.normal);
+    assert.equal(terrain.geometry, geometry, `${level} keeps the full terrain`);
+    assert.equal(terrain.material, material);
+    assert.ok(scene.children.includes(terrain));
   }
+  // Every vertex is the world's own height, and the surface between them stays close to it, across the launch, the
+  // field, the cliff and the slopes in between.
+  const positions = geometry.attributes.position;
+  for (let index = 0; index < positions.count; index += 31) {
+    assert.ok(Math.abs(positions.getY(index) - terrainHeight(positions.getX(index), positions.getZ(index))) < 1e-4);
+  }
+  const points = [];
+  for (let x = -8; x <= 8; x += 1) for (let z = LAUNCH.z + DECK_BACK - 5; z <= LAUNCH.z + DECK_LIP + 10; z += 1) points.push([x, z]);
+  for (let x = -85; x <= 85; x += 5) for (let z = -85; z <= 85; z += 5) points.push([x, z]);
+  for (let x = CLIFF.x - 10; x <= CLIFF.x + 10; x += 2) for (let z = CLIFF.z - 10; z <= CLIFF.z + 10; z += 2) points.push([x, z]);
+  for (let x = -400; x <= 400; x += 37) for (let z = -700; z <= -100; z += 23) points.push([x, z]);   // (the ridge's slopes)
+  for (const [x, z] of points) {
+    const difference = Math.abs(drawnHeight(geometry, x, z) - terrainHeight(x, z));
+    assert.ok(difference < 1, `the drawn ground is ${difference.toFixed(2)} m off the world at ${x}, ${z}`);
+  }
+  assert.ok(geometry.attributes.color && geometry.attributes.normal);
 });
 
 test('grass tiles retain all instances and expose finite bounds for frustum culling', () => {

@@ -122,7 +122,7 @@ The open range reloads itself when `src/` or `range/` changes. It waits until yo
 | `range/simulation-loop.js`, `motion.js` | Fixed simulation ticks and interpolated drawing snapshots. |
 | `range/controls.js` | Keyboard/gamepad normalization and continuous bar control through lift-off. |
 | `range/camera.js`, `hud.js` | Chase-camera smoothing and change-only HUD updates. |
-| `range/rendering.js` | Adaptive framebuffer, shadow and terrain detail for the current device. |
+| `range/rendering.js` | Adaptive resolution, shadow detail and grass distance for the current device. |
 | `range/world.js` | Where the ground is: the terrain, the deck and the rocks. These are pure functions, and the physics asks them. |
 | `range/scenery.js` | Draws that same world. |
 | `range/audio.js`, `gamepad.js`, `wind-indicators.js`, `speed-streaks.js` | Presentation. |
@@ -142,12 +142,7 @@ Controls held during the run retain their launch trim through lift-off and relea
 A fresh input or reversal then takes over the airborne bar. This prevents a held S
 key from accidentally releasing the launch trim on the next frame.
 
-Rendering starts at full detail and reduces resolution, shadows and terrain mesh
-density and distant grass after sustained slow frames. It restores detail conservatively after a
-healthy interval. Grass is grouped into spatial patches for view culling, and terrain
-geometry is cached per quality level; the numerical world
-and flight physics never change. Camera state is separate from the simulation, and
-the HUD updates only values that changed.
+Rendering starts at full detail. After sustained slow frames it reduces resolution, shadow detail and how far grass is drawn, and it restores detail cautiously after a healthy interval. The terrain mesh always stays at full detail. A coarser mesh would draw the ground metres above or below where the glider touches it on the slopes. Grass is grouped into tiles so that off-screen tiles are skipped. The world and the flight physics never change with quality. Camera state is separate from the simulation, and the HUD updates only the values that changed.
 
 ## Tests and checks
 

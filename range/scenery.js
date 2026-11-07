@@ -10,28 +10,25 @@ const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t
 
 /**
  * Adds scenery and returns birds, drawing quality, and camera-detail updates.
- * Quality changes affect drawing only; world.js remains the physics source.
+ * Quality changes affect drawing only; world.js remains the physics source. The terrain is never coarsened: a lower-detail
+ * mesh would draw the ground metres above or below where the glider actually touches it on the slopes.
  */
 export function buildScenery(THREE, scene) {
-  const terrain = addTerrain(THREE, scene);
+  addTerrain(THREE, scene);
   addMark(THREE, scene);
   addLaunch(THREE, scene);
   addTrees(THREE, scene);
   const grass = addGrass(THREE, scene);
   return {
     birds: addBirds(THREE, scene),
-    setQuality(level) {
-      const terrainChanged = terrain.setQuality(level);
-      const grassChanged = grass.setQuality(level);
-      return terrainChanged || grassChanged;
-    },
+    setQuality: grass.setQuality,
     updateDetail: grass.updateDetail,
   };
 }
 
-const TERRAIN_SEGMENTS = { high: 240, medium: 160, low: 96 };
+const TERRAIN_SEGMENTS = 240;
 
-/** Samples the same world and colours at each terrain drawing resolution. */
+/** Samples the world's height and colours on a regular grid for the terrain mesh. */
 function createTerrainGeometry(THREE, segments) {
   const SIZE = 3200, g = new THREE.PlaneGeometry(SIZE, SIZE, segments, segments); g.rotateX(-Math.PI / 2);
   const p = g.attributes.position, colors = new Float32Array(p.count * 3), c = new THREE.Color();
@@ -48,31 +45,15 @@ function createTerrainGeometry(THREE, segments) {
   return g;
 }
 
-/** One terrain mesh/material with lazily cached alternative drawing geometries. */
+/** The terrain mesh, at one fixed detail whatever the drawing quality. */
 function addTerrain(THREE, scene) {
-  const geometries = new Map([
-    ['high', createTerrainGeometry(THREE, TERRAIN_SEGMENTS.high)],
-  ]);
   const terrain = new THREE.Mesh(
-    geometries.get('high'),
+    createTerrainGeometry(THREE, TERRAIN_SEGMENTS),
     new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 }),
   );
   terrain.receiveShadow = true;
   scene.add(terrain);
-  return {
-    setQuality(level) {
-      if (!Object.hasOwn(TERRAIN_SEGMENTS, level)) return false;
-      if (!geometries.has(level)) {
-        geometries.set(level, createTerrainGeometry(THREE, TERRAIN_SEGMENTS[level]));
-      }
-      const geometry = geometries.get(level);
-      if (terrain.geometry === geometry) return false;
-      // The scene has a static lifetime. Retain these three geometries so a
-      // quality recovery never rebuilds buffers or disposes an active geometry.
-      terrain.geometry = geometry;
-      return true;
-    },
-  };
+  return terrain;
 }
 
 /** The mark: bullseye rings on the field and the 60 m landing zone, with four cones at the field's corners to judge drift by. */

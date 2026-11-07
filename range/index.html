@@ -16,8 +16,6 @@
     .readout b { font-size: 30px; font-weight: 800; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
     .readout small { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--dim); margin-top: 4px; }
     .readout .vario.up b { color: #9fe29c; } .readout .vario.down b { color: #ffb3a8; }
-    .warn { position: absolute; left: 50%; top: 16%; transform: translateX(-50%); font-weight: 900; font-size: 26px; letter-spacing: .1em; color: var(--bad); text-shadow: 0 2px 8px rgba(0,0,0,.6); display: none; }
-    .warn.on { display: block; }
     .hints { position: absolute; left: 22px; bottom: 18px; font-size: 13px; color: var(--dim); text-shadow: 0 1px 3px rgba(0,0,0,.5); line-height: 1.7; }
     .hints b { color: var(--ink); background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.3); border-radius: 4px; padding: 0 6px; margin-right: 4px; font-size: 12px; }
     .card { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--panel); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 22px 28px; min-width: 360px; text-align: center; display: none; pointer-events: auto; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
@@ -70,7 +68,6 @@
       <div><b id="dist">0</b><small>m to the mark</small></div>
       <div class="alpha"><b id="alpha">0°</b><small>angle of attack</small></div>
     </div>
-    <div class="warn" id="warn"></div>
     <div class="toast" id="toast"></div>
     <div class="hints" id="hints"></div>
     <div class="card" id="card"></div>

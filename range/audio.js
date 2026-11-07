@@ -2,7 +2,7 @@
  * Above audio. Pure WebAudio synthesis: no audio files, no ScriptProcessor.
  * Contract (REDESIGN.md): createAudio() -> {unlock, setEnabled, enabled, update(state, dt), emit(event, data)}.
  *
- *   wind / ambience / flutter / cable hum -> bed (pause duck) -+
+ *   wind / ambience / cable hum -> bed (pause duck) ---------+
  *   vario beeps + sink drone -------------------------------- +
  *   one-shot voices (sfx, ui) ------------------------------- +-> master -> compressor -> trim -> soft clip -> out
  *   reverb return (chimes, birds, gulls) -------------------- +
@@ -233,10 +233,6 @@ export function createAudio(options = {}) {
     const windPan = P(windBus), windHiss = G(0, windPan), windHissF = F('bandpass', 1000, 0.6, windHiss); pinkA.connect(windHissF);
     const rumble = G(0, windBus), rumbleF = F('lowpass', 150, 0.8, rumble); brownB.connect(rumbleF);
 
-    // Sail flutter: amplitude-modulated band of noise.
-    const flutter = G(0, bed), flutterAM = G(0.55, flutter), flutterF = F('bandpass', 650, 0.9, flutterAM); whiteA.connect(flutterF);
-    const flutterLfo = O('triangle', 10), flutterDepth = G(0.45, flutterAM.gain); flutterLfo.connect(flutterDepth);
-
     // Vario: one oscillator with a soft harmonic recipe, gated by a scheduled envelope.
     const varioLevel = G(0, varioBus), beepEnv = G(0, varioLevel);
     const varioOsc = keep(c.createOscillator());
@@ -263,7 +259,7 @@ export function createAudio(options = {}) {
 
     persistentCount = nodes.length;
     g = { nodes, noise, master, bed, windBus, ambBus, varioBus, sfxBus, uiBus, revIn, conv,
-      windBody, windBodyF, windPan, windHiss, windHissF, rumble, flutter, flutterLfo,
+      windBody, windBodyF, windPan, windHiss, windHissF, rumble,
       varioLevel, beepEnv, varioOsc, sinkGain, sinkOsc, alpine, alpineF, desert, cicada, cicada2,
       surfLow, surfWash, surfWashF, hum, cableRumble, cicOsc, cicOsc2, humOsc1, humOsc2 };
   }
@@ -287,6 +283,29 @@ export function createAudio(options = {}) {
     }
   }
 
+  /**
+   * Recorded sounds, decoded once the context exists: the crash (a heavy body fall and thud, a bike frame crashing, a tube
+   * snapping and bones breaking; see assets/sfx/CREDITS.md). Until one has loaded, or where fetching is not possible (tests,
+   * file://), its recipe falls back to a synthesized one.
+   */
+  const SAMPLE_FILES = { crash: 'assets/sfx/crash.mp3' };
+  const samples = {};
+  function loadSamples() {
+    const base = options.sampleBase ?? (typeof import.meta !== 'undefined' && import.meta.url ? new URL('./', import.meta.url).href : null);
+    if (!base || typeof fetch !== 'function' || typeof ctx.decodeAudioData !== 'function') return;
+    for (const [name, file] of Object.entries(SAMPLE_FILES)) {
+      if (samples[name]) continue;
+      fetch(new URL(file, base)).then(r => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(file + ' ' + r.status))))
+        .then(data => ctx.decodeAudioData(data)).then(buffer => { samples[name] = buffer; }).catch(noteError);
+    }
+  }
+  /** Plays a decoded recording as part of a voice: gain, playback rate (a little pitch and speed variation), an optional low-pass. */
+  function sample(v, buffer, t, { gain = 1, rate = 1, lowpass = 0 } = {}) {
+    const e = vg(v, gain, v.out), dest = lowpass ? vf(v, 'lowpass', lowpass, 0.7, e) : e;
+    const s = add(v, ctx.createBufferSource()); s.buffer = buffer; s.playbackRate.value = rate; s.connect(dest);
+    s.start(t); v.sources.push(s); v.end = Math.max(v.end, t + buffer.duration / rate + 0.05);
+  }
+
   function unlock() {
     if (ctx && ctx.state === 'closed') { ctx = null; g = null; }
     if (!ctx) {
@@ -296,6 +315,7 @@ export function createAudio(options = {}) {
         if (!ctx) { failures = 3; return; }
         build();
         lastParamAt = -1;
+        loadSamples();
       } catch (err) {
         failures++; noteError(err);
         try { ctx?.close?.(); } catch { /* ignore */ }
@@ -521,17 +541,16 @@ export function createAudio(options = {}) {
       const sev = clamp(num(d.severity, 0.6), 0, 1);
       duck(0.25, 1.1);
       if (d.kind === 'water') { splash(v, t, sev); return; }
-      thump(v, t, 0.22 + 0.42 * sev, 96, 34, 0.42);
-      noiseHit(v, 'brown', 'lowpass', 380, 0.8, t, 0.14 + 0.26 * sev, 0.004, 0.3);
-      const n = 5 + Math.round(7 * sev), peaks = [];
-      for (let i = 0; i < n; i++) peaks.push((0.18 + 0.34 * sev) * (1 - 0.65 * i / n) * (0.6 + 0.4 * random()));
-      grains(v, 'white', 'bandpass', 850, 0.75, t, peaks, v.out, 0.003, 0.03, 0.018);
-      let tc = t + 0.03;
-      const hits = 2 + Math.round(5 * sev);
-      for (let i = 0; i < hits; i++) { tink(v, tc, 650 + random() * 1300, (0.03 + 0.03 * sev + 0.04 * random()) * (1 - 0.5 * i / hits), 0.2 + 0.25 * random()); tc += 0.05 + random() * 0.16; }
-      if (sev > 0.3) rip(v, t + 0.07, 0.36 + 0.4 * sev, 0.25 + 0.45 * sev, 1900, 3800, 95, 55);
+      if (samples.crash) {
+        // The recorded crash (body and thud, frame, a tube snapping, bones breaking): a lighter one quieter and duller, and
+        // each a little different in pitch and speed so repeats do not sound the same.
+        sample(v, samples.crash, t, { gain: 0.55 + 0.45 * sev, rate: 0.94 + 0.12 * random(), lowpass: sev < 0.7 ? 2500 + 14000 * sev : 0 });
+      } else {
+        // Until the recording has loaded: a plain heavy thud and a burst of dirt.
+        thump(v, t, 0.34 + 0.4 * sev, 72, 27, 0.6);
+        noiseHit(v, 'brown', 'lowpass', 260, 0.7, t, 0.2 + 0.26 * sev, 0.003, 0.34);
+      }
       if (d.kind === 'building') { noiseHit(v, 'pink', 'bandpass', 320, 3, t + 0.005, 0.3, 0.003, 0.12); noiseHit(v, 'pink', 'bandpass', 280, 3, t + 0.11, 0.18, 0.003, 0.14); }
-      for (let i = 0; i < 3; i++) noiseHit(v, 'white', 'bandpass', 2500 + random() * 2500, 2.5, t + 0.55 + i * (0.12 + random() * 0.25), 0.05 * (1 - i * 0.25), 0.002, 0.03);
     } },
     discover: { bus: 'sfxBus', gap: 0.6, max: 1, fn(v, t) {
       duck(0.7, 1.6);
@@ -615,10 +634,8 @@ export function createAudio(options = {}) {
     'skim-end': { bus: 'sfxBus', gap: 0.8, max: 1, fn(v, t) { sweepNoise(v, 'pink', t, 2400, 1500, 700, 0.9, 0.1, 0.06, 0.02, 0.6); } },
     // Terrain warning: a bright double beep, repeated while the warning lasts.
     'pull-up': { bus: 'sfxBus', gap: 0.85, max: 1, fn(v, t) { blip(v, t, 1480, 0.11, 0.075, 'triangle'); blip(v, t + 0.14, 1480, 0.11, 0.075, 'triangle'); } },
-    stall: { bus: 'sfxBus', gap: 1.2, max: 1, fn(v, t) {
-      grains(v, 'pink', 'bandpass', 420, 0.8, t, [0.26, 0.2, 0.15, 0.1], v.out, 0.06, 0.09, 0.01);
-      thump(v, t, 0.18, 88, 48, 0.32);
-    } },
+    // The stall is heard in the wind itself (it drops and goes hollow, see params); the event stays for anything that listens.
+    stall: { bus: 'sfxBus', gap: 1.2, max: 1, fn() {} },
   };
 
   function play(name, data) {
@@ -761,15 +778,19 @@ export function createAudio(options = {}) {
       rumble = 0.28 * skimAmt + 0.22 * dive + 0.16 * rush;
     } else if (cable) { body = 0.04 * (0.8 + 0.4 * gust); bodyF = 420; hiss = 0.012; hissF = 1400; }
     else { body = 0.032 * (0.6 + 0.8 * gust); bodyF = 300 + 160 * gust; hiss = 0.004 * (0.5 + gust2); hissF = 1200; }
+    // Near and in the stall the airflow breaks away from the sail: the wind drops and goes hollow, its roar falling away and the
+    // air narrowing to a low, resonant band that wavers with the gusts. No flapping.
+    const stallAmt = gliding ? Math.max(s.stalled ? 1 : 0, s.stallWarning ? 0.55 : 0, 0.35 * ramp(12.5, 9.8, s.speed)) : 0;
+    let hissQ = 0.6;
+    if (stallAmt > 0) {
+      body *= 1 - 0.55 * stallAmt; bodyF *= 1 - 0.45 * stallAmt;
+      hiss = hiss * (1 - stallAmt) + stallAmt * (0.05 + 0.03 * gust2);
+      hissF = hissF * (1 - stallAmt) + stallAmt * (430 + 140 * gust); hissQ = 0.6 + 5 * stallAmt;
+    }
     setp(g.windBody.gain, body, now, 0.22); setp(g.windBodyF.frequency, bodyF, now, 0.3);
-    setp(g.windHiss.gain, hiss, now, 0.22); setp(g.windHissF.frequency, hissF, now, 0.3);
+    setp(g.windHiss.gain, hiss, now, 0.22); setp(g.windHissF.frequency, hissF, now, 0.3); setp(g.windHissF.Q, hissQ, now, 0.3);
     setp(g.rumble.gain, rumble, now, 0.15);
     if (g.windPan.pan) setp(g.windPan.pan, gliding ? clamp(s.bank * 0.35, -0.4, 0.4) : 0, now, 0.3);
-
-    // Sail flutter near the stall.
-    const stallAmt = gliding ? Math.max(s.stalled ? 1 : 0, s.stallWarning ? 0.55 : 0, 0.35 * ramp(12.5, 9.8, s.speed)) : 0;
-    setp(g.flutter.gain, stallAmt * 1.0, now, 0.07);
-    setp(g.flutterLfo.frequency, (s.stalled ? 13 : 9) + 2 * gust, now, 0.2);
 
     // Vario level and sink drone.
     const varioOk = gliding && !s.paused && varioOn, mute = 1 - ramp(0.15, 0.55, s.skim), sink = sinkTone(varioClimb, s.speed);

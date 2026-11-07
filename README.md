@@ -134,6 +134,10 @@ The open range reloads itself when `src/` or `range/` changes. It waits until yo
 
 Every push to `main` runs the tests and, if they pass, deploys the range to Fly.io at **https://hgsim.fly.dev**. It uses `.github/workflows/deploy.yml` with `Dockerfile` and `fly.toml`. The workflow needs one repository secret, `FLY_API_TOKEN`, a Fly.io organisation token. The first run creates the `hgsim` app. The deployed server saves no flights, so rounds stay in the browser and can be downloaded from the panel.
 
+## Sound credits
+
+The range's sounds are synthesized, except the crash. It is mixed from seven recordings on Freesound. One of them, "stick_crack" by jiaying330, is used under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The rest are CC0. The full list is in [`range/assets/sfx/CREDITS.md`](range/assets/sfx/CREDITS.md).
+
 ## Origin
 
 This was extracted from Above at commit `fbea2b6`, on branch `claude/flight-physics-landing-a61a59`. Its behaviour is unchanged.

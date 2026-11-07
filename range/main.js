@@ -23,7 +23,7 @@ import { createAudio } from './audio.js';
 import { createGamepad } from './gamepad.js';
 import { createLandingCues, dropToImpact } from '../src/landing-cues.js';
 import { createFlightRecorder } from '../src/flight-recorder.js';
-import { terrainHeight, slopeAt, landableAt, LAUNCH, MARK, THERMAL, RUN_DIST, WING_CARRY, DECK_FALL, DECK_BACK, DECK_LIP, deckY, deckLine, CLIFF, rockTop, groundUnder } from './world.js';
+import { terrainHeight, slopeAt, landableAt, LAUNCH, MARK, THERMAL, RUN_DIST, WING_CARRY, DECK_FALL, DECK_BACK, DECK_LIP, deckY, deckLine, CLIFF, RAMP_POSTS, rockTop, groundUnder } from './world.js';
 import { buildScenery } from './scenery.js';
 
 // ?model=original flies the older, simpler flight model (src/flight-classic.js), for a side-by-side comparison.
@@ -75,11 +75,12 @@ const wind = createWind({ speed: Number(params.get('wind')) || 5, direction: dir
 const indicators = createWindIndicators(THREE);
 // Each stands on whatever is underfoot there: the deck, a rock or the terrain.
 const sockAt = (x, z, scale = 1) => { const s = createWindsock(THREE, { scale }); scene.add(s.group); indicators.add(s, x, groundUnder(x, z), z); return s; };
-const streamerAt = (x, z, color) => { const s = createStreamer(THREE, { color }); scene.add(s.group); indicators.add(s, x, groundUnder(x, z), z); return s; };
+const streamerAt = (x, z, color, size = {}) => { const s = createStreamer(THREE, { color, ...size }); scene.add(s.group); indicators.add(s, x, groundUnder(x, z), z); return s; };
 sockAt(MARK.x + 46, MARK.z + 12);                     // by the field
-// The ramp: a windsock and streamers on its rock, around the start of the deck (clear of the wing on the run).
+// The ramp: tall streamers on poles beside the deck (on arms out from it, clear of the wing) at mid-run and at the lip, and a
+// windsock on the rock behind the start of the deck.
 sockAt(LAUNCH.x - 5, LAUNCH.z - 28, .85);
-for (const [dx, dz, c] of [[7, -32, '#f07f2c'], [-7, -37, '#f6f1e6'], [6, -26, '#f6f1e6']]) streamerAt(LAUNCH.x + dx, LAUNCH.z + dz, c);
+RAMP_POSTS.forEach((p, i) => { const s = createStreamer(THREE, { color: i % 3 ? '#f07f2c' : '#f6f1e6', pole: 3, length: 2.2 }); scene.add(s.group); indicators.add(s, p.x, p.y, p.z); });
 // The cliff: a paraglider-style fishing rod on its top, back from the edge, and a streamer near the edge.
 { const r = createWindRod(THREE); scene.add(r.group); indicators.add(r, CLIFF.x + 7, groundUnder(CLIFF.x + 7, CLIFF.cz + 4), CLIFF.cz + 4); }
 streamerAt(CLIFF.x - 6, CLIFF.edge - 7, '#f07f2c');

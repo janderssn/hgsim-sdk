@@ -58,6 +58,9 @@ export const deckY = z => DECK_TOP - DECK_FALL * clamp(z - LAUNCH.z, DECK_BACK, 
 /** The deck's line carried on past the lip at its own slope: where a body that runs off the end is in the step that takes it off. */
 export const deckLine = z => DECK_TOP - DECK_FALL * Math.max(z - LAUNCH.z, DECK_BACK);
 
+/** Streamer poles beside the ramp, on arms out from the deck: at mid-run and at the lip, outside the wing's span (4.5 m each side). */
+export const RAMP_POSTS = [-8, 4.6].flatMap(dz => [-1, 1].map(side => ({ x: LAUNCH.x + side * 5.6, z: LAUNCH.z + dz, side, y: deckY(LAUNCH.z + dz) - .25 })));
+
 /** The cliff launch, on its own rock beside the ramp: stand at the edge and step off. ground: the top the pilot stands on; y, z: the start. */
 export const CLIFF = (() => { const x = LAUNCH.x + 40, cz = LAUNCH.z - 22, edge = cz + 17 * (1 + (noise(7, 2.6) - .5) * .3), top = terrainHeight(x, edge) + 62; return { x, cz, edge, top, ground: top - .4, y: top - .4 + 2.3, z: edge - 1.5 }; })();
 

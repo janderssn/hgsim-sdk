@@ -3,7 +3,7 @@
  * field, the rocks with the ramp's deck and its timbers, trees, close grass for a sense of speed low down, and the birds
  * that mark the thermal. Nothing here is solid: the ground the flight and the launch feel is world.js.
  */
-import { hash, noise, terrainHeight, slopeAt, LAUNCH, MARK, ROCKS, rockRing, DECK_BACK, DECK_LIP, DECK_FALL, CLIFF_EDGE, ROCK_TOP, deckY } from './world.js';
+import { hash, noise, terrainHeight, slopeAt, LAUNCH, MARK, ROCKS, rockRing, DECK_BACK, DECK_LIP, DECK_FALL, CLIFF_EDGE, ROCK_TOP, RAMP_POSTS, deckY } from './world.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -66,6 +66,8 @@ function addLaunch(THREE, scene) {
   const beam = (x, y0, z0, y1, z1, r) => { const a = new THREE.Vector3(x, y0, z0), b = new THREE.Vector3(x, y1, z1), d = b.clone().sub(a), t = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.2, d.length(), 6), timber); t.position.copy(a).addScaledVector(d, .5); t.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); t.castShadow = true; scene.add(t); };
   // Height of the ramp rock's face at z: its front widens as it falls.
   const under = ROCKS[0], faceY = z => { let lo = 0, hi = 1; for (let i = 0; i < 16; i++) { const k = (lo + hi) / 2; if (rockRing(under, k).rz < z - under.cz) lo = k; else hi = k; } return rockRing(under, lo).y; };
+  // Arms out from the deck's edges to the streamer poles beside it (the poles are the streamers' own sticks).
+  for (const p of RAMP_POSTS) { const arm = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(p.x - LAUNCH.x) - 3.4, .12, .14), timber); arm.position.set((p.x + LAUNCH.x + p.side * 3.4) / 2, p.y - .06, p.z); arm.castShadow = true; scene.add(arm); }
   const at = z => LAUNCH.z + z;
   for (const x of [-3.1, 3.1]) {
     beam(LAUNCH.x + x, deckY(at(DECK_BACK)) - .25, at(DECK_BACK), deckY(at(DECK_LIP)) - .25, at(DECK_LIP), .13);

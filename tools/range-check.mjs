@@ -1,5 +1,6 @@
 // End-to-end check of the landing range in a headless browser: it starts its own server, flies each kind of launch and a
-// landing, and fails on any page error. node tools/range-check.mjs  (needs a local Chrome or Edge; see tools/cdp.mjs)
+// landing, and fails on any page error. node tools/range-check.mjs [--url https://hgsim.fly.dev]  (needs a local Chrome or Edge;
+// see tools/cdp.mjs). With --url it checks that site instead of starting a server.
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -7,17 +8,19 @@ import { launchChrome, connect, sleep } from './cdp.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const port = 4300 + Math.floor(Math.random() * 400), debugPort = 9400 + Math.floor(Math.random() * 400);
-const server = spawn(process.execPath, [path.join(root, 'server.mjs'), String(port)], { stdio: 'ignore' });
+const urlArg = process.argv.indexOf('--url'), site = urlArg > 0 ? process.argv[urlArg + 1].replace(/\/+$/, '') : null;
+const server = site ? { kill() {} } : spawn(process.execPath, [path.join(root, 'server.mjs'), String(port)], { stdio: 'ignore' });
+const base = site || `http://127.0.0.1:${port}`;
 let chrome = null, failed = 0;
 const check = (ok, name, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); if (!ok) failed++; };
 
 try {
-  for (let i = 0; i < 50; i++) { try { if ((await fetch(`http://127.0.0.1:${port}/__version`)).ok) break; } catch {} await sleep(100); }
+  for (let i = 0; i < 300; i++) { try { if ((await fetch(`${base}/healthz`)).ok) break; } catch {} await sleep(100); }   // (a deployed machine may be waking)
   chrome = await launchChrome({ port: debugPort, width: 960, height: 540 });
   const page = await connect({ port: debugPort }), errors = [];
   page.on(m => { if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text); });
   const open = async query => {
-    await page.goto(`http://127.0.0.1:${port}/range/?${query}`);
+    await page.goto(`${base}/range/?${query}`);
     for (let i = 0; i < 80; i++) { if (await page.eval('!!window.rangeDemo&&!!rangeDemo.rig')) return true; await sleep(250); }
     return false;
   };

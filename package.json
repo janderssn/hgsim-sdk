@@ -19,6 +19,7 @@
     "start": "node server.mjs",
     "test": "node --test \"tests/*.test.mjs\"",
     "check:range": "node tools/range-check.mjs",
+    "check:live": "node tools/range-check.mjs --url https://hgsim.fly.dev",
     "flights": "node tools/flight-report.mjs"
   },
   "engines": {

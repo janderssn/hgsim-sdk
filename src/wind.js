@@ -1,6 +1,6 @@
 /**
  * Live wind for Above. The wind vector (x, z) is the direction the air travels toward, in m/s, the convention of
- * soaring-physics.js (sampleSoaringAir adds it to ground motion; ridge lift reads it against the slope).
+ * flight.js (sampleSoaringAir adds it to ground motion; ridge lift reads it against the slope).
  * A real day's wind is never a constant: the mean meanders in strength (about ±25%) and direction (about ±18°)
  * over a couple of minutes, with lighter gusts on top. Windsocks, streamers and the landing score read the same
  * object, so what the sock shows is what the wing feels.
@@ -10,7 +10,7 @@
  *
  *   const wind = createWind({ speed: 5.5, direction: Math.atan2(5, 1.4) });   // or { x, z }
  *   wind.update(dt);  wind.x, wind.z, wind.speed, wind.direction (toward), wind.from (compass heading it blows from)
- *   wind.set({ speed, direction })   changes the mean; variability 0 freezes the mean (the microworld's sliders).
+ *   wind.set({ speed, direction })   changes the mean; variability 0 freezes the mean (the range's sliders).
  */
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

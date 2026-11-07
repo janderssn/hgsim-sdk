@@ -1,4 +1,4 @@
-/** Soft terrain-skim assist for the energy-based glider (soaring-physics.js).
+/** Soft terrain-skim assist for the energy-based glider (flight.js).
  *  It only shapes the commanded flight-path angle: holding W fast and low blends the command toward a path that
  *  follows a look-ahead terrain envelope at the target clearance, and a protected floor keeps a minimum clearance.
  *  The path filter, its g limits and the energy equation stay in charge, so it never brakes, parks or teleports the

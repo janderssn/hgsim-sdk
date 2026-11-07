@@ -1,20 +1,20 @@
 /**
- * Landing range: a small test world for the flight feel and for landings. One ridge to launch from, a flat field
- * with a bullseye, a windsock by the field and streamers on the launch, one thermal marked by birds. The same
- * physics module, skim assist, glider model and chase camera rules as the game; a side panel sets the wind and the
- * main feel numbers live (Tab hides it, so the sock is the only wind cue).
- * Open http://127.0.0.1:4180/range/ (npm start).
+ * The landing range: a small world for tuning the flight, the launch and the landing. One ridge with a ramp and a cliff to
+ * launch from, a flat field with a bullseye, a windsock by the field and streamers on the launch, one thermal marked by
+ * birds. A side panel sets the wind and the main feel numbers live (Tab hides it, so the sock is the only wind cue); every
+ * round is recorded for review (tools/flight-report.mjs).
+ *
+ * This file is the app: the game loop, the launch run-up, the flight and its landing, the camera and the HUD. The world
+ * it flies over is world.js (where the ground is) and scenery.js (how it is drawn); the simulation is the library in src/.
+ * Open http://127.0.0.1:4180/range/ (npm start). URL options: wind (m/s), from (bearing, degrees), launch=real,
+ * model=original (the older flight model), assist=on (the game's terrain-skimming assist).
  */
 import * as THREE from './vendor/three.module.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { createPilotRig, addSailFlutter } from '../src/pilot-rig.js';
 import { createLaunch, stepLaunch, launchPose, windOnRun, barForSpeed, shoulderPivot } from '../src/launch.js';
 import { createTumble, stepTumble } from '../src/tumble.js';
-import { createSoaringState as createForce, stepSoaring as stepForce, scoreLanding, scrapeGround, tuneSoaring, getSoaringTuning, stallSpeed, SOARING_DEFAULTS , sampleSoaringAir , barTargetSpeed } from '../src/flight.js';
-// ?model=original flies the unmodified physics from before this work, for a side-by-side comparison.
-const MODEL = new URLSearchParams(location.search).get('model') === 'original' ? 'original' : 'force';
-const physics = MODEL === 'original' ? await import('../src/flight-classic.js') : { createSoaringState: createForce, stepSoaring: stepForce };
-const { createSoaringState, stepSoaring } = physics;
+import { createSoaringState as createForce, stepSoaring as stepForce, scoreLanding, scrapeGround, tuneSoaring, getSoaringTuning, stallSpeed, SOARING_DEFAULTS, sampleSoaringAir, barTargetSpeed } from '../src/flight.js';
 import { updateSkimPose, getSkimClearance } from '../src/skim-pose.js';
 import { createWind, describeWind, compassName, directionFromBearing, bearingFromDirection } from '../src/wind.js';
 import { createWindsock, createStreamer, createWindIndicators } from './wind-indicators.js';
@@ -23,6 +23,12 @@ import { createAudio } from './audio.js';
 import { createGamepad } from './gamepad.js';
 import { createLandingCues, dropToImpact } from '../src/landing-cues.js';
 import { createFlightRecorder } from '../src/flight-recorder.js';
+import { terrainHeight, slopeAt, landableAt, LAUNCH, MARK, THERMAL, RUN_DIST, WING_CARRY, DECK_FALL, DECK_BACK, DECK_LIP, deckY, deckLine, CLIFF, rockTop, groundUnder } from './world.js';
+import { buildScenery } from './scenery.js';
+
+// ?model=original flies the older, simpler flight model (src/flight-classic.js), for a side-by-side comparison.
+const MODEL = new URLSearchParams(location.search).get('model') === 'original' ? 'original' : 'force';
+const { createSoaringState, stepSoaring } = MODEL === 'original' ? await import('../src/flight-classic.js') : { createSoaringState: createForce, stepSoaring: stepForce };
 
 const $ = id => document.getElementById(id);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -30,28 +36,6 @@ const lerp = (a, b, t) => a + (b - a) * t;
 const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 const DEG = Math.PI / 180;
 const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
-
-/* ---------- terrain: a north ridge (launch), a flat field (the mark) and gentle meadows around ---------- */
-function hash(x, y) { let n = Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263); n = Math.imul(n ^ (n >>> 13), 1274126177); return ((n ^ (n >>> 16)) >>> 0) / 4294967295; }
-function noise(x, z) {
-  const ix = Math.floor(x), iz = Math.floor(z), fx = x - ix, fz = z - iz, u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz);
-  return lerp(lerp(hash(ix, iz), hash(ix + 1, iz), u), lerp(hash(ix, iz + 1), hash(ix + 1, iz + 1), u), v);
-}
-const LAUNCH = { x: 0, z: -560, heading: 0 };
-const MARK = { x: 0, z: 0, radius: 60 };
-const THERMAL = { x: 430, z: 330, radius: 160, strength: 4.5 };
-export function terrainHeight(x, z) {
-  // The launch ridge to the north. Its foot is a long curve, like a ski jump's run-out, so a fast run down the hill can be flown out into a skim.
-  const ridge = 190 * smooth(-110, -680, z) + 60 * smooth(-700, -1150, z);
-  const east = 70 * smooth(620, 1200, x) + 45 * smooth(-700, -1250, x);                   // low valley sides
-  const south = 35 * smooth(800, 1300, z);
-  const rolling = 7 * noise(x / 210 + 3, z / 210 - 5) + 2.2 * noise(x / 64, z / 64) + 0.5 * noise(x / 18, z / 18);
-  const field = 1 - smooth(85, 170, Math.hypot(x - MARK.x, z - MARK.z));                 // the field is mown flat
-  const ridgeSide = 14 * noise(x / 150, z / 150) * smooth(-150, -500, z);                 // the slope has some shape
-  return ridge + east + south + ridgeSide + rolling * (1 - field) - 1.4 * field;
-}
-const slopeAt = (x, z, d = 6) => Math.hypot(terrainHeight(x + d, z) - terrainHeight(x - d, z), terrainHeight(x, z + d) - terrainHeight(x, z - d)) / (2 * d);
-const landableAt = (x, z) => slopeAt(x, z) < .42;
 
 /* ---------- scene ---------- */
 const renderer = new THREE.WebGLRenderer({ canvas: $('world'), antialias: true, powerPreference: 'high-performance' });
@@ -65,39 +49,13 @@ const sun = new THREE.DirectionalLight(0xffe4c0, 3); sun.position.set(-900, 1300
 sun.shadow.mapSize.set(2048, 2048); Object.assign(sun.shadow.camera, { left: -420, right: 420, top: 420, bottom: -420, near: 10, far: 4000 }); sun.shadow.bias = -.0002; sun.shadow.normalBias = 1;
 scene.add(sun, sun.target);
 
-{ // terrain mesh with vertex colours by height and slope
-  const SIZE = 3200, SEG = 240, g = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG); g.rotateX(-Math.PI / 2);
-  const p = g.attributes.position, colors = new Float32Array(p.count * 3), c = new THREE.Color();
-  const meadow = new THREE.Color('#6f9b46'), dry = new THREE.Color('#9aa65a'), rock = new THREE.Color('#8d8a80'), mown = new THREE.Color('#7fb155'), stripe = new THREE.Color('#74a64c');
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i), z = p.getZ(i), y = terrainHeight(x, z); p.setY(i, y);
-    const s = slopeAt(x, z, 8), field = 1 - smooth(70, 150, Math.hypot(x - MARK.x, z - MARK.z));
-    c.copy(meadow).lerp(dry, smooth(40, 230, y) * .5).lerp(rock, smooth(.45, .85, s));
-    c.lerp(Math.floor((x + 1600) / 22) % 2 ? mown : stripe, field);
-    c.multiplyScalar(.92 + .08 * noise(x / 40, z / 40));
-    colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
-  }
-  g.setAttribute('color', new THREE.BufferAttribute(colors, 3)); g.computeVertexNormals();
-  const terrain = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 })); terrain.receiveShadow = true; scene.add(terrain);
-}
-{ // the mark: bullseye rings on the field, and the 60 m landing zone
-  const ring = (inner, outer, color, y = .07) => { const m = new THREE.Mesh(new THREE.RingGeometry(inner, outer, 64), new THREE.MeshStandardMaterial({ color, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 })); m.rotation.x = -Math.PI / 2; m.position.set(MARK.x, terrainHeight(MARK.x, MARK.z) + y, MARK.z); m.receiveShadow = true; scene.add(m); return m; };
-  ring(0, 6, '#e23c2e', .09); ring(6, 7.2, '#f6f1e6', .085); ring(13.8, 15, '#f6f1e6'); ring(28.6, 30, '#f6f1e6'); ring(59, 60, '#f6f1e6', .06);
-  // Corner markers on the field: four white cones a pilot can judge drift against.
-  for (const [x, z] of [[-70, -70], [70, -70], [-70, 70], [70, 70]]) { const cone = new THREE.Mesh(new THREE.ConeGeometry(.9, 2.4, 10), new THREE.MeshStandardMaterial({ color: '#f6f1e6', roughness: .8 })); cone.position.set(x, terrainHeight(x, z) + 1.2, z); cone.castShadow = true; scene.add(cone); }
-}
-// The launch: a rock buttress with a timber ramp on top, so the run starts on real ground at the height the flight starts from.
-// It is scenery only: the flight's ground stays the ridge below it.
-// The ramp slopes down and out from the cliff. The wing is carried WING_CARRY above the feet and follows it down, then over the last
-// RUN_BLEND metres it starts to fly and levels out, so it reaches the point where the flight starts in level flight, with the deck falling away below.
-const REST = createLaunch();   // the resting wing, bar on the ground, for the pose while standing at a launch
-const RUN_DIST = 18, RUN_BLEND = 6, WING_CARRY = .95, FLIGHT_Y = terrainHeight(LAUNCH.x, LAUNCH.z) + 60;
-const DECK_FALL = .22, DECK_TOP = FLIGHT_Y - WING_CARRY - DECK_FALL * RUN_BLEND / 2, DECK_BACK = -RUN_DIST - 4, DECK_LIP = 6;
-const CLIFF_EDGE = -RUN_DIST, ROCK_TOP = DECK_TOP + DECK_FALL * 12 - .6;   // the deck starts on the rock and leaves it at the edge
-const deckY = z => DECK_TOP - DECK_FALL * clamp(z - LAUNCH.z, DECK_BACK, DECK_LIP);
-// The rocks' solid shape (their rings, a little inside the drawn wobble): the top of rock under (x, z), or -Infinity.
-const RANGE_ROCKS = [];
-const groundUnder = (x, z) => Math.max(terrainHeight(x, z), rockTop(x, z), Math.abs(x - LAUNCH.x) < 3.5 && z > LAUNCH.z + DECK_BACK && z < LAUNCH.z + DECK_LIP ? deckY(z) : -Infinity);
+const { birds } = buildScenery(THREE, scene);   // (the birds circle the thermal: the only cue for it, as in the game)
+
+// The resting wing, bar on the ground, for the pose while standing at a launch.
+const REST = createLaunch();
+// tumble: a launch or a landing gone wrong, carried on as a rigid body (src/tumble.js); wreck: where it came to rest.
+// pilotStand: sitting up in flight by choice (Space), for drag and a slow landing. pivotHeld: how much of the wing still turns
+// about the shoulders just after lift-off.
 let tumble = null, wreck = null, pilotStand = false, pivotHeld = 0;
 /** The flight ends against something: the glider as drawn, at the flight's own velocity (wind drift and sink), becomes a tumbling body. */
 function tumbleFromFlight() {
@@ -105,84 +63,10 @@ function tumbleFromFlight() {
   tumble = createTumble({ x: player.position.x, y: player.position.y, z: player.position.z, pitch: player.rotation.x, heading: player.rotation.y, roll: player.rotation.z,
     velocity: [fx * h + (soaring.windX || 0), verticalSpeed, fz * h + (soaring.windZ || 0)], yawRate: soaring.headingRate || 0, ground: groundUnder, wind: { x: wind.x, z: wind.z } });
   tumble.inRound = true; takeoff = null; mode = 'tumbling';
-}   // pilotStand: sitting up in flight by choice (Space): drag, for a slow landing   // a launch gone wrong, carried on by physics (launch-crash.js), and where it came to rest
-function rockTop(x, z) {
-  let top = -Infinity;
-  for (const r of RANGE_ROCKS) {
-    const inside = k => { const rx = (11 + 34 * k * k + 5 * k) * .88, rz = (17 + 40 * k * k + 6 * k - r.undercut * smooth(0, .2, k)) * .88; return ((x - r.cx) / rx) ** 2 + ((z - r.cz) / rz) ** 2 <= 1; };
-    if (!inside(1)) continue;
-    let lo = 0, hi = 1; if (!inside(0)) { for (let i = 0; i < 14; i++) { const k = (lo + hi) / 2; if (inside(k)) hi = k; else lo = k; } } else hi = 0;
-    top = Math.max(top, r.top - .5 - 78 * hi * hi * .55 - 78 * hi * .45);
-  }
-  return top;
 }
-// The deck's line carried on past the lip at its own slope: where a body that runs off the end is in the step that takes it off.
-const deckLine = z => DECK_TOP - DECK_FALL * Math.max(z - LAUNCH.z, DECK_BACK);
 // The cliff launch, on its own rock beside the ramp: stand at the edge and step off. The flight starts slow, so the wing dives until it has airspeed.
 // Prone on the bar, the pilot holds it in a little until the wing is flying, so the nose keeps dropping as the speed builds; pushing out cancels that.
 const STEP_OFF = { airspeed: 5, pathAngle: -.3 }, DIVE_BAR = -.3, DIVE_UNTIL = 16;
-const CLIFF = (() => { const x = LAUNCH.x + 40, cz = LAUNCH.z - 22, edge = cz + 17 * (1 + (noise(7, 2.6) - .5) * .3), top = terrainHeight(x, edge) + 62; return { x, cz, edge, top, ground: top - .4, y: top - .4 + 2.3, z: edge - 1.5 }; })();
-{
-  const rock = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95, flatShading: true });
-  const makeRock = (cx, cz, top, undercut = 0) => { RANGE_ROCKS.push({ cx, cz, top, undercut });
-  const rings = 16, sides = 36, verts = [], faces = [], colors = [], grey = new THREE.Color('#8d8a80'), moss = new THREE.Color('#71794f'), cap = new THREE.Color('#7c9a4b'), c = new THREE.Color();
-  for (let r = 0; r <= rings; r++) {
-    const k = r / rings, y = top - .5 - 78 * k * k * .55 - 78 * k * .45, rx = 11 + 34 * k * k + 5 * k, rz = 17 + 40 * k * k + 6 * k - undercut * smooth(0, .2, k);
-    for (let s = 0; s < sides; s++) {
-      const a = s / sides * Math.PI * 2, n = noise(Math.cos(a) * 2.6 + r * .35 + 7, Math.sin(a) * 2.6 - r * .3), wob = 1 + (n - .5) * (.3 + .4 * Math.min(1, k * 3));
-      verts.push(cx + Math.cos(a) * rx * wob, y + (noise(a * 3, r * 1.3) - .5) * 3 * Math.min(1, k * 4), cz + Math.sin(a) * rz * wob);
-      c.copy(grey).lerp(moss, smooth(.5, 1, k) * .9).lerp(cap, 1 - smooth(0, .12, k)).multiplyScalar(.74 + .42 * noise(a * 5 + 3, r * 1.4)); colors.push(c.r, c.g, c.b);
-      const b = (s + 1) % sides; if (r < rings) faces.push(r * sides + s, r * sides + b, (r + 1) * sides + s, r * sides + b, (r + 1) * sides + b, (r + 1) * sides + s);
-    }
-  }
-  const lid = verts.length / 3; verts.push(cx, top - .4, cz); colors.push(cap.r, cap.g, cap.b); for (let s = 0; s < sides; s++) faces.push(lid, (s + 1) % sides, s);
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); g.setIndex(faces); g.computeVertexNormals();
-  const m = new THREE.Mesh(g, rock); m.castShadow = m.receiveShadow = true; scene.add(m);
-  };
-  const cx = LAUNCH.x, cz = LAUNCH.z + CLIFF_EDGE - 17;
-  makeRock(cx, cz, ROCK_TOP); makeRock(CLIFF.x, CLIFF.cz, CLIFF.top, 8);   // undercut, so the wing falls clear of the face
-  const timber = new THREE.MeshStandardMaterial({ color: '#776954', roughness: .85 });
-  for (let z = DECK_BACK; z < DECK_LIP; z += 1.5) { const plank = new THREE.Mesh(new THREE.BoxGeometry(7, .14, 1.38 * Math.hypot(1, DECK_FALL)), timber); plank.position.set(LAUNCH.x, deckY(LAUNCH.z + z + .75) - .07, LAUNCH.z + z + .75); plank.rotation.x = Math.atan(DECK_FALL); plank.castShadow = plank.receiveShadow = true; scene.add(plank); }
-  // A timber between two points, for the stringers under the deck and the struts down to the cliff face.
-  const beam = (x, y0, z0, y1, z1, r) => { const a = new THREE.Vector3(x, y0, z0), b = new THREE.Vector3(x, y1, z1), d = b.clone().sub(a), t = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.2, d.length(), 6), timber); t.position.copy(a).addScaledVector(d, .5); t.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); t.castShadow = true; scene.add(t); };
-  // Height of the cliff face at z: the rock's front widens as it falls.
-  const faceY = z => { let lo = 0, hi = 1; for (let i = 0; i < 16; i++) { const k = (lo + hi) / 2; if (17 + 40 * k * k + 6 * k < z - cz) lo = k; else hi = k; } return ROCK_TOP - .5 - 78 * lo * lo * .55 - 78 * lo * .45; };
-  for (const x of [-3.1, 3.1]) {
-    const at = z => LAUNCH.z + z;
-    beam(LAUNCH.x + x, deckY(at(DECK_BACK)) - .25, at(DECK_BACK), deckY(at(DECK_LIP)) - .25, at(DECK_LIP), .13);
-    for (const z of [DECK_BACK + 1, CLIFF_EDGE + 1]) beam(LAUNCH.x + x, deckY(at(z)) - .2, at(z), ROCK_TOP - 1, at(z), .14);
-    for (const [z, foot] of [[-9, -15], [-2, -10], [DECK_LIP - .6, -6]]) beam(LAUNCH.x + x, deckY(at(z)) - .25, at(z), faceY(at(foot)) - 1, at(foot) - 1, .14);
-  }
-}
-{ // trees: instanced trunks and crowns, away from the field and the launch
-  const n = 700, trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(.22, .34, 3.2, 6), new THREE.MeshStandardMaterial({ color: '#5a4332', roughness: .95 }), n);
-  const crown = new THREE.InstancedMesh(new THREE.ConeGeometry(2.6, 8.5, 7), new THREE.MeshStandardMaterial({ color: '#2f5f33', roughness: .92 }), n);
-  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), V = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0); let k = 0;
-  for (let i = 0; i < 6000 && k < n; i++) {
-    const x = (hash(i, 7) - .5) * 2800, z = (hash(i, 11) - .5) * 2800;
-    if (Math.hypot(x - MARK.x, z - MARK.z) < 150 || (Math.abs(x - LAUNCH.x) < 70 && Math.abs(z - LAUNCH.z) < 60)) continue;
-    if (slopeAt(x, z) > .75 || hash(i, 13) > .35 + .5 * noise(x / 300, z / 300)) continue;
-    const s = .8 + hash(i, 17) * .7, y = terrainHeight(x, z);
-    Q.setFromAxisAngle(Y, hash(i, 19) * 6.28); V.set(x, y + 1.5 * s, z); M.compose(V, Q, S.set(s, s, s)); trunk.setMatrixAt(k, M);
-    V.set(x, y + 3 * s + 4.2 * s, z); M.compose(V, Q, S.set(s, s, s)); crown.setMatrixAt(k, M); k++;
-  }
-  trunk.count = crown.count = k; trunk.castShadow = crown.castShadow = true; crown.receiveShadow = true; scene.add(trunk, crown);
-}
-{ // Grass tufts and stones: close detail that rushes past when flying low, so speed reads near the ground.
-  const n = 9000, grass = new THREE.InstancedMesh(new THREE.ConeGeometry(.55, 1.1, 5), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1 }), n);
-  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), V = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0), col = new THREE.Color(); let k = 0;
-  for (let i = 0; i < 30000 && k < n; i++) {
-    const x = (hash(i, 23) - .5) * 2400, z = (hash(i, 29) - .5) * 2400;
-    if (Math.hypot(x - MARK.x, z - MARK.z) < 66) continue;
-    const size = .6 + hash(i, 31) * 1.3; Q.setFromAxisAngle(Y, hash(i, 37) * 6.28); V.set(x, terrainHeight(x, z) + .4 * size, z); M.compose(V, Q, S.set(size, size * (.7 + hash(i, 41)), size)); grass.setMatrixAt(k, M);
-    col.set('#6f9b46').lerp(new THREE.Color('#b3b25c'), hash(i, 43)).multiplyScalar(.75 + hash(i, 47) * .35); grass.setColorAt(k, col); k++;
-  }
-  grass.count = k; grass.userData.noShadow = true; scene.add(grass);
-}
-// Birds circling the thermal: the only cue for it, as in the game.
-const birds = [];
-{ const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-1.6, 0, .5), new THREE.Vector3(0, .35, 0), new THREE.Vector3(1.6, 0, .5)]);
-  for (let i = 0; i < 6; i++) { const b = new THREE.Line(geo, new THREE.LineBasicMaterial({ color: '#2a3a44' })); scene.add(b); birds.push(b); } }
 
 /* ---------- wind and its indicators ---------- */
 const params = new URLSearchParams(location.search);
@@ -260,7 +144,7 @@ function launch() {
   hideCard(); runUp = { t: 0, launch: createLaunch() };
 }
 /**
- * The launch (launch-run.js): the wing is picked up, balanced and run with until it flies or the ground ends, then the flight takes
+ * The launch (src/launch.js): the wing is picked up, balanced and run with until it flies or the ground ends, then the flight takes
  * over from the wing's own place and speed. Off the edge below flying speed it dives for its airspeed. A crosswind that lifts a
  * wing ends the launch.
  */
@@ -363,7 +247,7 @@ function updateFlight(dt) {
   }
 }
 function touchdown(contact) {
-  // A crash is not decided here: the glider carries on as a body, from the flight's own state, until it comes to rest (launch-crash.js).
+  // A crash is not decided here: the glider carries on as a body, from the flight's own state, until it comes to rest (src/tumble.js).
   if (!contact.settled && scoreLanding(contact, MARK).judged === 'crash') { tumbleFromFlight(); return; }
   result = scoreLanding(contact, MARK);
   if (result.judged === 'crash') audio.emit('crash', { severity: clamp(contact.verticalSpeed / 7, .25, 1), kind: 'terrain' }); else audio.emit('touchdown', { speed: contact.airspeed, contact: contact.verticalSpeed, soft: result.judged === 'soft' });
@@ -514,7 +398,7 @@ function frame(now) {
   // The pilot goes prone once the wing is flying (or as they pull in to dive for it).
   if (takeoff && takeoff.proneAt == null && (takeoff.launch?.cliff || soaring.airspeed >= 1.05 * stallSpeed(0) || (soaring.bar || 0) < -.25)) takeoff.proneAt = takeoff.t;
   const tk = takeoff?.t ?? 9, standing = mode === 'ready';
-  // The launch (launch-run.js): the wing is picked up off the ground, balanced on the shoulders and run with until it flies or the
+  // The launch (src/launch.js): the wing is picked up off the ground, balanced on the shoulders and run with until it flies or the
   // ground falls away; from there the flight carries it and the pilot folds up into the pod. Off an edge below flying speed the
   // pilot goes straight down prone on the bar for the dive, and eases back as the wing gets its airspeed.
   const launching = runUp?.launch ?? (standing ? REST : null), pose = launching ? launchPose(launching, rig?.step ?? 0) : null;

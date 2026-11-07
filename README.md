@@ -1,0 +1,128 @@
+# above-core
+
+The hang-glider simulation from **Above**, and the landing range used to tune it.
+
+- **`src/`** is the library: plain ES modules with no dependencies. It covers the flight model, the launch run, the crash tumble, landing cues, the pilot's body, terrain following, wind and a flight recorder.
+- **`range/`** is the landing range: a small Three.js world with a ramp and a cliff to launch from, a field with a bullseye, and a thermal. It is for flying the library by hand, with live tuning and every round recorded.
+
+The units are metres, seconds and radians throughout.
+
+## Quick start
+
+```bash
+npm start          # the landing range at http://127.0.0.1:4180/range/
+npm test           # unit tests (Node 20+)
+npm run check:range  # flies the range end to end in a headless Chrome or Edge
+```
+
+No install step is needed. Three.js is vendored under `range/vendor/`, and nothing else is used.
+
+## The library
+
+```js
+import { createSoaringState, stepSoaring } from 'above-core';
+
+const glider = createSoaringState({ x: 0, y: 60, z: 0, heading: 0 });
+const environment = { terrainHeight: (x, z) => 0, wind: { x: 0, z: -3 }, thermals: [] };
+stepSoaring(glider, { roll: 0, pitch: 0 }, 1 / 60, environment);   // call each frame, or in a loop offline
+```
+
+`examples/glide.mjs` and `examples/launch.mjs` run as they are:
+
+```text
+$ node examples/glide.mjs
+stall 35 km/h; glided 553 m in 55.3 s, 48 km/h airspeed, sinking 0.69 m/s at the ground
+landing hands off: firm Firm touchdown; Into wind; No flare
+
+$ node examples/launch.mjs
+0.00 s  pickup
+1.50 s  balance
+2.10 s  run
+4.40 s  off the ground (flying) after 7.5 m at 9.9 m/s airspeed
+```
+
+### Modules
+
+| Module | What it does |
+|---|---|
+| `flight.js` | Models the wing as forces: lift, drag, ground effect, stall, flare and push-out bar pressure. It also models the air it flies in: wind, thermals and ridge lift. It judges and scores a touchdown, and `tuneSoaring` changes its numbers live. |
+| `flight-classic.js` | The older, simpler flight model, kept for side-by-side comparison. In the range, use `?model=original`. |
+| `launch.js` | Covers picking the wing up, balancing it on the shoulders, the run and the lift-off. It runs on the flight model's own lift and drag, and steps the flight state the flight then keeps. That makes the run and the flight one physics. In Easy mode it runs itself. In Realistic mode (`manual`) the pilot balances with A/D, holds the nose with W/S, and starts and jumps with Space. |
+| `tumble.js` | Turns a launch or landing gone wrong into a rigid body. It has gravity, a flat-plate sail and ground contact with friction, and runs until the wreck comes to rest. |
+| `landing-cues.js` | Works out when to round out and flare, and draws the cues for it. |
+| `pilot-rig.js` | Poses the pilot's body on the skinned glider model, from prone to upright. It covers standing inside the control frame with the uprights on the shoulders, the run, and the swing into the harness after a launch. It also covers weight shift, push-out, and moving one hand at a time between bar and uprights. It takes `THREE` as an argument. |
+| `terrain-skimming.js`, `skim-pose.js` | The optional assist that keeps a low glider off the ground. The range flies without it unless you add `?assist=on`. |
+| `wind.js` | Live wind: a mean speed and direction with a meander and gusts. |
+| `flight-recorder.js` | Records each round as samples and marked moments. `tools/flight-report.mjs` reads them back. |
+
+`src/index.js` re-exports the public API. You can also import the files directly, for example `above-core/launch`.
+
+### Conventions
+
+- **Frame:** x is east, y is up and z is north.
+- **Heading:** a heading `h` flies along `(sin h, cos h)`. A model drawn with `rotation.set(pitch, heading, roll, 'YXZ')` faces the way it flies.
+- **Wind:** the wind vector `{x, z}` is where the air is going, in m/s. `directionFromBearing` and `bearingFromDirection` convert to and from compass bearings ("from 190°").
+- **Controls:**
+  - `roll` is −1 for left and +1 for right.
+  - `pitch` is the bar: −1 pulls in (dive) and +1 pushes out (slow and flare).
+  - On a launch, `balance` +1 shifts right, which lowers the right wing, the same as in flight.
+
+## The landing range
+
+Open `http://127.0.0.1:4180/range/` after `npm start`.
+
+### URL options
+
+| Option | Effect |
+|---|---|
+| `wind` | Wind speed in m/s. |
+| `from` | Bearing the wind comes from, in degrees. |
+| `launch=real` | Realistic launches. |
+| `model=original` | The older flight model. |
+| `assist=on` | Terrain skimming. |
+
+The side panel sets the wind and the main feel numbers live. Tab hides it.
+
+### Controls
+
+| Key | On the ground | In the air |
+|---|---|---|
+| Space | Launch. In Realistic mode, a second press starts the run and a third jumps. | Sit up for drag and a slow landing, or lie prone again. |
+| W / S | Hold the nose down or up (Realistic). | Pull in to dive, or push out to slow down. Hold S low to flare. |
+| A / D | Balance the wing (Realistic). | Weight shift, to turn. |
+
+On a gamepad:
+- The left stick steers and moves the bar.
+- RT dives and LT pushes out.
+- A launches.
+
+### Recorded flights
+
+Every round is saved to `work/flights/`, which git ignores. To list them, or to see the latest in detail:
+
+```bash
+npm run flights
+npm run flights -- latest
+```
+
+The open range reloads itself when `src/` or `range/` changes. It waits until you are standing at the launch.
+
+### Code layout
+
+| File | What it holds |
+|---|---|
+| `range/main.js` | The app: the loop, the launch run-up, flight and landing, camera and HUD. |
+| `range/world.js` | Where the ground is: the terrain, the deck and the rocks. These are pure functions, and the physics asks them. |
+| `range/scenery.js` | Draws that same world. |
+| `range/audio.js`, `gamepad.js`, `wind-indicators.js`, `speed-streaks.js` | Presentation. |
+
+`window.rangeDemo` exposes the range's state and hooks for scripted checks, as `tools/range-check.mjs` does.
+
+## Tests and checks
+
+- **`npm test`:** the unit tests in `tests/`. They cover the flight model, the launch (both modes, the nose and the cliff), landing cues, terrain skimming, the recorder, audio and the range's world.
+- **`npm run check:range`:** starts its own server and flies the range in a headless browser. It runs an Easy ramp launch, an Easy cliff launch, a Realistic launch flown by a simple scripted pilot, sitting up and lying prone in flight, and a landing from overhead. It also checks for page errors.
+
+## Origin
+
+This was extracted from Above at commit `fbea2b6`, on branch `claude/flight-physics-landing-a61a59`. Its behaviour is unchanged.

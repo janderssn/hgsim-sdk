@@ -1,5 +1,5 @@
 /**
- * Wind indicators: a windsock on a pole and a streamer (ribbon) on a stick. Both read a live wind object
+ * Wind indicators: a windsock on a pole, a streamer (ribbon) on a stick, and a paraglider-style fishing rod. Both read a live wind object
  * ({ x, z } in m/s, the direction the air travels toward, see wind.js) and show it the way the real things do:
  * a windsock stands out straight from about 7.5 m/s (15 knots) and droops as the wind drops, hanging limp when calm;
  * a light streamer already flies level at 3 m/s and flutters. Both point downwind. The sock and ribbon are rebuilt as
@@ -18,7 +18,7 @@ function bands(THREE, count, a, b) { const out = []; for (let i = 0; i < count; 
  * A chain of rings (sock) or a flat ribbon (streamer) hung from an anchor, drooping with low wind.
  * fullSpeed: wind at which it flies straight; sway/flutter scale the motion.
  */
-function createCloth(THREE, { length, radius, tipRadius, segments, sides, colors, fullSpeed, flutter, ribbon = false, weight = 1 }) {
+function createCloth(THREE, { length, radius, tipRadius, segments, sides, colors, fullSpeed, flutter, ribbon = false, upright = false, weight = 1 }) {
   const rings = segments + 1, per = ribbon ? 2 : sides + 1, count = rings * per;
   const positions = new Float32Array(count * 3), colorAttr = new Float32Array(count * 3), index = [];
   for (let k = 0; k < rings; k++) for (let j = 0; j < per; j++) {
@@ -58,7 +58,7 @@ function createCloth(THREE, { length, radius, tipRadius, segments, sides, colors
       up.crossVectors(right, forward).normalize();
       for (let j = 0; j < per; j++) {
         const o = (k * per + j) * 3;
-        if (ribbon) { q.copy(p).addScaledVector(right, (j ? 1 : -1) * r); }
+        if (ribbon) { q.copy(p).addScaledVector(upright ? up : right, (j ? 1 : -1) * r); }   // (upright: its face to the side, like a flag)
         else { const a = j / sides * Math.PI * 2; q.copy(p).addScaledVector(right, Math.cos(a) * r).addScaledVector(up, Math.sin(a) * r); }
         positions[o] = q.x; positions[o + 1] = q.y; positions[o + 2] = q.z;
       }
@@ -105,6 +105,47 @@ export function createStreamer(THREE, { pole = 2.6, length = 2.4, width = .11, s
       cloth.update(speed, yaw, time);
     },
     dispose() { cloth.dispose(); wood.dispose(); stick.geometry.dispose(); },
+  };
+}
+
+/**
+ * A paraglider-launch "fishing rod": a tall, tapered, flexible rod that bends downwind as the wind builds and bobs in the
+ * gusts, with a long light ribbon flying from its tip, so even a light breeze reads at a glance. The group's origin is the
+ * base of the rod.
+ */
+export function createWindRod(THREE, { rod = 6, length = 3.6, width = .32, segments = 10, scale = 1, color = '#e8456b' } = {}) {
+  const group = new THREE.Group(); group.name = 'WindRod';
+  const carbon = new THREE.MeshStandardMaterial({ color: '#2f3336', roughness: .45, metalness: .3 });
+  // The rod: a chain of tapering segments, each a child of the one below, so a small bend at each joint adds up to a curve.
+  const base = new THREE.Group(); group.add(base);
+  const joints = [], segLen = rod * scale / segments; let parent = base;
+  for (let i = 0; i < segments; i++) {
+    const joint = new THREE.Group(); joint.position.y = i ? segLen : 0; parent.add(joint); joints.push(joint);
+    const r0 = (.045 - .033 * i / segments) * scale, r1 = (.045 - .033 * (i + 1) / segments) * scale;
+    const piece = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, segLen, 6), carbon); piece.position.y = segLen / 2; piece.castShadow = true; joint.add(piece);
+    parent = joint;
+  }
+  const tip = new THREE.Group(); tip.position.y = segLen; parent.add(tip);
+  // The ribbon hangs in the indicator's own frame (it flies downwind in world terms), placed at the moving tip each frame.
+  const cloth = createCloth(THREE, { length: length * scale, radius: width * .5 * scale, tipRadius: width * .3 * scale, segments: 10, sides: 2,
+    colors: [new THREE.Color(color)], fullSpeed: 2.5, flutter: 2.4, ribbon: true, upright: true, weight: .8 });
+  group.add(cloth.mesh);
+  const at = new THREE.Vector3(), phase = Math.random() * 7;
+  return {
+    group, kind: 'rod',
+    update(wind, time = 0) {
+      const speed = Math.hypot(wind?.x || 0, wind?.z || 0), yaw = speed > 0.01 ? Math.atan2(wind.x, wind.z) : 0;
+      // The bend grows with the ribbon's pull (about the square of the wind) and bobs as the gusts load and unload it.
+      const load = clamp((speed / 9) ** 1.6, 0, 1), bob = (.05 + .08 * load) * Math.sin(time * 2.1 + phase) + .03 * load * Math.sin(time * 5.3 + phase * 2);
+      const bend = .05 + .95 * load + bob * clamp(speed / 2, 0, 1);
+      base.rotation.set(0, yaw, 0);
+      // Each joint takes a growing share of the bend: stiff at the butt, soft at the tip.
+      for (let i = 0; i < joints.length; i++) joints[i].rotation.x = bend * 2 * (i + 1) / (joints.length * (joints.length + 1));
+      group.updateMatrixWorld(true); tip.getWorldPosition(at); group.worldToLocal(at);
+      cloth.mesh.position.copy(at);
+      cloth.update(speed, yaw, time);
+    },
+    dispose() { cloth.dispose(); carbon.dispose(); base.traverse(o => o.geometry?.dispose()); },
   };
 }
 

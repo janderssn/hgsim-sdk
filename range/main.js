@@ -17,7 +17,7 @@ import { createTumble, stepTumble } from '../src/tumble.js';
 import { createSoaringState as createForce, stepSoaring as stepForce, scoreLanding, scrapeGround, tuneSoaring, getSoaringTuning, stallSpeed, SOARING_DEFAULTS, sampleSoaringAir, barTargetSpeed } from '../src/flight.js';
 import { updateSkimPose, getSkimClearance } from '../src/skim-pose.js';
 import { createWind, describeWind, compassName, directionFromBearing, bearingFromDirection } from '../src/wind.js';
-import { createWindsock, createStreamer, createWindIndicators } from './wind-indicators.js';
+import { createWindsock, createStreamer, createWindRod, createWindIndicators } from './wind-indicators.js';
 import { createSpeedStreaks } from './speed-streaks.js';
 import { createAudio } from './audio.js';
 import { createGamepad } from './gamepad.js';
@@ -80,8 +80,8 @@ sockAt(MARK.x + 46, MARK.z + 12);                     // by the field
 // The ramp: a windsock and streamers on its rock, around the start of the deck (clear of the wing on the run).
 sockAt(LAUNCH.x - 5, LAUNCH.z - 28, .85);
 for (const [dx, dz, c] of [[7, -32, '#f07f2c'], [-7, -37, '#f6f1e6'], [6, -26, '#f6f1e6']]) streamerAt(LAUNCH.x + dx, LAUNCH.z + dz, c);
-// The cliff: a windsock on its top, back from the edge, and a streamer near the edge.
-sockAt(CLIFF.x + 7, CLIFF.cz + 4, .85);
+// The cliff: a paraglider-style fishing rod on its top, back from the edge, and a streamer near the edge.
+{ const r = createWindRod(THREE); scene.add(r.group); indicators.add(r, CLIFF.x + 7, groundUnder(CLIFF.x + 7, CLIFF.cz + 4), CLIFF.cz + 4); }
 streamerAt(CLIFF.x - 6, CLIFF.edge - 7, '#f07f2c');
 for (const [dx, dz] of [[-52, -30], [55, 40]]) streamerAt(MARK.x + dx, MARK.z + dz, '#f07f2c');
 

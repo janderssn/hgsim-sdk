@@ -73,11 +73,16 @@ const STEP_OFF = { airspeed: 5, pathAngle: -.3 }, DIVE_BAR = -.3, DIVE_UNTIL = 1
 const params = new URLSearchParams(location.search);
 const wind = createWind({ speed: Number(params.get('wind')) || 5, direction: directionFromBearing(Number(params.get('from')) || 180), variability: 1 });
 const indicators = createWindIndicators(THREE);
-const sockAt = (x, z, scale = 1) => { const s = createWindsock(THREE, { scale }); scene.add(s.group); indicators.add(s, x, terrainHeight(x, z), z); return s; };
-const streamerAt = (x, z, color) => { const s = createStreamer(THREE, { color }); scene.add(s.group); indicators.add(s, x, terrainHeight(x, z), z); return s; };
+// Each stands on whatever is underfoot there: the deck, a rock or the terrain.
+const sockAt = (x, z, scale = 1) => { const s = createWindsock(THREE, { scale }); scene.add(s.group); indicators.add(s, x, groundUnder(x, z), z); return s; };
+const streamerAt = (x, z, color) => { const s = createStreamer(THREE, { color }); scene.add(s.group); indicators.add(s, x, groundUnder(x, z), z); return s; };
 sockAt(MARK.x + 46, MARK.z + 12);                     // by the field
-sockAt(LAUNCH.x - 16, LAUNCH.z + 4, .85);             // beside the launch
-for (const [dx, dz, c] of [[-9, -2, '#f07f2c'], [10, 5, '#f6f1e6'], [-6, 12, '#f07f2c']]) streamerAt(LAUNCH.x + dx, LAUNCH.z + dz, c);
+// The ramp: a windsock and streamers on its rock, around the start of the deck (clear of the wing on the run).
+sockAt(LAUNCH.x - 5, LAUNCH.z - 28, .85);
+for (const [dx, dz, c] of [[7, -32, '#f07f2c'], [-7, -37, '#f6f1e6'], [6, -26, '#f6f1e6']]) streamerAt(LAUNCH.x + dx, LAUNCH.z + dz, c);
+// The cliff: a windsock on its top, back from the edge, and a streamer near the edge.
+sockAt(CLIFF.x + 7, CLIFF.cz + 4, .85);
+streamerAt(CLIFF.x - 6, CLIFF.edge - 7, '#f07f2c');
 for (const [dx, dz] of [[-52, -30], [55, 40]]) streamerAt(MARK.x + dx, MARK.z + dz, '#f07f2c');
 
 /* ---------- glider ---------- */

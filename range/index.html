@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Above · Landing range</title>
+  <link rel="icon" href="data:,">
+  <style>
+    :root { color-scheme: dark; --ink: #f4f1ea; --dim: rgba(244,241,234,.62); --panel: rgba(16,20,24,.78); --accent: #f28c28; --good: #3baa4a; --warn: #f2b100; --bad: #e2323b; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #8fb2c8; font-family: "Segoe UI", system-ui, sans-serif; color: var(--ink); }
+    canvas#world { position: fixed; inset: 0; width: 100%; height: 100%; display: block; outline: none; }
+    .hud { position: fixed; inset: 0; pointer-events: none; }
+    .readout { position: absolute; left: 22px; top: 18px; display: flex; gap: 22px; text-shadow: 0 1px 3px rgba(0,0,0,.5); }
+    .readout div { display: flex; flex-direction: column; min-width: 86px; }
+    .readout b { font-size: 30px; font-weight: 800; letter-spacing: -.02em; line-height: 1; font-variant-numeric: tabular-nums; }
+    .readout small { font-size: 11px; text-transform: uppercase; letter-spacing: .14em; color: var(--dim); margin-top: 4px; }
+    .readout .vario.up b { color: #9fe29c; } .readout .vario.down b { color: #ffb3a8; }
+    .warn { position: absolute; left: 50%; top: 16%; transform: translateX(-50%); font-weight: 900; font-size: 26px; letter-spacing: .1em; color: var(--bad); text-shadow: 0 2px 8px rgba(0,0,0,.6); display: none; }
+    .warn.on { display: block; }
+    .hints { position: absolute; left: 22px; bottom: 18px; font-size: 13px; color: var(--dim); text-shadow: 0 1px 3px rgba(0,0,0,.5); line-height: 1.7; }
+    .hints b { color: var(--ink); background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.3); border-radius: 4px; padding: 0 6px; margin-right: 4px; font-size: 12px; }
+    .card { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--panel); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 22px 28px; min-width: 360px; text-align: center; display: none; pointer-events: auto; box-shadow: 0 20px 60px rgba(0,0,0,.35); }
+    .card.on { display: block; animation: pop .35s cubic-bezier(.2,1.4,.4,1); }
+    @keyframes pop { from { transform: translate(-50%, -50%) scale(.85); opacity: 0; } }
+    .card h2 { margin: 0 0 4px; font-size: 26px; font-weight: 900; letter-spacing: .04em; }
+    .card .stars { font-size: 28px; letter-spacing: .12em; color: var(--accent); margin: 2px 0 10px; }
+    .card .stars span.off { color: rgba(255,255,255,.18); }
+    .card table { margin: 0 auto 12px; border-collapse: collapse; font-size: 14px; }
+    .card td { padding: 3px 10px; text-align: left; } .card td + td { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
+    .card .pts { font-size: 34px; font-weight: 900; color: var(--accent); }
+    .card p { margin: 8px 0 0; font-size: 13px; color: var(--dim); }
+    .card.crash h2 { color: var(--bad); }
+    .hud:has(.panel:not(.hidden)) .card { left: calc((100vw - 310px) / 2); max-width: calc(100vw - 340px); }
+    .readout .alpha b { font-size: 22px; }
+    a.switch { font-size: 12px; font-weight: 700; color: var(--ink); background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.22); border-radius: 6px; padding: 6px 10px; text-decoration: none; }
+    section[hidden] { display: none; }
+    .panel { position: absolute; right: 16px; top: 16px; width: 290px; background: var(--panel); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 14px 16px; font-size: 13px; pointer-events: auto; max-height: calc(100vh - 32px); overflow: auto; }
+    .panel.hidden { display: none; }
+    .panel h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
+    .panel h3 + .row { margin-top: 4px; }
+    .panel section { margin-bottom: 14px; }
+    .row { display: grid; grid-template-columns: 1fr 64px; align-items: center; gap: 8px; margin: 6px 0; }
+    .row label { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; }
+    .row label span { color: var(--dim); font-variant-numeric: tabular-nums; }
+    .row input[type=range] { width: 100%; accent-color: var(--accent); }
+    .row.wide { grid-template-columns: 1fr; }
+    .wind-now { font-size: 15px; font-weight: 700; margin: 2px 0 6px; }
+    .wind-now small { font-weight: 400; color: var(--dim); }
+    button { font: inherit; font-size: 12px; font-weight: 700; letter-spacing: .04em; color: var(--ink); background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.22); border-radius: 6px; padding: 6px 10px; cursor: pointer; }
+    button:hover { background: rgba(255,255,255,.18); }
+    button.primary { background: var(--accent); border-color: var(--accent); color: #1a1208; }
+    .buttons { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+    .best { font-size: 12px; color: var(--dim); }
+    .best b { color: var(--accent); }
+    .toast { position: absolute; left: 50%; top: 10%; transform: translateX(-50%); background: var(--panel); border-radius: 8px; padding: 8px 16px; font-size: 14px; font-weight: 600; opacity: 0; transition: opacity .3s; }
+    .toast.on { opacity: 1; }
+    .loading { position: fixed; inset: 0; display: grid; place-items: center; background: #1a2027; font-weight: 700; letter-spacing: .2em; font-size: 14px; z-index: 5; }
+    .loading[hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <canvas id="world" tabindex="0" aria-label="Landing range"></canvas>
+  <div class="loading" id="loading">LOADING THE RANGE</div>
+  <div class="hud">
+    <div class="readout">
+      <div><b id="speed">0</b><small>km/h</small></div>
+      <div class="vario" id="varioBox"><b id="vario">0.0</b><small>m/s</small></div>
+      <div><b id="agl">0</b><small>m above ground</small></div>
+      <div><b id="dist">0</b><small>m to the mark</small></div>
+      <div class="alpha"><b id="alpha">0°</b><small>angle of attack</small></div>
+    </div>
+    <div class="warn" id="warn"></div>
+    <div class="toast" id="toast"></div>
+    <div class="hints" id="hints"></div>
+    <div class="card" id="card"></div>
+    <aside class="panel" id="panel">
+      <section>
+        <h3>Physics</h3>
+        <div class="wind-now" id="modelName">—</div>
+        <div class="buttons"><a id="modelSwitch" class="switch" href="./"></a></div>
+        <div class="wind-now" id="assistName">—</div>
+        <div class="buttons"><a id="assistSwitch" class="switch" href="./"></a></div>
+        <div class="wind-now" id="launchName">—</div>
+        <div class="buttons"><a id="launchSwitch" class="switch" href="./"></a></div>
+      </section>
+      <section>
+        <h3>Wind</h3>
+        <div class="wind-now" id="windNow">—</div>
+        <div class="row wide"><label>Mean speed <span id="windSpeedV"></span></label><input id="windSpeed" type="range" min="0" max="10" step="0.5"></div>
+        <div class="row wide"><label>Blowing from <span id="windDirV"></span></label><input id="windDir" type="range" min="0" max="359" step="1"></div>
+        <div class="row wide"><label>Variability (meander &amp; gusts) <span id="windVarV"></span></label><input id="windVar" type="range" min="0" max="1.5" step="0.1"></div>
+        <div class="buttons"><button id="windRandom">Random wind</button><button id="windCalm">Calm</button></div>
+      </section>
+      <section id="feelSection">
+        <h3>Feel (live tuning)</h3>
+        <div class="row wide"><label>All-up mass (kg) <span id="t-mass"></span></label><input data-tune="mass" type="range" min="85" max="140" step="1"></div>
+        <div class="row wide"><label>Parasite drag CD0 <span id="t-cd0"></span></label><input data-tune="cd0" type="range" min="0.025" max="0.07" step="0.001"></div>
+        <div class="row wide"><label>Bar fully in: angle of attack <span id="t-alphaMin"></span></label><input data-tune="alphaMin" type="range" min="-3" max="3" step="0.1" data-deg="1"></div>
+        <div class="row wide"><label>Bar pressure limit (g) <span id="t-loadLimit"></span></label><input data-tune="loadLimit" type="range" min="1.3" max="3" step="0.1"></div>
+        <div class="row wide"><label>Roll response (rad/s) <span id="t-rollFrequency"></span></label><input data-tune="rollFrequency" type="range" min="1.2" max="4" step="0.1"></div>
+        <div class="row wide"><label>Push-out time at stall (s) <span id="t-barOutSeconds"></span></label><input data-tune="barOutSeconds" type="range" min="0.3" max="2" step="0.1"></div>
+        <div class="row wide"><label>Ground cushion <span id="t-groundCushion"></span></label><input data-tune="groundCushion" type="range" min="0" max="6" step="0.5"></div>
+        <div class="row wide"><label>Fine bar near the ground <span id="t-lowBarSlow"></span></label><input data-tune="lowBarSlow" type="range" min="1" max="5" step="0.5"></div>
+        <div class="row wide"><label>Upright on final <span id="t-finalUpright"></span></label><input data-tune="finalUpright" type="range" min="0" max="0.6" step="0.05"></div>
+        <div class="row wide"><label>Hands-off pull-out (g) <span id="t-freeLoad"></span></label><input data-tune="freeLoad" type="range" min="1.1" max="2.2" step="0.1"></div>
+        <div class="row wide"><label>Scrape up to sink (m/s) <span id="t-scrapeSink"></span></label><input data-tune="scrapeSink" type="range" min="0" max="7" step="0.5"></div>
+        <div class="row wide"><label>Max bank <span id="t-maxBank"></span></label><input data-tune="maxBank" type="range" min="40" max="70" step="1" data-deg="1"></div>
+        <div class="buttons"><button id="tuneReset">Reset to defaults</button><button id="tuneCopy">Copy values</button></div>
+      </section>
+      <section>
+        <h3>Round</h3>
+        <div class="buttons"><button class="primary" id="btnLaunch">Launch from the ramp</button><button id="btnCliff">Step off the cliff</button><button id="btnOverhead">Start over the field</button></div>
+        <div class="best" id="best">Best round: —</div>
+        <h3 style="margin-top:12px">Flight recorder</h3>
+        <div class="best" id="recorderStatus">—</div>
+        <div class="buttons"><button id="btnMark">Mark moment (N / B)</button><button id="btnFlights">Download</button></div>
+        <p class="best" style="margin:8px 0 0">Hide this panel with <b>Tab</b> and read the windsock instead.</p>
+      </section>
+    </aside>
+  </div>
+  <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

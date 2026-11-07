@@ -123,6 +123,10 @@ The open range reloads itself when `src/` or `range/` changes. It waits until yo
 - **`npm test`:** the unit tests in `tests/`. They cover the flight model, the launch (both modes, the nose and the cliff), landing cues, terrain skimming, the recorder, audio and the range's world.
 - **`npm run check:range`:** starts its own server and flies the range in a headless browser. It runs an Easy ramp launch, an Easy cliff launch, a Realistic launch flown by a simple scripted pilot, sitting up and lying prone in flight, and a landing from overhead. It also checks for page errors.
 
+## Deploy
+
+Every push to `main` runs the tests and, if they pass, deploys the range to Fly.io at **https://hgsim.fly.dev**. It uses `.github/workflows/deploy.yml` with `Dockerfile` and `fly.toml`. The workflow needs one repository secret, `FLY_API_TOKEN`, a Fly.io organisation token. The first run creates the `hgsim` app. The deployed server saves no flights, so rounds stay in the browser and can be downloaded from the panel.
+
 ## Origin
 
 This was extracted from Above at commit `fbea2b6`, on branch `claude/flight-physics-landing-a61a59`. Its behaviour is unchanged.

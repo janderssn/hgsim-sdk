@@ -1,5 +1,6 @@
-// Serves the landing range (range/) and the library (src/) for local play-testing: node server.mjs [port]
-// Flights flown on the range are saved under work/flights (git-ignored); tools/flight-report.mjs reads them back.
+// Serves the landing range (range/) and the library (src/): node server.mjs [port]
+// Environment: PORT (default 4180), HOST (default 127.0.0.1; 0.0.0.0 in the container), SAVE_FLIGHTS (default on; off when
+// deployed, so the public site writes nothing). Saved flights go under work/flights (git-ignored); tools/flight-report.mjs reads them.
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -8,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const flights = path.join(root, 'work', 'flights');
 const watched = ['src', 'range'].map(d => path.join(root, d));
-const port = Number(process.argv[2] || process.env.PORT || 4180);
+const port = Number(process.argv[2] || process.env.PORT || 4180), host = process.env.HOST || '127.0.0.1', saveFlights = process.env.SAVE_FLIGHTS !== 'off';
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.svg': 'image/svg+xml' };
 
 /** Saves one recorded flight. Same-origin JSON only, so no other site can write here through the browser. */
@@ -35,7 +36,8 @@ function newestChange() {
 }
 
 const server = http.createServer((req, res) => {
-  if (req.method === 'POST' && req.url === '/__flights') { saveFlight(req, res); return; }
+  if (req.method === 'POST' && req.url === '/__flights') { if (saveFlights) saveFlight(req, res); else res.writeHead(404).end(); return; }   // (the range then keeps rounds in the browser)
+  if (req.url === '/healthz') { res.writeHead(200, { 'Content-Type': 'text/plain' }).end('ok'); return; }
   if (req.url === '/__version') { res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' }).end(String(newestChange())); return; }
   let pathname;
   try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname); } catch { res.writeHead(400).end(); return; }
@@ -47,4 +49,4 @@ const server = http.createServer((req, res) => {
   res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache' });
   fs.createReadStream(file).pipe(res);
 });
-server.listen(port, '127.0.0.1', () => console.log(`Landing range: http://127.0.0.1:${port}/range/`));
+server.listen(port, host, () => console.log(`Landing range: http://${host}:${port}/range/${saveFlights ? '' : ' (not saving flights)'}`));

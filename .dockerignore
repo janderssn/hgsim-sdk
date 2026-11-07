@@ -1,0 +1,8 @@
+.git
+.github
+node_modules
+work
+tests
+tools
+examples
+*.md

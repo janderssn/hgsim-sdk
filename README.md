@@ -82,8 +82,8 @@ Open `http://127.0.0.1:4180/range/` after `npm start`.
 
 | Option | Effect |
 |---|---|
-| `wind` | Wind speed in m/s. |
-| `from` | Bearing the wind comes from, in degrees. |
+| `wind` | Wind speed in m/s. The default is 5. |
+| `from` | Bearing the wind comes from, in degrees. The default, 180, blows straight up the launch. 225 gives a 45° crosswind for practice. |
 | `launch=real` | Realistic launches. |
 | `model=original` | The older flight model. |
 | `assist=on` | Terrain skimming. |

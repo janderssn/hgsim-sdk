@@ -69,8 +69,9 @@ function tumbleFromFlight() {
 const STEP_OFF = { airspeed: 5, pathAngle: -.3 }, DIVE_BAR = -.3, DIVE_UNTIL = 16;
 
 /* ---------- wind and its indicators ---------- */
+// The wind: ?wind (m/s, default 5) and ?from (the bearing it blows from; 180, the default, is straight up the launch).
 const params = new URLSearchParams(location.search);
-const wind = createWind({ speed: Number(params.get('wind')) || 5, direction: directionFromBearing(Number(params.get('from')) || 225), variability: 1 });
+const wind = createWind({ speed: Number(params.get('wind')) || 5, direction: directionFromBearing(Number(params.get('from')) || 180), variability: 1 });
 const indicators = createWindIndicators(THREE);
 const sockAt = (x, z, scale = 1) => { const s = createWindsock(THREE, { scale }); scene.add(s.group); indicators.add(s, x, terrainHeight(x, z), z); return s; };
 const streamerAt = (x, z, color) => { const s = createStreamer(THREE, { color }); scene.add(s.group); indicators.add(s, x, terrainHeight(x, z), z); return s; };

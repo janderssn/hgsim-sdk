@@ -9,7 +9,8 @@ const CANDIDATES = [
   process.env.CHROME_PATH,
   'C:/Program Files/Google/Chrome/Application/chrome.exe',
   'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
-  '/usr/bin/google-chrome', '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
 ].filter(Boolean);
 
 export async function launchChrome({ port = 9333, width = 1280, height = 720, headless = true, uncapped = false } = {}) {
@@ -19,16 +20,41 @@ export async function launchChrome({ port = 9333, width = 1280, height = 720, he
   const args = [`--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, `--window-size=${width},${height}`,
     '--no-first-run', '--no-default-browser-check', '--disable-background-timer-throttling',
     '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--autoplay-policy=no-user-gesture-required', '--mute-audio',
-    '--enable-gpu', '--ignore-gpu-blocklist', '--use-angle=d3d11', 'about:blank'];
+    '--enable-gpu', '--ignore-gpu-blocklist', 'about:blank'];
+  if (process.platform === 'win32') args.unshift('--use-angle=d3d11');
   if (headless) args.unshift('--headless=new');
   // Uncapped: no vsync or frame-rate limit, so fps measures capacity rather than the 60 Hz cap.
   if (uncapped) args.unshift('--disable-gpu-vsync', '--disable-frame-rate-limit');
   const child = spawn(exe, args, { stdio: 'ignore', detached: false });
-  for (let i = 0; i < 100; i++) {
-    try { const r = await fetch(`http://127.0.0.1:${port}/json/version`); if (r.ok) return { child, port, profile }; } catch {}
-    await new Promise(r => setTimeout(r, 100));
+  let launchError = null;
+  child.once('error', error => { launchError = error; });
+  let closing = null;
+  const close = () => closing ??= (async () => {
+    if (child.exitCode === null && child.signalCode === null && !launchError) {
+      await new Promise(resolve => {
+        const force = setTimeout(() => child.kill('SIGKILL'), 3000);
+        child.once('exit', () => { clearTimeout(force); resolve(); });
+        child.kill();
+      });
+    }
+    // Chromium subprocesses may finish writing briefly after the parent exits.
+    await fs.promises.rm(profile, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  })();
+  try {
+    for (let i = 0; i < 100; i++) {
+      if (launchError) throw launchError;
+      if (child.exitCode !== null || child.signalCode !== null) break;
+      try {
+        const r = await fetch(`http://127.0.0.1:${port}/json/version`);
+        if (r.ok) return { child, port, profile, close };
+      } catch {}
+      await sleep(100);
+    }
+    throw new Error('Chrome did not open its debugging port.');
+  } catch (error) {
+    await close();
+    throw error;
   }
-  child.kill(); throw new Error('Chrome did not open its debugging port.');
 }
 
 export async function connect({ port = 9333, match } = {}) {

@@ -118,17 +118,53 @@ The open range reloads itself when `src/` or `range/` changes. It waits until yo
 
 | File | What it holds |
 |---|---|
-| `range/main.js` | The app: the loop, the launch run-up, flight and landing, camera and HUD. |
+| `range/main.js` | Composes the range and owns its launch, flight, landing and crash transitions. |
+| `range/simulation-loop.js`, `motion.js` | Fixed simulation ticks and interpolated drawing snapshots. |
+| `range/controls.js` | Keyboard/gamepad normalization and continuous bar control through lift-off. |
+| `range/camera.js`, `hud.js` | Chase-camera smoothing and change-only HUD updates. |
+| `range/rendering.js` | Adaptive framebuffer, shadow and terrain detail for the current device. |
 | `range/world.js` | Where the ground is: the terrain, the deck and the rocks. These are pure functions, and the physics asks them. |
 | `range/scenery.js` | Draws that same world. |
 | `range/audio.js`, `gamepad.js`, `wind-indicators.js`, `speed-streaks.js` | Presentation. |
 
 `window.rangeDemo` exposes the range's state and hooks for scripted checks, as `tools/range-check.mjs` does.
 
+### Simulation and rendering
+
+The simulation advances at 60 fixed ticks per second. Rendering interpolates between
+physical snapshots, so display refresh rate does not change launch timing or control
+response. A tick advances one lifecycle phase; lift-off does not also run a second
+flight step. Catch-up is bounded to 250 ms, and hidden tabs pause and discard their
+backlog when resumed. Crash bodies start from the current physical pose, even when
+several simulation ticks run between rendered frames.
+
+Controls held during the run retain their launch trim through lift-off and release.
+A fresh input or reversal then takes over the airborne bar. This prevents a held S
+key from accidentally releasing the launch trim on the next frame.
+
+Rendering starts at full detail and reduces resolution, shadows and terrain mesh
+density and distant grass after sustained slow frames. It restores detail conservatively after a
+healthy interval. Grass is grouped into spatial patches for view culling, and terrain
+geometry is cached per quality level; the numerical world
+and flight physics never change. Camera state is separate from the simulation, and
+the HUD updates only values that changed.
+
 ## Tests and checks
 
-- **`npm test`:** the unit tests in `tests/`. They cover the flight model, the launch (both modes, the nose and the cliff), landing cues, terrain skimming, the recorder, audio and the range's world.
-- **`npm run check:range`:** starts its own server and flies the range in a headless browser. It runs an Easy ramp launch, an Easy cliff launch, a Realistic launch flown by a simple scripted pilot, sitting up and lying prone in flight, and a landing from overhead. It also checks for page errors.
+- **`npm test`:** the unit tests in `tests/`. They cover the flight model, the launch (both modes, the nose and the cliff), landing cues, terrain skimming, the recorder, audio, the range's world, fixed-step timing, takeoff controls, interpolation, rendering quality and HUD updates.
+- **`npm run check:range`:** starts its own server and flies the range in a headless browser. It runs an Easy ramp launch, an Easy cliff launch, a Realistic launch flown by a simple scripted pilot, sitting up and lying prone in flight, and a landing from overhead. It also checks for page errors. Browser tools require Node 22+ and Chrome/Chromium or Edge; set `CHROME_PATH` if the browser is not discovered automatically.
+
+To measure rendering, start `npm start` and run:
+
+```bash
+npm run benchmark:range
+npm run benchmark:range -- --url http://127.0.0.1:4180 --warmup 8 --seconds 10
+```
+
+The benchmark reports frame rate, mean and 95th-percentile frame time, drawing
+resolution, geometry counts and adaptive quality. Compare revisions sequentially
+with the same browser, viewport, warmup and hardware. It uses the normal display
+frame limit, so fast machines may reach the refresh-rate ceiling.
 
 ## Deploy
 

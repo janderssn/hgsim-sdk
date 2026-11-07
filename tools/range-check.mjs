@@ -11,13 +11,14 @@ const port = 4300 + Math.floor(Math.random() * 400), debugPort = 9400 + Math.flo
 const urlArg = process.argv.indexOf('--url'), site = urlArg > 0 ? process.argv[urlArg + 1].replace(/\/+$/, '') : null;
 const server = site ? { kill() {} } : spawn(process.execPath, [path.join(root, 'server.mjs'), String(port)], { stdio: 'ignore' });
 const base = site || `http://127.0.0.1:${port}`;
-let chrome = null, failed = 0;
+let chrome = null, page = null, failed = 0;
 const check = (ok, name, detail = '') => { console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail ? ' — ' + detail : ''}`); if (!ok) failed++; };
 
 try {
   for (let i = 0; i < 300; i++) { try { if ((await fetch(`${base}/healthz`)).ok) break; } catch {} await sleep(100); }   // (a deployed machine may be waking)
   chrome = await launchChrome({ port: debugPort, width: 960, height: 540 });
-  const page = await connect({ port: debugPort }), errors = [];
+  page = await connect({ port: debugPort });
+  const errors = [];
   page.on(m => { if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text); });
   const open = async query => {
     await page.goto(`${base}/range/?${query}`);
@@ -76,5 +77,5 @@ try {
 
   check(!errors.length, 'no page errors', errors.slice(0, 2).join(' | '));
 } catch (e) { check(false, 'the check ran', e.message); }
-finally { chrome?.child.kill(); server.kill(); }
+finally { page?.close(); await chrome?.close(); server.kill(); }
 process.exitCode = failed ? 1 : 0;

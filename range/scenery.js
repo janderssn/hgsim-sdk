@@ -8,19 +8,32 @@ import { hash, noise, terrainHeight, slopeAt, LAUNCH, MARK, ROCKS, rockRing, DEC
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
-/** Adds the range's scenery to the scene. Returns the birds (Line objects) for the caller to circle over the thermal. */
+/**
+ * Adds scenery and returns birds, drawing quality, and camera-detail updates.
+ * Quality changes affect drawing only; world.js remains the physics source.
+ */
 export function buildScenery(THREE, scene) {
-  addTerrain(THREE, scene);
+  const terrain = addTerrain(THREE, scene);
   addMark(THREE, scene);
   addLaunch(THREE, scene);
   addTrees(THREE, scene);
-  addGrass(THREE, scene);
-  return { birds: addBirds(THREE, scene) };
+  const grass = addGrass(THREE, scene);
+  return {
+    birds: addBirds(THREE, scene),
+    setQuality(level) {
+      const terrainChanged = terrain.setQuality(level);
+      const grassChanged = grass.setQuality(level);
+      return terrainChanged || grassChanged;
+    },
+    updateDetail: grass.updateDetail,
+  };
 }
 
-/** The terrain mesh, with vertex colours by height and slope and a mown, striped field. */
-function addTerrain(THREE, scene) {
-  const SIZE = 3200, SEG = 240, g = new THREE.PlaneGeometry(SIZE, SIZE, SEG, SEG); g.rotateX(-Math.PI / 2);
+const TERRAIN_SEGMENTS = { high: 240, medium: 160, low: 96 };
+
+/** Samples the same world and colours at each terrain drawing resolution. */
+function createTerrainGeometry(THREE, segments) {
+  const SIZE = 3200, g = new THREE.PlaneGeometry(SIZE, SIZE, segments, segments); g.rotateX(-Math.PI / 2);
   const p = g.attributes.position, colors = new Float32Array(p.count * 3), c = new THREE.Color();
   const meadow = new THREE.Color('#6f9b46'), dry = new THREE.Color('#9aa65a'), rock = new THREE.Color('#8d8a80'), mown = new THREE.Color('#7fb155'), stripe = new THREE.Color('#74a64c');
   for (let i = 0; i < p.count; i++) {
@@ -32,7 +45,34 @@ function addTerrain(THREE, scene) {
     colors[i * 3] = c.r; colors[i * 3 + 1] = c.g; colors[i * 3 + 2] = c.b;
   }
   g.setAttribute('color', new THREE.BufferAttribute(colors, 3)); g.computeVertexNormals();
-  const terrain = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 })); terrain.receiveShadow = true; scene.add(terrain);
+  return g;
+}
+
+/** One terrain mesh/material with lazily cached alternative drawing geometries. */
+function addTerrain(THREE, scene) {
+  const geometries = new Map([
+    ['high', createTerrainGeometry(THREE, TERRAIN_SEGMENTS.high)],
+  ]);
+  const terrain = new THREE.Mesh(
+    geometries.get('high'),
+    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 }),
+  );
+  terrain.receiveShadow = true;
+  scene.add(terrain);
+  return {
+    setQuality(level) {
+      if (!Object.hasOwn(TERRAIN_SEGMENTS, level)) return false;
+      if (!geometries.has(level)) {
+        geometries.set(level, createTerrainGeometry(THREE, TERRAIN_SEGMENTS[level]));
+      }
+      const geometry = geometries.get(level);
+      if (terrain.geometry === geometry) return false;
+      // The scene has a static lifetime. Retain these three geometries so a
+      // quality recovery never rebuilds buffers or disposes an active geometry.
+      terrain.geometry = geometry;
+      return true;
+    },
+  };
 }
 
 /** The mark: bullseye rings on the field and the 60 m landing zone, with four cones at the field's corners to judge drift by. */
@@ -94,15 +134,82 @@ function addTrees(THREE, scene) {
 
 /** Grass tufts: close detail that rushes past when flying low, so speed reads near the ground. */
 function addGrass(THREE, scene) {
-  const n = 9000, grass = new THREE.InstancedMesh(new THREE.ConeGeometry(.55, 1.1, 5), new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1 }), n);
-  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), V = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0), col = new THREE.Color(); let k = 0;
-  for (let i = 0; i < 30000 && k < n; i++) {
+  const tileSize = 200;
+  const distances = { high: Infinity, medium: 350, low: 220 };
+  const hysteresis = 25;
+  const geometry = new THREE.ConeGeometry(.55, 1.1, 5);
+  const material = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1 });
+  const tiles = new Map();
+  let count = 0;
+  for (let i = 0; i < 30000 && count < 9000; i++) {
     const x = (hash(i, 23) - .5) * 2400, z = (hash(i, 29) - .5) * 2400;
     if (Math.hypot(x - MARK.x, z - MARK.z) < 66) continue;
-    const size = .6 + hash(i, 31) * 1.3; Q.setFromAxisAngle(Y, hash(i, 37) * 6.28); V.set(x, terrainHeight(x, z) + .4 * size, z); M.compose(V, Q, S.set(size, size * (.7 + hash(i, 41)), size)); grass.setMatrixAt(k, M);
-    col.set('#6f9b46').lerp(new THREE.Color('#b3b25c'), hash(i, 43)).multiplyScalar(.75 + hash(i, 47) * .35); grass.setColorAt(k, col); k++;
+    const key = `${Math.floor(x / tileSize)},${Math.floor(z / tileSize)}`;
+    if (!tiles.has(key)) tiles.set(key, []);
+    tiles.get(key).push(i);
+    count++;
   }
-  grass.count = k; grass.userData.noShadow = true; scene.add(grass);
+
+  const matrix = new THREE.Matrix4();
+  const rotation = new THREE.Quaternion();
+  const scale = new THREE.Vector3();
+  const position = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  const color = new THREE.Color();
+  const pale = new THREE.Color('#b3b25c');
+  const chunks = [];
+  for (const indices of tiles.values()) {
+    const grass = new THREE.InstancedMesh(geometry, material, indices.length);
+    indices.forEach((i, index) => {
+      const x = (hash(i, 23) - .5) * 2400;
+      const z = (hash(i, 29) - .5) * 2400;
+      const size = .6 + hash(i, 31) * 1.3;
+      rotation.setFromAxisAngle(up, hash(i, 37) * 6.28);
+      position.set(x, terrainHeight(x, z) + .4 * size, z);
+      scale.set(size, size * (.7 + hash(i, 41)), size);
+      matrix.compose(position, rotation, scale);
+      grass.setMatrixAt(index, matrix);
+      color.set('#6f9b46').lerp(pale, hash(i, 43)).multiplyScalar(.75 + hash(i, 47) * .35);
+      grass.setColorAt(index, color);
+    });
+    grass.instanceMatrix.needsUpdate = true;
+    grass.instanceColor.needsUpdate = true;
+    // Each chunk has an actual instance bound, so Three.js can discard offscreen
+    // grass rather than submitting the entire world as one instanced draw.
+    grass.computeBoundingBox();
+    grass.computeBoundingSphere();
+    grass.userData.noShadow = true;
+    chunks.push(grass);
+    scene.add(grass);
+  }
+
+  const lastCameraPosition = new THREE.Vector3();
+  let hasCameraPosition = false;
+  let level = 'high';
+  function refreshVisibility() {
+    const distance = distances[level];
+    for (const chunk of chunks) {
+      // Bounds include every tuft, so a nearby edge remains visible even when
+      // the tile centre is farther away. The margin avoids boundary flicker.
+      chunk.visible = distance === Infinity || !hasCameraPosition
+        || chunk.boundingBox.distanceToPoint(lastCameraPosition)
+          <= distance + (chunk.visible ? hysteresis : 0);
+    }
+  }
+
+  return {
+    updateDetail(cameraPosition) {
+      lastCameraPosition.copy(cameraPosition);
+      hasCameraPosition = true;
+      refreshVisibility();
+    },
+    setQuality(nextLevel) {
+      if (!Object.hasOwn(distances, nextLevel) || nextLevel === level) return false;
+      level = nextLevel;
+      refreshVisibility();
+      return true;
+    },
+  };
 }
 
 /** Birds circling the thermal: the only cue for it, as in the game. */

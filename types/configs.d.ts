@@ -278,3 +278,36 @@ export interface ClassicConfig {
   readonly maxFrameTime: number;
   readonly maxStep: number;
 }
+
+/** The walker's config: WALKER_DEFAULTS (m, s, m/s). */
+export interface WalkerConfig {
+  readonly gravity: number;
+  readonly runSpeed: number;
+  readonly sprintSpeed: number;
+  readonly backShare: number;
+  readonly strafeShare: number;
+  readonly acceleration: number;
+  readonly turnRate: number;
+  readonly uphillCost: number;
+  readonly downhillGain: number;
+  readonly downhillMax: number;
+  readonly maxSlope: number;
+  readonly softCost: number;
+  readonly slideGrip: number;
+  readonly stepUp: number;
+  readonly stepDown: number;
+  readonly jumpSpeed: number;
+  readonly airControl: number;
+  readonly injuryImpact: number;
+  readonly downSeconds: number;
+  readonly wade: number;
+  readonly strideLength: number;
+}
+
+/** How terrainSite reads a launch site from the world: SITE_DEFAULTS. */
+export interface SiteConfig {
+  readonly look: number;
+  readonly step: number;
+  readonly edgeSlope: number;
+  readonly span: number;
+}

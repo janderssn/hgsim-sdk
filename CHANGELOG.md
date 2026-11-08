@@ -8,6 +8,12 @@ The public API is what `hgsim` and `hgsim/three` export, as declared in `types/`
 
 ### Added
 
+- A shared core for vehicles ([docs/vehicles.md](docs/vehicles.md)): one contract for every vehicle (`kind`, `phase`, `airborne`, `step`, `pose`, `velocity`, events, `state`) and the shared events `airborne`, `touchdown` and `crash`.
+- The world answers every vehicle: `groundAt` with platforms (decks, bridges), `slopeAt`, `normalAt`, `materialAt` with `MATERIALS`, `waterAt`, `solidAt` and `inBounds`.
+- `createWalker`: on foot, its pace set by the ground's slope and material, stopped by water, solids, walls and the map's edge; ledges are falls.
+- `createHangGlider`, a glider and its round in one call. The round is the hang glider as a vehicle: `kind`, `airborne`, `pose()`, `velocity()`.
+- `terrainSite`: a launch site read from the world, its fall and its edge (a drop, water, a solid thing, the map's edge).
+- Poses: `makePose`, `lerpPose`, `createPoseTrack` and `applyPose`, to draw any vehicle between fixed ticks.
 - Type declarations for the whole public API (`types/index.d.ts`, `types/three.d.ts`), with the config interfaces generated from the frozen defaults, and `npm run check:types`.
 - `VERSION`.
 - Glider presets from a 1975 Rogallo to a topless competition wing, and `defineWing`, `wingConfig`, `handlingFor` and `vgConfig` to make your own. A preset's launch comes from its build: the wing's mass, span, dihedral and carried angle of attack.
@@ -18,6 +24,8 @@ The public API is what `hgsim` and `hgsim/three` export, as declared in `types/`
 
 ### Changed
 
+- The round's `liftoff` event is `airborne`, as on every vehicle. `crash` says what happened: `{ kind: 'terrain' | 'solid' | 'water' | 'launch', impact, hit }`, and a failed launch is a crash too.
+- A hang glider flying into the world's water or its solid things crashes into them; a wreck in the water settles on its surface.
 - The package's exports are its two entry points, `hgsim` and `hgsim/three`. The per-module subpaths (`hgsim/launch`, ...) are gone; everything public is exported from the entry points.
 - `round.standAt` takes one of `SITES` as it is, as well as a `{ start, fall, edgeAhead, ground }` site.
 - `glider.step` throws a `RangeError` for a negative or non-finite time step instead of corrupting the flight.

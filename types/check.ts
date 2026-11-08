@@ -3,6 +3,7 @@ import {
   createWorld, createGlider, createRound, createSimulationLoop, defineConfig, defineWing, runScenario, startScenario, SITES,
   GLIDER_DEFAULTS, LANDING_RULES, PRESETS, VERSION, type RoundEvent, type GliderConfig,
 } from 'hgsim';
+import { createWalker, createHangGlider, terrainSite, createPoseTrack, applyPose, MATERIALS, type Vehicle, type Pose } from 'hgsim';
 import { createLandingCues } from 'hgsim/three';
 
 const world = createWorld({ wind: { x: 0, z: -3 }, thermals: [{ x: 0, z: 300, radius: 150, strength: 3 }], lift: [(x, y, z, air) => air.ridgeLift * 0.1] });
@@ -18,7 +19,8 @@ if (contact) { const score = glider.land({ x: 0, z: 0, radius: 60 }, contact); c
 const round = createRound({ glider, target: { x: 0, z: 0 } });
 round.standAt(SITES.ramp).launch();
 const off = round.on('touchdown', e => { const pts: number = e.result.points; });
-round.once('liftoff', e => { const dropped: boolean = e.dropped; });
+round.once('airborne', e => { const dropped: boolean = e.dropped; });
+round.on('crash', e => { if (e.kind === 'solid') void e.hit; const impact: number = e.impact; void impact; });
 round.on((e: RoundEvent) => { if (e.type === 'failed') { const why: 'wingdrop' | 'turned' | 'stumbled' = e.reason; } });
 off();
 const loop = createSimulationLoop({ step: dt => round.step(dt, { roll: 0, go: true }), render: (dt, alpha) => void alpha });
@@ -36,11 +38,31 @@ const v: string = VERSION;
 declare const THREE: unknown, scene: object;
 createLandingCues(THREE, scene, { onFlareCue() {} });
 
+// Vehicles: a walker carries the pilot to a launch, a hang glider takes over there.
+const valley = createWorld({ terrain: (x, z) => z * 0.2, material: (x, z) => (z > 100 ? 'snow' : { grip: 0.7 }), water: () => null, solid: () => null });
+const walker = createWalker({ world: valley, at: { x: 0, z: 0 }, config: { runSpeed: 14 } });
+walker.on('blocked', e => { const by: 'water' | 'solid' | 'slope' | 'bounds' = e.by; void by; });
+let active: Vehicle<any, any> = walker;
+active.step(1 / 60, { forward: 1, sprint: true });
+const here = walker.state();
+const hang = createHangGlider({ world: valley, preset: 'falcon-170', realistic: false });
+hang.standAt(terrainSite(valley, { x: here.x, z: here.z, heading: here.heading })).launch();
+active = hang;
+const track = createPoseTrack(); track.push(active.pose());
+const drawnPose: Pose = track.at(0.5, active.pose());
+declare const mesh: { position: { set(x: number, y: number, z: number): void }; quaternion: { set(x: number, y: number, z: number, w: number): void } };
+applyPose(drawnPose, mesh);
+const iceGrip: number = MATERIALS.ice.grip; void iceGrip;
+
 // Misuse the types catch:
+// @ts-expect-error the walker has no such event
+walker.on('liftoff', () => {});
+// @ts-expect-error unknown walker config key
+createWalker({ world: valley, config: { runSped: 3 } });
 // @ts-expect-error unknown config key
 defineConfig(GLIDER_DEFAULTS, { mas: 100 });
 // @ts-expect-error unknown event
-round.on('landed', () => {});
+round.on('liftoff', () => {});
 // @ts-expect-error a round needs a glider
 createRound({});
 // @ts-expect-error configs are frozen

@@ -208,7 +208,7 @@ export function flyScenario(id, { round, pilot = 'script', place = null } = {}) 
   const ctx = { glider, world, notes, note: (k, v) => { notes[k] = v; }, hold: v => holdSpeed(glider, v), feet: 0 };
   let t = 0, script = null, liftoff = null, failed = null, maxRoll = 0, maxNose = -Infinity, impact = 0, done = false, result = null, lastInput = {};
   const stop = round.on(e => {
-    if (e.type === 'liftoff') { const s = e.launch.state; liftoff = { t, distance: s.liftDistance ?? s.distance, airspeed: glider.state.airspeed, reason: s.reason, groundSpeed: s.groundSpeed }; }
+    if (e.type === 'airborne') { const s = e.launch.state; liftoff = { t, distance: s.liftDistance ?? s.distance, airspeed: glider.state.airspeed, reason: s.reason, groundSpeed: s.groundSpeed }; }
     if (e.type === 'failed') failed = e.reason;
   });
   const sample = () => {

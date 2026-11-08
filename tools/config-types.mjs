@@ -1,10 +1,10 @@
 // Writes types/configs.d.ts: an interface for each frozen defaults object (GLIDER_DEFAULTS, LAUNCH_DEFAULTS, LANDING_RULES, AIR_DEFAULTS,
-// CLASSIC_DEFAULTS), generated from the objects themselves so the types can never drift from the numbers.
+// CLASSIC_DEFAULTS, WALKER_DEFAULTS, SITE_DEFAULTS), generated from the objects themselves so the types can never drift from the numbers.
 //   node tools/config-types.mjs           writes it
 //   node tools/config-types.mjs --check   exits 1 if it is out of date (the tests run this)
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { GLIDER_DEFAULTS, LAUNCH_DEFAULTS, LANDING_RULES, AIR_DEFAULTS, CLASSIC_DEFAULTS } from '../src/index.js';
+import { GLIDER_DEFAULTS, LAUNCH_DEFAULTS, LANDING_RULES, AIR_DEFAULTS, CLASSIC_DEFAULTS, WALKER_DEFAULTS, SITE_DEFAULTS } from '../src/index.js';
 
 const typeOf = (v, pad) => Array.isArray(v) ? `readonly [${v.map(() => 'number').join(', ')}]`
   : v && typeof v === 'object' ? `{\n${fields(v, pad + '  ')}${pad}}` : typeof v;
@@ -17,7 +17,9 @@ export function configTypes() {
     + block('LaunchConfig', 'The launch\'s config: LAUNCH_DEFAULTS and a preset\'s own launch handling.', LAUNCH_DEFAULTS) + '\n'
     + block('LandingRules', 'How touchdowns are judged and scored: LANDING_RULES and its variants.', LANDING_RULES) + '\n'
     + block('AirConfig', 'The air\'s config: AIR_DEFAULTS (thermals, ridge lift).', AIR_DEFAULTS) + '\n'
-    + block('ClassicConfig', 'The classic flight model\'s config: CLASSIC_DEFAULTS.', CLASSIC_DEFAULTS);
+    + block('ClassicConfig', 'The classic flight model\'s config: CLASSIC_DEFAULTS.', CLASSIC_DEFAULTS) + '\n'
+    + block('WalkerConfig', 'The walker\'s config: WALKER_DEFAULTS (m, s, m/s).', WALKER_DEFAULTS) + '\n'
+    + block('SiteConfig', 'How terrainSite reads a launch site from the world: SITE_DEFAULTS.', SITE_DEFAULTS);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

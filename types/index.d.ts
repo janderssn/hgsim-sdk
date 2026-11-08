@@ -5,8 +5,8 @@
  * `Deg`); x east, y up, z north; a heading of 0 faces +z (north) and grows clockwise seen from above; a wind vector { x, z } is
  * where the air goes. Configs are frozen plain objects (defineConfig); state objects are plain data, safe to copy and record.
  */
-import type { GliderConfig, LaunchConfig, LandingRules, AirConfig, ClassicConfig } from './configs.js';
-export type { GliderConfig, LaunchConfig, LandingRules, AirConfig, ClassicConfig } from './configs.js';
+import type { GliderConfig, LaunchConfig, LandingRules, AirConfig, ClassicConfig, WalkerConfig, SiteConfig } from './configs.js';
+export type { GliderConfig, LaunchConfig, LandingRules, AirConfig, ClassicConfig, WalkerConfig, SiteConfig } from './configs.js';
 
 /** The SDK's version (semver). */
 export const VERSION: string;
@@ -28,6 +28,104 @@ export const CLASSIC_DEFAULTS: ClassicConfig;
 /* ---------------------------------------------------------------- the world */
 
 export interface Vec2 { x: number; z: number }
+export interface Vec3 { x: number; y: number; z: number }
+
+/* ---------------------------------------------------------------- vehicles */
+
+/**
+ * Where to draw a vehicle: its reference point (the feet of a walker, the hang point of a hang glider) and its orientation. q is
+ * the orientation ([x, y, z, w], three.js order, world frame); heading (clockwise from +z), pitch (+ nose up) and roll (+ right side
+ * down) are the same to read. applyPose(pose, object3d) draws it.
+ */
+export interface Pose { x: number; y: number; z: number; heading: number; pitch: number; roll: number; q: [number, number, number, number] | number[] }
+
+/** The events every vehicle shares (docs/vehicles.md). */
+export interface VehicleEventMap {
+  airborne: { type: 'airborne' };
+  touchdown: { type: 'touchdown'; impact: number };
+  crash: { type: 'crash'; kind: string; impact: number; hit?: unknown };
+}
+
+/** What every vehicle is (docs/vehicles.md): a game holds one and swaps it. */
+export interface Vehicle<Input = object, Events extends VehicleEventMap = VehicleEventMap> {
+  readonly kind: string;
+  readonly phase: string;
+  readonly airborne: boolean;
+  step(dt: number, input?: Input): this;
+  pose(out?: Partial<Pose>): Pose;
+  velocity(out?: Partial<Vec3>): Vec3;
+  on<K extends keyof Events>(type: K, listener: (event: Events[K]) => void): () => void;
+  on(listener: (event: Events[keyof Events]) => void): () => void;
+  once<K extends keyof Events>(type: K, listener: (event: Events[K]) => void): () => void;
+  once(listener: (event: Events[keyof Events]) => void): () => void;
+  state(): object;
+}
+
+export function makePose(at?: { x?: number; y?: number; z?: number; heading?: number; pitch?: number; roll?: number }, out?: Partial<Pose>): Pose;
+export function poseFromQuaternion(at: { x?: number; y?: number; z?: number }, q: number[], out?: Partial<Pose>): Pose;
+export function quaternionFrom(heading?: number, pitch?: number, roll?: number, out?: number[]): [number, number, number, number];
+export function anglesOf(q: number[], out?: object): { heading: number; pitch: number; roll: number };
+/** The pose t of the way from a to b: positions straight, orientation along the shortest arc. */
+export function lerpPose(a: Pose, b: Pose, t: number, out?: Partial<Pose>): Pose;
+/** The last tick's pose, to draw between ticks: push(pose) before each tick, at(alpha, current) to draw. */
+export function createPoseTrack(): { push(pose: Pose): void; at(alpha: number, current: Pose, out?: Partial<Pose>): Pose; clear(): void };
+/** Sets a three.js object (anything with position.set and quaternion.set) to a pose. */
+export function applyPose<T extends { position: { set(x: number, y: number, z: number): unknown }; quaternion: { set(x: number, y: number, z: number, w: number): unknown } }>(pose: Pose, object: T): T;
+
+/** on(type, f), on(f) for all, once(...), emit(type, detail): the events of every vehicle. */
+export function createEmitter<T extends string>(types: readonly T[], owner?: string): {
+  readonly types: readonly T[];
+  on(type: T | ((event: { type: T }) => void), listener?: (event: { type: T; [key: string]: unknown }) => void): () => void;
+  once(type: T | ((event: { type: T }) => void), listener?: (event: { type: T; [key: string]: unknown }) => void): () => void;
+  emit(type: T, detail?: object): { type: T; [key: string]: unknown };
+};
+
+/* ---------------------------------------------------------------- the walker */
+
+export interface WalkerInput {
+  /** -1 back .. +1 ahead: a gentle stick walks, full stick runs. */
+  forward?: number;
+  /** -1 left .. +1 right. */
+  turn?: number;
+  /** A heading to turn toward, instead of turn. */
+  face?: number;
+  strafe?: number;
+  sprint?: boolean;
+  jump?: boolean;
+}
+export type WalkerPhase = 'stand' | 'walk' | 'run' | 'sprint' | 'slide' | 'fall' | 'down';
+export interface WalkerEventMap extends VehicleEventMap {
+  airborne: { type: 'airborne'; reason: 'ledge' | 'jump' };
+  touchdown: { type: 'touchdown'; impact: number; water: boolean };
+  crash: { type: 'crash'; kind: 'fall'; impact: number; water: boolean };
+  blocked: { type: 'blocked'; by: 'water' | 'solid' | 'slope' | 'bounds' };
+}
+export interface WalkerState {
+  x: number; y: number; z: number; heading: number; vx: number; vy: number; vz: number;
+  onGround: boolean; phase: WalkerPhase; stride: number; blocked: WalkerEventMap['blocked']['by'] | null; downFor: number; material: string;
+}
+export interface Walker extends Vehicle<WalkerInput, WalkerEventMap> {
+  readonly kind: 'walker';
+  readonly world: World;
+  readonly config: WalkerConfig;
+  readonly phase: WalkerPhase;
+  readonly blocked: WalkerEventMap['blocked']['by'] | null;
+  /** The drawn stride's phase, 0..1 per two steps. */
+  readonly stride: number;
+  readonly speed: number;
+  place(where?: { x?: number; y?: number; z?: number; heading?: number }): this;
+  state(): WalkerState;
+  restore(state: WalkerState): this;
+}
+export const WALKER_DEFAULTS: WalkerConfig;
+export const WALKER_EVENTS: readonly (keyof WalkerEventMap)[];
+export function createWalker(options: { world: World; at?: { x?: number; y?: number; z?: number; heading?: number }; config?: Partial<WalkerConfig> }): Walker;
+
+/* ---------------------------------------------------------------- sites */
+
+export const SITE_DEFAULTS: SiteConfig;
+/** A launch site read from the world: the run's fall and where its ground ends (a drop, water, a solid thing, the map's edge). */
+export function terrainSite(world: World, at?: { x?: number; z?: number; heading?: number } & Partial<SiteConfig>): RoundSite & { ground(x: number, z: number): number };
 /** The wind: a vector, a live object such as createWind(), or a function of position. */
 export type WindSource = Vec2 | Wind | ((x: number, y: number, z: number) => Vec2);
 export interface Thermal { x: number; z: number; radius?: number; strength: number }
@@ -40,11 +138,36 @@ export interface AirSample {
   windX: number; windZ: number; groundHeight: number; aboveGround: number;
 }
 
+/** What the ground is made of, as vehicles meet it (see MATERIALS). */
+export interface Material {
+  readonly name: string;
+  /** The friction coefficient a foot or a tyre gets. */
+  readonly grip: number;
+  /** A wheel's rolling resistance coefficient. */
+  readonly rolling: number;
+  /** A ski's or a track's sliding friction. */
+  readonly glide: number;
+  /** 0 firm .. 1 deep. */
+  readonly softness: number;
+}
+export type MaterialName = 'grass' | 'dirt' | 'gravel' | 'rock' | 'road' | 'wood' | 'sand' | 'mud' | 'snow' | 'ice';
+export const MATERIALS: Readonly<Record<MaterialName, Material>>;
+
 export interface WorldOptions {
   /** Ground height at (x, z), m. Default flat at 0. */
   terrain?: (x: number, z: number) => number;
   /** The top of whatever stands on the ground (trees), for clearance. Default the terrain. */
   surface?: ((x: number, z: number) => number) | null;
+  /** Something to stand on above the terrain (a ramp's deck, a bridge): its height at (x, z), or null. */
+  platform?: ((x: number, z: number) => number | null) | null;
+  /** What the ground is made of: a MATERIALS name, or a material of your own (missing values from grass). Default grass. */
+  material?: ((x: number, z: number) => MaterialName | string | Partial<Material>) | null;
+  /** The water's surface height at (x, z), or null where there is none. */
+  water?: ((x: number, z: number) => number | null) | null;
+  /** The solid thing at a point (anything truthy names it: 'hut', a building object), or null. */
+  solid?: ((x: number, y: number, z: number) => unknown) | null;
+  /** Whether (x, z) is on the map, margin metres in from its edge. Default: everywhere. */
+  bounds?: ((x: number, z: number, margin: number) => boolean) | null;
   wind?: WindSource | null;
   thermals?: Thermal[];
   lift?: LiftSource[];
@@ -57,6 +180,15 @@ export interface World {
   readonly lift: LiftSource[];
   heightAt(x: number, z: number): number;
   surfaceAt(x: number, z: number): number;
+  /** Where feet, skis and wheels stand: the terrain, or a platform above it. */
+  groundAt(x: number, z: number): number;
+  /** The ground's slope, rise per metre. */
+  slopeAt(x: number, z: number, d?: number): number;
+  normalAt(x: number, z: number, d?: number, out?: Vec3): Vec3;
+  materialAt(x: number, z: number): Material;
+  waterAt(x: number, z: number): number | null;
+  solidAt(x: number, y: number, z: number): unknown;
+  inBounds(x: number, z: number, margin?: number): boolean;
   windAt(x: number, y: number, z: number): Vec2;
   airAt(x: number, y: number, z: number): AirSample;
 }
@@ -335,11 +467,12 @@ export type RoundPhase = 'ready' | 'launch' | 'flight' | 'tumble' | 'landed' | '
 
 export interface RoundEventMap {
   launch: { type: 'launch' };
-  liftoff: { type: 'liftoff'; launch: Launch; dropped: boolean };
+  airborne: { type: 'airborne'; launch: Launch; dropped: boolean };
   failed: { type: 'failed'; reason: LaunchFailure; launch: Launch };
   scrape: { type: 'scrape'; contact: Contact };
-  crash: { type: 'crash'; kind: 'flight' };
-  touchdown: { type: 'touchdown'; result: LandingScore; contact: Contact };
+  /** kind: 'terrain' (judged a crash), 'solid' (flown into one: hit names it), 'water', or 'launch' (reason says how). impact: m/s. */
+  crash: { type: 'crash'; kind: 'terrain' | 'solid' | 'water' | 'launch'; impact: number; hit: unknown; reason?: LaunchFailure; contact?: Contact };
+  touchdown: { type: 'touchdown'; result: LandingScore; contact: Contact; impact: number };
 }
 export type RoundEvent = RoundEventMap[keyof RoundEventMap];
 export const ROUND_EVENTS: readonly (keyof RoundEventMap)[];
@@ -364,7 +497,12 @@ export interface RoundOptions {
   bodyPose?: ((state: FlightState) => { x: number; y: number; z: number; pitch: number; heading: number; roll: number }) | null;
 }
 
-export interface Round {
+/** The hang glider as a vehicle: a round. */
+export interface Round extends Omit<Vehicle<RoundInput, RoundEventMap>, 'on' | 'once'> {
+  readonly kind: 'hang-glider';
+  readonly airborne: boolean;
+  pose(out?: Partial<Pose>): Pose;
+  velocity(out?: Partial<Vec3>): Vec3;
   readonly glider: Glider<any>;
   readonly phase: RoundPhase;
   readonly t: number;
@@ -394,6 +532,8 @@ export interface Round {
 }
 
 export function createRound(options: RoundOptions): Round;
+/** A hang glider for a game in one call: createGlider's options and createRound's together. */
+export function createHangGlider(options?: GliderOptions & Omit<RoundOptions, 'glider'>): Round;
 export function createTakeoffBar(options?: { heldPitch?: number; holdBar?: number; dropped?: boolean; cliff?: boolean; realistic?: boolean }): TakeoffBar;
 export function takeoffPitch(bar: TakeoffBar, input: number | undefined, info?: { age?: number; airspeed?: number }): number;
 

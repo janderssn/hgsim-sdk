@@ -8,18 +8,22 @@
  *   const round = createRound({ glider, target: { x: 0, z: 0, radius: 60 } });
  *   round.standAt(site);   round.launch();          // or round.startAt({ x, y, z, heading, airspeed })
  *   round.step(dt, { roll, pitch, nose, push, go, jump });   // each tick; read round.phase, round.glider.state, round.run, ...
- *   round.on(event => ...)   // 'launch', 'liftoff', 'failed', 'scrape', 'crash', 'touchdown': for sound, dust and the card
+ *   round.on(event => ...)   // 'launch', 'airborne', 'failed', 'scrape', 'crash', 'touchdown': for sound, dust and the card
  *
- * Everything a round holds is plain data (state()), so a game can record it every tick and draw it again later.
+ * A round is the hang glider as a vehicle (docs/vehicles.md): kind 'hang-glider', airborne, pose(), velocity(), the shared events
+ * ('airborne', 'touchdown', 'crash' { kind, impact, hit }) and state(). Everything a round holds is plain data (state()), so a game can
+ * record it every tick and draw it again later.
  */
-import { createTumble, stepTumble } from './tumble.js';
+import { createTumble, stepTumble, quaternionOf } from './tumble.js';
+import { createGlider } from './glider.js';
+import { createEmitter } from './events.js';
+import { makePose, poseFromQuaternion } from './pose.js';
 import { scoreLanding } from './landing.js';
 import { clamp, finite, smoothstep } from './math.js';
 
 const PITCH_DEADZONE = 0.05;
 /** The events a round emits, in the order a round meets them. */
-export const ROUND_EVENTS = Object.freeze(['launch', 'liftoff', 'failed', 'scrape', 'crash', 'touchdown']);
-const EVENTS = ROUND_EVENTS;
+export const ROUND_EVENTS = Object.freeze(['launch', 'airborne', 'failed', 'scrape', 'crash', 'touchdown']);
 
 /**
  * The bar through a take-off, as data: the pilot keeps holding what they held on the run (holdBar) until they make a new input,
@@ -58,38 +62,59 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
   for (const [key, f] of Object.entries({ ground, solid, landable, bodyPose })) if (f !== null && typeof f !== 'function') throw new TypeError(`createRound: ${key} must be a function or null`);
   const world = glider.world, groundAt = ground ?? world.heightAt;
   const landableAt = landable ?? ((x, z) => Math.hypot(world.heightAt(x + 6, z) - world.heightAt(x - 6, z), world.heightAt(x, z + 6) - world.heightAt(x, z - 6)) / 12 < 0.42);
-  const listeners = new Set(), emit = (type, detail = {}) => { const event = { type, ...detail }; for (const l of [...listeners]) if (l.type === null || l.type === type) l.f(event); };
-  const listen = (type, f, once) => {
-    if (typeof type === 'function') [type, f] = [null, type];
-    if (typeof f !== 'function') throw new TypeError('round.on: expected a listener function');
-    if (type !== null && !EVENTS.includes(type)) throw new TypeError(`round.on: unknown event "${type}" (known: ${EVENTS.join(', ')})`);
-    const l = { type, f: once ? e => { listeners.delete(l); f(e); } : f };
-    listeners.add(l);
-    return () => listeners.delete(l);
-  };
+  const events = createEmitter(ROUND_EVENTS, 'round'), emit = events.emit;
   const r = {
     phase: 'ready', t: 0, site: null, launch: null, takeoff: null, stand: false, tumble: null, wreck: null, result: null, contact: null,
     scrapes: 0, distanceFlown: 0, maxSpeed: 0,
   };
-  const reset = () => Object.assign(r, { t: 0, launch: null, takeoff: null, stand: false, tumble: null, wreck: null, result: null, contact: null, scrapes: 0, distanceFlown: 0, maxSpeed: 0 });
+  const reset = () => Object.assign(r, { tumbleGround: null, t: 0, launch: null, takeoff: null, stand: false, tumble: null, wreck: null, result: null, contact: null, scrapes: 0, distanceFlown: 0, maxSpeed: 0 });
   const defaultPose = s => ({ x: s.x, y: s.y - (glider.config.contactHeight - 0.65), z: s.z, pitch: -s.pitch, heading: s.heading, roll: s.visualBank ?? s.bank });
 
-  function tumbleFromFlight() {
+  function tumbleFromFlight(crash) {
     const s = glider.state, pose = (bodyPose ?? defaultPose)(s), horizontal = s.airspeed * Math.cos(s.pathAngle || 0);
-    r.tumble = createTumble({ ...pose, ground: groundAt, wind: { x: finite(s.windX), z: finite(s.windZ) },
+    r.tumble = createTumble({ ...pose, ground: r.tumbleGround ?? groundAt, wind: { x: finite(s.windX), z: finite(s.windZ) },
       velocity: [Math.sin(s.heading) * horizontal + finite(s.windX), s.verticalSpeed, Math.cos(s.heading) * horizontal + finite(s.windZ)], yawRate: finite(s.headingRate) });
-    r.tumble.fromFlight = true; r.phase = 'tumble'; r.takeoff = null; emit('crash', { kind: 'flight' });
+    r.tumble.fromFlight = true; r.phase = 'tumble'; r.takeoff = null; emit('crash', crash);
   }
   function touchdown(contact) {
     r.contact = contact;
-    if (!contact.settled && scoreLanding(contact, target, glider.rules).judged === 'crash') { tumbleFromFlight(); return; }
+    if (!contact.settled && scoreLanding(contact, target, glider.rules).judged === 'crash') {
+      tumbleFromFlight({ kind: contact.water ? 'water' : contact.hit ? 'solid' : 'terrain', impact: Math.max(0, finite(contact.verticalSpeed)), hit: contact.hit ?? null, contact });
+      return;
+    }
     r.result = scoreLanding(contact, target, glider.rules);
     r.phase = r.result.judged === 'crash' ? 'crashed' : 'landed'; r.takeoff = null;
-    emit('touchdown', { result: r.result, contact });
+    emit('touchdown', { result: r.result, contact, impact: Math.max(0, finite(contact.verticalSpeed)) });
   }
 
   const round = {
+    kind: 'hang-glider',
     glider,
+    /** In the air: flying, not on the run, on the ground or tumbling. */
+    get airborne() { return r.phase === 'flight'; },
+    /**
+     * Where to draw it (docs/vehicles.md): the hang point and the wing's attitude in flight, the wing on the shoulders on the run,
+     * the wreck's body when tumbling. The run's full pose (the pilot's lean, the stride, ...) is round.run.pose().
+     */
+    pose(out = {}) {
+      const s = glider.state, body = r.tumble ?? r.wreck;
+      if (body) return poseFromQuaternion(body, body.q, out);
+      if (r.phase === 'launch' && r.launch) {
+        const p = r.launch.pose(0), g = (r.site?.ground ?? groundAt)(s.x, s.z);
+        return poseFromQuaternion({ x: s.x, y: g + p.height, z: s.z }, quaternionOf(p.pitch, s.heading + p.yaw, p.roll), out);
+      }
+      return makePose({ x: s.x, y: s.y, z: s.z, heading: s.heading, pitch: s.pitch, roll: s.visualBank ?? s.bank }, out);
+    },
+    /** The velocity over the ground, m/s, { x, y, z }. */
+    velocity(out = {}) {
+      const s = glider.state, body = r.tumble;
+      if (body) { out.x = body.v[0]; out.y = body.v[1]; out.z = body.v[2]; return out; }
+      if (r.phase === 'launch' && r.launch) { const v = finite(r.launch.state.groundSpeed); out.x = Math.sin(s.heading) * v; out.y = 0; out.z = Math.cos(s.heading) * v; return out; }
+      if (r.phase !== 'flight') { out.x = out.y = out.z = 0; return out; }
+      const h = s.airspeed * Math.cos(s.pathAngle || 0), w = world.windAt(s.x, s.y, s.z);   // (the world's wind: the state's copy is only filled in by a flight step)
+      out.x = Math.sin(s.heading) * h + finite(w.x); out.y = s.verticalSpeed; out.z = Math.cos(s.heading) * h + finite(w.z);
+      return out;
+    },
     /** The live round (read it freely): phase ('ready', 'launch', 'flight', 'tumble', 'landed', 'crashed'), t, launch, takeoff, ... */
     get phase() { return r.phase; },
     get t() { return r.t; },
@@ -113,9 +138,9 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
      * Events: 'launch', 'liftoff' { launch, dropped }, 'failed' { reason, launch }, 'scrape' { contact }, 'crash' { kind },
      * 'touchdown' { result, contact }. Each event is { type, ...its details }.
      */
-    on(type, listener) { return listen(type, listener, false); },
+    on: events.on,
     /** As on(), for the next such event only. */
-    once(type, listener) { return listen(type, listener, true); },
+    once: events.once,
 
     /**
      * Stands the pilot at a launch site, the wing resting, ready: { start: { x, z, heading }, ground, fall, edgeAhead }, or one of the
@@ -153,6 +178,7 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
         if (l.failed) {
           r.tumble = l.tumble({ stride: finite(input.stride), ground: groundAt }); r.phase = 'tumble';
           emit('failed', { reason: l.failed, launch: l });
+          emit('crash', { kind: 'launch', reason: l.failed, impact: finite(s.groundSpeed), hit: null });
           return round;
         }
         if (l.airborne) {
@@ -162,7 +188,7 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
           r.takeoff = { t: 0, dropped, cliff: !!s.cliff, jumped: !!s.jumped, proneAt: null, ownStance: false,
             bar: createTakeoffBar({ heldPitch: finite(input.pitch), holdBar: dropped ? 0 : l.barHold, dropped, cliff: !!s.cliff, realistic }) };
           r.stand = false; r.phase = 'flight'; r.distanceFlown = 0; r.maxSpeed = 0;
-          emit('liftoff', { launch: l, dropped });
+          emit('airborne', { launch: l, dropped });
         }
         return round;
       }
@@ -183,9 +209,14 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
       glider.step(dt, { stand: r.stand, roll: finite(input.roll), pitch, field, landable: input.landable });
       r.distanceFlown += Math.hypot(s.x - px, s.z - pz); r.maxSpeed = Math.max(r.maxSpeed, s.airspeed);
       // Solid things (a deck, a rock), but not in the first moments of the launch off them.
-      const hit = solid && !(tk && tk.t < 0.25) ? solid(s) : null;
-      if (hit) {
-        touchdown({ verticalSpeed: 9, groundSpeed: s.airspeed, slope: 0, bank: s.bank, heading: s.heading, airspeed: s.airspeed, wind: { x: s.windX, z: s.windZ }, x: s.x, z: s.z, flare: { pressed: false }, hit });
+      const early = tk && tk.t < 0.25;
+      const hit = early ? null : (solid ? solid(s) : null) || world.solidAt(s.x, s.y - 1, s.z);
+      const water = world.waterAt(s.x, s.z), wet = !hit && water !== null && water > world.heightAt(s.x, s.z) && s.y < water + glider.config.contactHeight;
+      if (hit || wet) {
+        // Into a solid thing (a building, a deck, a rock) or the water: a crash at the speed it was going, the wreck on the water's top.
+        if (wet) r.tumbleGround = (x, z) => Math.max(groundAt(x, z), world.waterAt(x, z) ?? -Infinity);
+        touchdown({ verticalSpeed: Math.max(9, Math.hypot(s.airspeed, s.verticalSpeed)), groundSpeed: s.airspeed, slope: 0, bank: s.bank, heading: s.heading, airspeed: s.airspeed,
+          wind: { x: s.windX, z: s.windZ }, x: s.x, z: s.z, flare: { pressed: false }, hit: hit || 'water', water: wet });
         r.takeoff = null;
         return round;
       }
@@ -218,4 +249,12 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
     },
   };
   return round;
+}
+
+/**
+ * A hang glider as a game's vehicle in one call: createGlider's options (world, preset, config, skim, rules, model) and createRound's
+ * (realistic, launch, target, ground, solid, landable, bodyPose) together. Returns the round; its glider is round.glider.
+ */
+export function createHangGlider({ realistic, launch, target, ground, solid, landable, bodyPose, ...gliderOptions } = {}) {
+  return createRound({ glider: createGlider(gliderOptions), realistic, launch, target, ground, solid, landable, bodyPose });
 }

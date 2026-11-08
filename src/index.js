@@ -1,7 +1,10 @@
 /**
  * hgsim: a hang-glider simulation SDK. Plain ES modules with no dependencies; metres, seconds, radians; x east, y up, z north.
  *
- * The core is three things:
+ * Games move through the world in vehicles (docs/vehicles.md): the hang glider (createHangGlider, a round) and the walker
+ * (createWalker) so far, each stepped at a fixed tick (createSimulationLoop) and drawn from its pose (lerpPose, applyPose).
+ *
+ * The flight's core is three things:
  * - createWorld: the ground, the wind and the air's rise (thermals, ridge lift, your own lift sources).
  * - createGlider: one glider in a world: its flight state, its config and the model that steps it, from the launch run
  *   (glider.launch) through the flight (glider.step) to the ground (glider.contact, glider.land).
@@ -14,7 +17,7 @@
  */
 /** The SDK's version (semver), as in package.json: the CHANGELOG says what each one changed. */
 export const VERSION = '0.2.0';
-export { createWorld, AIR_DEFAULTS } from './world.js';
+export { createWorld, AIR_DEFAULTS, MATERIALS } from './world.js';
 export { createGlider } from './glider.js';
 export { PRESETS, getPreset, defineWing, wingConfig, handlingFor, vgConfig, TRAITS } from './presets.js';
 export { polarOf, pitchStabilityOf } from './polar.js';
@@ -26,7 +29,11 @@ export { LANDING_RULES, judgeTouchdown, scoreLanding, measureFlareZone, ZONE_LOW
 export { createTumble, stepTumble } from './tumble.js';
 export { createWind, describeWind, compassName, directionFromBearing, bearingFromDirection } from './wind.js';
 export { createFlightRecorder, FLIGHT_FIELDS, SAMPLE_PERIOD } from './recorder.js';
-export { createRound, createTakeoffBar, takeoffPitch, ROUND_EVENTS } from './round.js';
+export { createRound, createHangGlider, createTakeoffBar, takeoffPitch, ROUND_EVENTS } from './round.js';
+export { createWalker, WALKER_DEFAULTS, WALKER_EVENTS } from './walker.js';
+export { terrainSite, SITE_DEFAULTS } from './sites.js';
+export { createEmitter } from './events.js';
+export { makePose, poseFromQuaternion, quaternionFrom, anglesOf, lerpPose, createPoseTrack, applyPose } from './pose.js';
 export { createSimulationLoop } from './loop.js';
 export { SCENARIOS, SITES, getScenario, startScenario, runScenario, flyScenario, scenarioWind, launchPilot, landingPilot } from './scenarios.js';
 export { bankedClearance } from './assists/skim-pose.js';

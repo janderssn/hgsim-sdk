@@ -129,11 +129,11 @@ test('round events: one type, all of them, once, and mistakes named', async () =
   const round = createRound({ glider: createGlider({ world, preset: 'falcon-170' }), realistic: false });
   const all = [], liftoffs = [], launches = [];
   round.on(e => all.push(e.type));
-  const off = round.on('liftoff', e => liftoffs.push(e.dropped));
+  const off = round.on('airborne', e => liftoffs.push(e.dropped));
   round.once('launch', () => launches.push(1));
   round.standAt(SITES.ramp).launch();
   for (let i = 0; i < 60 * 15 && round.phase === 'launch'; i++) round.step(1 / 60);
-  assert.deepEqual(all.slice(0, 2), ['launch', 'liftoff']);
+  assert.deepEqual(all.slice(0, 2), ['launch', 'airborne']);
   assert.equal(liftoffs.length, 1); assert.equal(typeof liftoffs[0], 'boolean');
   off(); round.standAt(SITES.ramp).launch();
   for (let i = 0; i < 60 * 15 && round.phase === 'launch'; i++) round.step(1 / 60);

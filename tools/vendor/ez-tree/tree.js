@@ -46,8 +46,8 @@ export class Tree extends THREE.Group {
   }
 
   /**
-   * Loads a preset tree from JSON 
-   * @param {string} preset 
+   * Loads a preset tree from JSON
+   * @param {string} preset
    */
   loadPreset(name) {
     const json = loadPreset(name);
@@ -56,7 +56,7 @@ export class Tree extends THREE.Group {
 
   /**
    * Loads a tree from JSON
-   * @param {TreeOptions} json 
+   * @param {TreeOptions} json
    */
   loadFromJson(json) {
     this.options.copy(json);
@@ -990,16 +990,16 @@ export class Tree extends THREE.Group {
             vec3 i1 = min( g.xyz, l.zxy );
             vec3 i2 = max( g.xyz, l.zxy );
 
-            //  x0 = x0 - 0. + 0.0 * C 
+            //  x0 = x0 - 0. + 0.0 * C
             vec3 x1 = x0 - i1 + C.xxx;
             vec3 x2 = x0 - i2 + C.yyy; // 2.0 * C.x = 1/3 = C.y
             vec3 x3 = x0 - D.yyy;      // -1.0 + 3.0 * C.x = -0.5
 
             // Permutations
             i = mod289(i);
-            vec4 p = permute( permute( permute( 
+            vec4 p = permute( permute( permute(
                         i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
-                      + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+                      + i.y + vec4(0.0, i1.y, i2.y, 1.0 ))
                       + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
 
             // Gradients: 7x7 points over a square, mapped onto an octahedron.
@@ -1041,10 +1041,10 @@ export class Tree extends THREE.Group {
             // Mix contributions from the four corners
             vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
             m = m * m;
-            return 42.0 * dot( m*m, vec4( dot(g0,x0), dot(g1,x1), 
+            return 42.0 * dot( m*m, vec4( dot(g0,x0), dot(g1,x1),
                                           dot(g2,x2), dot(g3,x3) ) );
         }
-          
+
         void main() {`,
       );
 

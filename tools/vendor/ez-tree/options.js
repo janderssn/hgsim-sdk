@@ -202,7 +202,7 @@ export default class TreeOptions {
 
   /**
    * Copies the values from source into this object
-   * @param {TreeOptions} source 
+   * @param {TreeOptions} source
    */
   copy(source, target = this) {
     for (let key in source) {

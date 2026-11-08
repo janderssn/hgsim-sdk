@@ -9,3 +9,5 @@ No runtime request is made to upstream services. Original code otherwise unchang
 
 Upstream bark notice: `src/app/public/textures/LICENSE.md` states ambientCG bark
 is CC0 1.0 and bundled leaf textures use the project MIT license.
+
+Local formatting: trailing line whitespace is removed; behavior is unchanged.

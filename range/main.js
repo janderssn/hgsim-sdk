@@ -24,6 +24,7 @@ import { createFullscreen } from './fullscreen.js';
 import { terrainHeight, slopeAt, landableAt, LAUNCH, MARK, THERMAL, WING_CARRY, DECK_BACK, DECK_LIP, deckY, CLIFF, SLOPE, RAMP_POSTS, LAUNCH_SITES, SITE_ORDER, rockTop, groundUnder } from './world.js';
 import { buildScenery } from './scenery.js';
 import { createPolarChart } from './polar-chart.js';
+import { createPitchChart } from './pitch-chart.js';
 import { createSimulationLoop } from './simulation-loop.js';
 import { readFlightControls, createTakeoffControls } from './controls.js';
 import { createRenderQuality } from './rendering.js';
@@ -374,10 +375,10 @@ $('tuneReset').addEventListener('click', () => { glider.tune(); syncTunePanel();
 $('tuneCopy').addEventListener('click', () => { const diff = glider.overrides; navigator.clipboard?.writeText(JSON.stringify(diff)); toast(Object.keys(diff).length ? 'Copied: ' + JSON.stringify(diff) : 'Nothing changed from the defaults', 4); });
 // Panel: the glider. A preset picker, what the wing is, and its polar, live: tuning moves the curve, and the green dot is where
 // the wing is flying now (its own sink at this drag, so turns, dives and the flare are seen leaving the steady glide).
-const presetSelect = $('preset'), polarChart = createPolarChart($('polar'));
+const presetSelect = $('preset'), polarChart = createPolarChart($('polar')), pitchChart = createPitchChart($('pitch'));
 for (const p of Object.values(PRESETS)) presetSelect.add(new Option(`${p.name} · ${p.era}`, p.id));
 const otherPolars = Object.values(PRESETS).map(p => ({ id: p.id, polar: createGlider({ preset: p }).polar() }));
-let polarNow = null, polarDrawn = 0;
+let polarNow = null, pitchNow = null, polarDrawn = 0;
 function describePreset() {
   const p = glider.preset; presetSelect.value = p?.id ?? '';
   $('presetInfo').textContent = p ? p.description : 'The original physics: its own fixed polar.';
@@ -388,14 +389,32 @@ function drawPolar(changed = false) {
     const k = v => (v * 3.6).toFixed(0);
     $('polarStats').textContent = polarNow ? `stall ${k(polarNow.stallSpeed)} · trim ${k(polarNow.trimSpeed)} km/h · min sink ${polarNow.minSink.sink.toFixed(2)} m/s at ${k(polarNow.minSink.airspeed)} · best glide ${polarNow.bestGlide.glideRatio.toFixed(1)} at ${k(polarNow.bestGlide.airspeed)} km/h` : '';
   }
+  if (changed || !pitchNow) {
+    pitchNow = glider.pitchStability();
+    const d = r => (r * 180 / Math.PI).toFixed(0), t = pitchNow?.curves.find(c => c.bar === 0)?.trim;
+    $('pitchStats').textContent = pitchNow && t ? `hands-off trim ${d(t.alpha)}° at ${(t.airspeed * 3.6).toFixed(0)} km/h · stiffness ${(-pitchNow.stiffness).toFixed(1)}/s · nose-up recovery when steep ${d(pitchNow.lowAlphaRecovery)}°/s` : '';
+  }
+  const flying = mode === 'gliding' && glider.performance?.pitchResponse;
+  pitchChart.draw({ stability: pitchNow, stallAlpha: glider.config.stallAlpha, now: flying ? { alpha: soaring.alpha, rate: glider.performance.pitchResponse(soaring.alpha, soaring.bar) } : null });
   polarChart.draw({ polar: polarNow, others: otherPolars.filter(o => o.id !== glider.preset?.id), now: mode === 'gliding' ? { airspeed: soaring.airspeed, sink: soaring.sinkRate } : null });
 }
 presetSelect.addEventListener('change', () => {
-  glider.usePreset(presetSelect.value); describePreset(); syncTunePanel(); drawPolar(true);
+  glider.usePreset(presetSelect.value); vgTarget = glider.vg; syncVG(); describePreset(); syncTunePanel(); drawPolar(true);
   const q = new URLSearchParams(location.search); q.set('glider', presetSelect.value); history.replaceState(null, '', '?' + q);
   toast(glider.preset.name, 1.6); $('world').focus();
 });
-describePreset();
+// The VG: V pulls it on or lets it off (the rope takes about two seconds); the slider sets it anywhere between.
+let vgTarget = glider.vg;
+function stepVG(dt) {
+  if (!glider.hasVG || glider.vg === vgTarget) return;
+  const v = glider.vg, next = v + Math.max(-dt * .5, Math.min(dt * .5, vgTarget - v));
+  glider.setVG(Math.abs(next - vgTarget) < 1e-3 ? vgTarget : next); syncVG(); polarNow = pitchNow = null;
+}
+function syncVG() {
+  $('vgRow').hidden = !glider.hasVG; $('vg').value = vgTarget; $('vgV').textContent = glider.vg < .02 ? 'off (loose)' : glider.vg > .98 ? 'on (tight)' : Math.round(glider.vg * 100) + '%';
+}
+$('vg').addEventListener('input', () => { vgTarget = Number($('vg').value); });
+describePreset(); syncVG();
 for (const [id, name] of [['btnLaunch', 'ramp'], ['btnCliff', 'cliff'], ['btnSlope', 'slope']]) $(id).addEventListener('click', () => { standAtSite(name); launch(); $('world').focus(); });
 $('btnOverhead').addEventListener('click', () => { overhead(); $('world').focus(); });
 $('btnMark').addEventListener('click', () => { markMoment(); $('world').focus(); });
@@ -414,6 +433,7 @@ addEventListener('keydown', e => {
   audio.unlock(); if (e.repeat) return; keys.add(e.code);
   if (e.code === 'Space' || e.code === 'Enter') { if (runUp) { const s = runUp.launch; if (s.phase === 'balance') s.go = true; else if (s.phase === 'run') runUp.jump = true; } else if (mode === 'gliding') { pilotStand = !pilotStand; if (takeoff) takeoff.ownStance = true; } else launch(); }
   if (e.code === 'Digit1' || e.code === 'KeyE') overhead();
+  if (e.code === 'KeyV' && !e.repeat && glider.hasVG) { vgTarget = vgTarget > .5 ? 0 : 1; toast(vgTarget ? 'VG on: tight for the glide' : 'VG off: loose to turn and land', 1.4); }
   if (e.code === 'KeyM') togglePanel();
   if (e.code === 'KeyF') fullscreen.toggle();
   if (e.code === 'KeyN' && !e.repeat) markMoment();
@@ -432,6 +452,7 @@ addEventListener('resize', () => {
 // Only this callback advances physical time. A render can contain zero or many
 // ticks, but each tick performs exactly one lifecycle phase.
 function stepSimulation(dt) {
+  stepVG(dt);
   previousMotion = captureMotion();
   elapsed += dt;
   gamepad.poll();

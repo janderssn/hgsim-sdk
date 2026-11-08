@@ -4,12 +4,13 @@ import test from 'node:test';
 import { PRESETS, getPreset, createGlider, createWorld, GLIDER_DEFAULTS, polarOf, performance, defineConfig } from '../src/index.js';
 
 const ids = Object.keys(PRESETS);
-const polarFor = id => createGlider({ preset: id }).polar();
+const polarFor = (id, vg = 1) => createGlider({ preset: id }).setVG(vg).polar();   // (rated with the VG on)
 
 test('each preset is calibrated to its reference figures', () => {
   for (const id of ids) {
     const { specs } = getPreset(id), p = polarFor(id);
     assert.ok(Math.abs(p.bestGlide.glideRatio - specs.bestGlide) < 0.4, `${id} best glide ${p.bestGlide.glideRatio}`);
+    if (specs.bestGlideLoose) assert.ok(Math.abs(polarFor(id, 0).bestGlide.glideRatio - specs.bestGlideLoose) < 0.4, `${id} best glide with the VG off`);
     assert.ok(Math.abs(p.minSink.sink - specs.minSink) / specs.minSink < 0.12, `${id} min sink ${p.minSink.sink}`);
     assert.ok(Math.abs(p.stallSpeed * 3.6 - specs.stallKmh) < 2.5, `${id} stall ${p.stallSpeed * 3.6}`);
   }
@@ -17,7 +18,7 @@ test('each preset is calibrated to its reference figures', () => {
 
 test('the eras are in order: each generation glides flatter than the last', () => {
   const ld = id => polarFor(id).bestGlide.glideRatio;
-  assert.ok(ld('rogallo-1975') < ld('alpha-235') && ld('alpha-235') < ld('vintage-1985') && ld('vintage-1985') < ld('intermediate') && ld('intermediate') < ld('t2c-144'));
+  assert.ok(ld('rogallo-1975') < ld('alpha-235') && ld('alpha-235') < ld('vintage-1985') && ld('vintage-1985') < ld('intermediate') && ld('intermediate') < ld('sport-2') && ld('sport-2') < ld('t2c-144'));
   assert.ok(polarFor('t2c-144').minSink.sink < polarFor('alpha-235').minSink.sink, 'the topless wing sinks least');
   assert.ok(polarFor('t2c-144').speedToFly({ headwind: 5 }).airspeed > polarFor('t2c-144').bestGlide.airspeed, 'into wind, fly faster');
 });
@@ -43,9 +44,10 @@ test('every preset trims hands off to its polar, launches off a slope and lands 
 });
 
 test('handling: the trainer rolls quickest, the Rogallo slowest, the topless wing heavier than the intermediate', () => {
-  const quarterTurn = id => { const g = createGlider({ preset: id, at: { y: 2000 } }); let t = 0; while (Math.abs(g.state.heading) < Math.PI / 2) { g.step(1 / 60, { roll: 1 }); t += 1 / 60; } return t; };
+  const quarterTurn = (id, vg = 1) => { const g = createGlider({ preset: id, at: { y: 2000 } }).setVG(vg); let t = 0; while (Math.abs(g.state.heading) < Math.PI / 2) { g.step(1 / 60, { roll: 1 }); t += 1 / 60; } return t; };
   const t = Object.fromEntries(ids.map(id => [id, quarterTurn(id)]));
   assert.ok(t['alpha-235'] < t.intermediate && t.intermediate < t['t2c-144'] && t['t2c-144'] < t['rogallo-1975'], JSON.stringify(t));
+  assert.ok(quarterTurn('t2c-144', 0) < t['t2c-144'] - 0.15 && quarterTurn('sport-2', 0) < quarterTurn('sport-2', 1), 'VG off rolls quicker');
 });
 
 test('presets are tunable and switchable, and their tuning is relative to the preset', () => {
@@ -59,4 +61,16 @@ test('presets are tunable and switchable, and their tuning is relative to the pr
   g.usePreset(null); assert.equal(g.config, GLIDER_DEFAULTS);
   assert.throws(() => createGlider({ preset: 'nope' }), /unknown glider preset "nope" \(known: rogallo-1975/);
   assert.deepEqual(polarOf(performance(defineConfig(GLIDER_DEFAULTS, PRESETS['alpha-235'].config))).bestGlide, polarFor('alpha-235').bestGlide);
+});
+
+test('VG: loose for handling, tight for glide; tuning stays on top of it and the polar follows', () => {
+  const g = createGlider({ preset: 't2c-144', config: { mass: 115 } });
+  assert.ok(g.hasVG && g.vg === 0);
+  const loose = g.polar(); g.setVG(1); const tight = g.polar();
+  assert.ok(tight.bestGlide.glideRatio > loose.bestGlide.glideRatio + 1.5 && tight.topSpeed > loose.topSpeed, 'tight glides flatter and goes faster');
+  assert.ok(g.config.rollFrequency < PRESETS['t2c-144'].vg.loose.rollFrequency, 'and is heavier in roll');
+  assert.equal(g.config.mass, 115, 'the tuning survives the VG');
+  g.setVG(0.5); assert.ok(Math.abs(g.config.cd0 - (0.0244 + 0.0195) / 2) < 1e-9, 'half VG blends the sail');
+  g.tune({ cd0: 0.03 }); g.setVG(1); assert.equal(g.config.cd0, 0.03, 'a tuned value wins over the VG');
+  const plain = createGlider({ preset: 'alpha-235' }); assert.ok(!plain.hasVG); plain.setVG(1); assert.equal(plain.vg, 0);
 });

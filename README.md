@@ -119,7 +119,8 @@ Presets are named wings for the force model, each with its own performance and h
 | `alpha-235` | Wills Wing Alpha 235 style trainer | 8.0 | 1.33 m/s | 28 km/h | light, quick roll and a very gentle stall |
 | `vintage-1985` | 1980s double-surface flex wing | 9.6 | 1.14 m/s | 33 km/h | moderate |
 | `intermediate` | the force model's defaults | 12.3 | 0.99 m/s | 35 km/h | the wing the range was tuned on |
-| `t2c-144` | Wills Wing T2C 144 style topless | 16.5 | 0.79 m/s | 35 km/h | heavy roll, firm bar, sharper stall |
+| `sport-2` | Wills Wing Sport 2 155 style, VG | 11.5 off / 13.0 on | 0.93 m/s | 33 km/h | friendly loose, firmer tight |
+| `t2c-144` | Wills Wing T2C 144 style topless, VG | 14.5 off / 16.5 on | 0.79 m/s | 35 km/h | heavy roll (more so tight), firm bar, sharper stall |
 
 The figures are estimates for each class of wing, calibrated on the force model. They are not manufacturer data.
 
@@ -128,9 +129,15 @@ const glider = createGlider({ world, preset: 't2c-144', config: { mass: 115 } })
 glider.polar();          // { points: [{ airspeed, sink, glideRatio }], stallSpeed, trimSpeed, topSpeed, minSink, bestGlide, speedToFly() }
 glider.polar().speedToFly({ headwind: 5, sink: 1 });   // the airspeed for the flattest glide over the ground in that air
 glider.usePreset('alpha-235');   // switch wings in flight; glider.tune() changes it further, glider.tune() alone restores it
+glider.setVG(1);         // a wing with a VG (glider.hasVG): 0 loose (lighter roll, slower) .. 1 tight (flatter glide, heavier roll)
+glider.pitchStability(); // { curves: [{ bar, points: [{ alpha, rate }], trim }], stiffness, lowAlphaRecovery }
 ```
 
-`npm run polars` prints the presets side by side. In the range, the panel's Glider section picks a preset (also `?glider=t2c-144`). Its polar chart redraws as you tune, shows the other wings faintly behind, and marks where the wing is flying now.
+**The polar** is sink rate against airspeed in steady, straight flight. The highest point of the curve is the minimum sink, the speed to circle in lift. The point where a line from the origin just touches the curve is the best glide, the speed for distance in still air. Against a headwind or through sinking air, the speed to fly moves faster.
+
+**Pitch stability** is how strongly a wing returns to its trimmed angle of attack after something pitches it away. Certification bodies such as the HGMA and DHV measure it as the pitching moment against angle of attack on a test vehicle. A stable wing pitches nose down above its trim angle and nose up below it, and it still pitches nose up at very low angles, deep in a dive, so it recovers on its own. hgsim's chart is the model's equivalent: the rate (°/s, positive is nose up) at which the wing pitches back toward trim at each angle of attack, at the steady speed for that angle. There is one curve each for the bar pulled in, hands off and pushed out. Each curve crosses zero at that bar's trim. The steeper it falls through zero, the firmer the wing holds its trim. A curve that sags toward zero at low angles is a wing with little will to pull out of a dive. The 1970s Rogallo does this through `luffLoss`, its luffing sail, which is what made the luffing dive dangerous. Modern wings have luff lines and reflex instead.
+
+`npm run polars` prints the presets side by side, VG off and on. In the range, the panel's Glider section picks a preset (also `?glider=t2c-144`) and sets the VG (key **V**). Its polar and pitch stability charts redraw as you tune or pull the VG. The polar shows the other wings faintly behind, and both charts mark where the wing is flying now.
 
 ### Flight models
 
@@ -208,6 +215,7 @@ The side panel sets the wind and the main feel numbers live. Tab hides it.
 
 | Key | On the ground | In the air |
 |---|---|---|
+| V | Pull the VG on, or let it off (wings with a VG). | Same. |
 | Space | Launch. In Realistic mode, a second press starts the run and a third jumps. | Sit up for drag and a slow landing, or lie prone again. |
 | W / S | Hold the nose down or up (Realistic). | Pull in to dive, or push out to slow down. Hold S low to flare. |
 | A / D | Balance the wing (Realistic). | Weight shift, to turn. |

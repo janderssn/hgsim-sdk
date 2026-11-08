@@ -71,6 +71,10 @@ export const GLIDER_DEFAULTS = Object.freeze({
   // pitches up a little when fast and down when slow (the pendulum pilot), which damps the phugoid.
   pitchTau: 0.2,
   pitchRateMax: 80 * DEG,
+  // A luffing sail: below luffAlpha the sail's leading edge collapses and the wing loses luffLoss of its nose-up recovery (the
+  // 1970s Rogallo's luffing dive). Modern wings have luff lines, reflex and battens instead: luffLoss 0, as here.
+  luffAlpha: 4 * DEG,
+  luffLoss: 0,
   speedStability: 0.35 * DEG,      // radians of alpha per m/s of speed away from the bar's trim speed
   // The bar pressure: at speed the pilot cannot push out beyond this load factor.
   loadLimit: 2.8,
@@ -188,6 +192,24 @@ export function glidePathAngle(airspeed, bank = 0, cfg = GLIDER_DEFAULTS) {
 }
 
 /**
+ * The angle of attack the wing pitches toward at this bar position and airspeed: the bar's own angle plus the pendulum's static
+ * speed stability (fast: the nose comes up; slow: it goes down). The pilot holding the bar in or out overrides most of that
+ * trimming. Before the flight's load cap, pitch damping and assists; the wing reaches it through the pitch lag.
+ */
+export function pitchTrimAlpha(bar, airspeed, cfg = GLIDER_DEFAULTS) {
+  return barAlpha(bar, cfg) + cfg.speedStability * (airspeed - barTargetSpeed(bar, 0, cfg)) * (1 - smoothstep(0, 0.5, Math.abs(bar)));
+}
+
+/**
+ * How fast the wing pitches (rad/s of angle of attack, + nose up) from alpha toward alphaTarget: through the pitch lag and its
+ * rate limit. A luffing sail (luffLoss > 0) loses that much of its nose-up recovery below luffAlpha.
+ */
+export function pitchRate(alpha, alphaTarget, cfg = GLIDER_DEFAULTS) {
+  const rate = clamp((alphaTarget - alpha) / cfg.pitchTau, -cfg.pitchRateMax, cfg.pitchRateMax);
+  return rate > 0 && cfg.luffLoss > 0 ? rate * (1 - cfg.luffLoss * smoothstep(cfg.luffAlpha, cfg.luffAlpha - 4 * DEG, alpha)) : rate;
+}
+
+/**
  * A flight state: where the glider is and how it is flying. init sets any field (x, y, z, heading, airspeed, pathAngle, ...);
  * airspeed defaults to the trim speed and pathAngle to its steady glide.
  */
@@ -258,9 +280,7 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
     state.stallRatio = v / stall;
 
     // What the bar asks for, with the pendulum's speed stability, and what the bar pressure allows at this speed.
-    const trimSpeed = barTargetSpeed(bar, 0, cfg);
-    // (the pilot holding the bar in or out overrides most of the pendulum's own trimming)
-    let alphaTarget = barAlpha(bar, cfg) + cfg.speedStability * (v - trimSpeed) * (1 - smoothstep(0, 0.5, Math.abs(bar)));
+    let alphaTarget = pitchTrimAlpha(bar, v, cfg);
     // (the bar held in holds the dive: the pendulum's trimming only acts on a free bar)
     // (the free bar's pull fades as the nose rises, so a recovery zooms and flows on instead of hanging; S still climbs)
     const fieldShift = input.field ? cfg.fieldSettle * DEG * (1 - 0.5 * smoothstep(18, 24, v)) * (1 - smoothstep(0, 0.1, bar)) : 0;   // (hands off only: S flares as it always did)
@@ -314,7 +334,7 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
     state.alphaTarget = alphaTarget;
 
     // Pitch: the wing follows the bar through a lag and a rate limit.
-    const alphaRate = clamp((alphaTarget - state.alpha) / cfg.pitchTau, -cfg.pitchRateMax, cfg.pitchRateMax) * (1 + frequencyBoost * 0.3);
+    const alphaRate = pitchRate(state.alpha, alphaTarget, cfg) * (1 + frequencyBoost * 0.3);
     state.alpha = clamp(state.alpha + alphaRate * step, cfg.alphaMin - 2 * DEG, cfg.alphaMax + 5 * DEG);
     const alpha = state.alpha;
 
@@ -418,6 +438,17 @@ export function performance(cfg = GLIDER_DEFAULTS) {
     glideAngle: (airspeed, bank = 0) => glidePathAngle(airspeed, bank, cfg),
     /** Glide ratio (distance per height) in still air at an airspeed. */
     glideRatio: (airspeed, bank = 0) => Math.max(1, airspeed) / sinkPolar(airspeed, bank, cfg),
+    /** The airspeed at which this angle of attack carries the weight in steady, level-winged flight (Infinity at zero lift). */
+    steadySpeed: alpha => { const cl = liftCoefficient(alpha, cfg); return cl > 0 ? Math.sqrt(2 * weight(cfg) / (cfg.airDensity * cfg.wingArea * cl)) : Infinity; },
+    /**
+     * Static pitch stability: how fast (rad/s, + nose up) the wing pitches back toward its trim when it sits at this angle of
+     * attack at the steady speed for it, with the bar held at bar. Zero at the trim; the steeper it falls through zero, the
+     * stiffer the wing holds its trim.
+     */
+    pitchResponse: (alpha, bar = 0) => {
+      const cl = liftCoefficient(alpha, cfg), v = cl > 0 ? Math.sqrt(2 * weight(cfg) / (cfg.airDensity * cfg.wingArea * cl)) : 60;
+      return pitchRate(alpha, pitchTrimAlpha(bar, Math.min(v, 60), cfg), cfg);
+    },
     liftCoefficient: alpha => liftCoefficient(alpha, cfg),
     dragCoefficient: (alpha, sigma = 1) => dragCoefficient(alpha, sigma, cfg),
   });

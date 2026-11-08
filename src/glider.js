@@ -19,8 +19,8 @@ import { LAUNCH_DEFAULTS, createLaunch, stepLaunch, launchPose, windOnRun, shoul
 import { createTumble } from './tumble.js';
 import { updateSkimPose } from './assists/skim-pose.js';
 import { finite } from './math.js';
-import { getPreset } from './presets.js';
-import { polarOf } from './polar.js';
+import { getPreset, vgConfig } from './presets.js';
+import { polarOf, pitchStabilityOf } from './polar.js';
 
 const MODEL_KEYS = ['name', 'defaults', 'createState', 'step'];
 /** A flat site with no edge: the launch runs on the world's own terrain until the wing flies. */
@@ -40,13 +40,15 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
   for (const key of MODEL_KEYS) if (!model || !(key in model)) throw new TypeError(`createGlider: the model has no "${key}"`);
   if (typeof world?.airAt !== 'function') throw new TypeError('createGlider: world must come from createWorld()');
   const name = `${model.name} config`;
-  const baseOf = p => {
+  // The config is built in layers: the model's defaults, the preset, the preset's sail at the VG setting, then the tuning.
+  const baseOf = (p, vg) => {
     if (!p) return model.defaults;
     if (model !== forceModel) throw new TypeError('createGlider: presets are configs of the force model');
-    return defineConfig(model.defaults, p.config, name);
+    return defineConfig(model.defaults, { ...p.config, ...vgConfig(p, vg) }, name);
   };
   let current = preset === null ? null : typeof preset === 'string' ? getPreset(preset) : preset;
-  let base = baseOf(current), cfg = defineConfig(base, config, name), perf = null;
+  let vgSetting = current?.vg ? current.vg.default : 0, tuning = { ...config };
+  let base = baseOf(current, vgSetting), cfg = defineConfig(base, tuning, name), perf = null;
   const landingRules = defineConfig(LANDING_RULES, rules, 'rules');
   const skimOptions = !skim ? null : { clearance: typeof skim === 'object' && typeof skim.clearance === 'function'
     ? state => skim.clearance(state, world) : typeof skim === 'object' ? skim.clearance : undefined };
@@ -78,16 +80,32 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
     /** Changes config values in flight (the rest stay as they are); tune() with no argument restores the preset or defaults. */
     tune(patch) {
       cfg = patch ? defineConfig(cfg, patch, name) : base; perf = null;
+      tuning = patch ? { ...tuning, ...patch } : {};
       return glider;
     },
     /** Switches to another preset (by id or object; null for the model's defaults) in flight, dropping any tuning. */
     usePreset(next) {
       const p = next === null ? null : typeof next === 'string' ? getPreset(next) : next;
-      base = baseOf(p); current = p; cfg = base; perf = null;
+      current = p; vgSetting = p?.vg ? p.vg.default : 0; tuning = {};
+      base = baseOf(p, vgSetting); cfg = base; perf = null;
+      return glider;
+    },
+    /** True when the preset has a VG (variable geometry): a sail the pilot can pull tight for speed or let loose to turn. */
+    get hasVG() { return !!current?.vg; },
+    /** The VG setting, 0 (loose: lighter handling, slower) .. 1 (tight: flatter glide at speed, heavier in roll). */
+    get vg() { return vgSetting; },
+    /** Sets the VG (0 loose .. 1 tight); the tuning stays on top. Without a VG on the preset it does nothing. */
+    setVG(value) {
+      if (!current?.vg) return glider;
+      const next = Math.max(0, Math.min(1, Number(value) || 0));
+      if (next === vgSetting) return glider;
+      vgSetting = next; base = baseOf(current, vgSetting); cfg = defineConfig(base, tuning, name); perf = null;
       return glider;
     },
     /** The polar for the current config (polar.js): points, stall, trim, top speed, min sink, best glide, speedToFly(). */
     polar(options) { return glider.performance ? polarOf(glider.performance, options) : null; },
+    /** Static pitch stability for the current config (polar.js pitchStabilityOf), or null for a model without it. */
+    pitchStability(options) { return pitchStabilityOf(glider.performance, options); },
     /** Starts over with a fresh flight state (as createGlider's at). */
     reset(init = {}) { state = model.createState({ ...init }, cfg); return glider; },
     /** Moves the glider without changing how it flies. */

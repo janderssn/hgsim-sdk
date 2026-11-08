@@ -15,7 +15,7 @@
 export { createWorld, AIR_DEFAULTS } from './world.js';
 export { createGlider } from './glider.js';
 export { PRESETS, getPreset } from './presets.js';
-export { polarOf } from './polar.js';
+export { polarOf, pitchStabilityOf } from './polar.js';
 export { defineConfig, overridesOf } from './config.js';
 export { forceModel, GLIDER_DEFAULTS, performance, createFlightState, stepFlight } from './flight.js';
 export { classicModel, CLASSIC_DEFAULTS } from './models/classic.js';

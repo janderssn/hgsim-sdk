@@ -105,7 +105,9 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
     /** The polar for the current config (polar.js): points, stall, trim, top speed, min sink, best glide, speedToFly(). */
     polar(options) { return glider.performance ? polarOf(glider.performance, options) : null; },
     /** Static pitch stability for the current config (polar.js pitchStabilityOf), or null for a model without it. */
-    pitchStability(options) { return pitchStabilityOf(glider.performance, options); },
+    pitchStability(options) { return pitchStabilityOf(glider.performance, { toAlpha: Math.max(0.35, (cfg.stallAlpha ?? 0.3) + 0.1), ...options }); },
+    /** The reference data the preset was fitted to at the current VG (presets.js), or null. */
+    get reference() { const r = current?.reference; return !r ? null : current.vg ? (vgSetting < 0.5 ? r.loose : r.tight) : r; },
     /** Starts over with a fresh flight state (as createGlider's at). */
     reset(init = {}) { state = model.createState({ ...init }, cfg); return glider; },
     /** Moves the glider without changing how it flies. */

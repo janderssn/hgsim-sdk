@@ -37,6 +37,10 @@ export const GLIDER_DEFAULTS = Object.freeze({
   plateDrag: 1.0,                  // flat-plate drag scale (CD = plateDrag * 2 sin^2 a)
   // Drag: parasite (wing, pilot, wires) plus induced; oswald efficiency.
   cd0: 0.028,                      // matches the original model's sink at speed, so a skim carries its momentum
+  // A flex wing's sail twists at speed: below twistLift of lift coefficient the washed-out tips fly at small or negative angles
+  // and drag grows as twistDrag (twistLift - CL)^2, so the polar falls away at speed as measured hang glider polars do.
+  twistDrag: 0,
+  twistLift: 0.5,
   oswald: 0.8,
   // Ground effect on the induced drag: sigma = 16 (h/b)^2 / (1 + 16 (h/b)^2), h the wing's height above the ground.
   wingAboveBody: 1.3,
@@ -136,12 +140,13 @@ export function liftCoefficient(alpha, cfg = GLIDER_DEFAULTS) {
   const plate = cfg.plateLift * 2 * Math.sin(alpha) * Math.cos(alpha);
   return Math.max(0, (1 - w) * linear + w * plate);
 }
-/** Drag coefficient: parasite, induced (reduced in ground effect, sigma 0..1) and the stalled sail's plate drag. */
+/** Drag coefficient: parasite, induced (reduced in ground effect, sigma 0..1), the stalled sail's plate drag and the twisted sail's drag at speed. */
 export function dragCoefficient(alpha, sigma = 1, cfg = GLIDER_DEFAULTS) {
   const linear = cfg.liftSlope * (Math.min(alpha, cfg.stallAlpha) - cfg.zeroLiftAlpha);
   const w = smoothstep(cfg.stallAlpha, cfg.stallAlpha + cfg.stallBlend, alpha);
   const s = Math.sin(alpha);
-  return cfg.cd0 + inducedK(cfg) * linear * linear * sigma + w * cfg.plateDrag * 2 * s * s;
+  const twist = Math.max(0, cfg.twistLift - linear);
+  return cfg.cd0 + inducedK(cfg) * linear * linear * sigma + w * cfg.plateDrag * 2 * s * s + cfg.twistDrag * twist * twist;
 }
 /** Ground-effect factor on the induced drag for a wing this high above the ground (1 = none). */
 export function groundEffectFactor(wingHeight, cfg = GLIDER_DEFAULTS) {

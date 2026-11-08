@@ -3,7 +3,8 @@
  * behind it, the best-glide tangent from the origin, and a dot where the glider is flying now. Canvas 2D, no dependencies.
  *
  *   const chart = createPolarChart(canvas);
- *   chart.draw({ polar: glider.polar(), others: [{ id, polar }], now: { airspeed, sink } });
+ *   chart.draw({ polar: glider.polar(), others: [{ id, polar }], now: { airspeed, sink }, reference: [[kmh, sink], ...] });
+ * reference: the data the preset was fitted to, drawn as rings over the model's curve.
  */
 const KMH = 3.6;
 export function createPolarChart(canvas, { maxKmh = 120, maxSink = 5 } = {}) {
@@ -22,7 +23,7 @@ export function createPolarChart(canvas, { maxKmh = 120, maxSink = 5 } = {}) {
     ctx.strokeStyle = style; ctx.lineWidth = lineWidth; ctx.stroke();
   };
   return {
-    draw({ polar, others = [], now = null }) {
+    draw({ polar, others = [], now = null, reference = null }) {
       fit(); ctx.clearRect(0, 0, width, height);
       ctx.font = '10px system-ui, sans-serif'; ctx.fillStyle = 'rgba(244,241,234,.55)'; ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1;
       for (let k = 0; k <= maxKmh; k += 20) { ctx.beginPath(); ctx.moveTo(X(k), Y(0)); ctx.lineTo(X(k), Y(maxSink)); ctx.stroke(); ctx.fillText(String(k), X(k) - (k ? 8 : 3), height - 8); }
@@ -34,6 +35,7 @@ export function createPolarChart(canvas, { maxKmh = 120, maxSink = 5 } = {}) {
       const best = polar.bestGlide, slope = best.sink / (best.airspeed * KMH);
       ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(X(0), Y(0)); ctx.lineTo(X(maxKmh), Y(slope * maxKmh)); ctx.strokeStyle = 'rgba(244,241,234,.4)'; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
       curve(polar.points, accent.trim() || '#f28c28', 2.2);
+      for (const [kmh, sink] of reference ?? []) { if (kmh > maxKmh || sink > maxSink) continue; ctx.beginPath(); ctx.arc(X(kmh), Y(sink), 2.6, 0, Math.PI * 2); ctx.strokeStyle = '#ffd36b'; ctx.lineWidth = 1.2; ctx.stroke(); }
       const dot = (kmh, sink, r, fill) => { if (kmh > maxKmh || sink > maxSink || sink < 0) return; ctx.beginPath(); ctx.arc(X(kmh), Y(sink), r, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); };
       dot(best.airspeed * KMH, best.sink, 3, ink.trim() || '#fff'); dot(polar.minSink.airspeed * KMH, polar.minSink.sink, 3, '#7fd0ff');
       if (now && Number.isFinite(now.airspeed) && Number.isFinite(now.sink)) dot(now.airspeed * KMH, Math.max(0, now.sink), 4, '#6dff91');

@@ -396,7 +396,7 @@ function drawPolar(changed = false) {
   }
   const flying = mode === 'gliding' && glider.performance?.pitchResponse;
   pitchChart.draw({ stability: pitchNow, stallAlpha: glider.config.stallAlpha, now: flying ? { alpha: soaring.alpha, rate: glider.performance.pitchResponse(soaring.alpha, soaring.bar) } : null });
-  polarChart.draw({ polar: polarNow, others: otherPolars.filter(o => o.id !== glider.preset?.id), now: mode === 'gliding' ? { airspeed: soaring.airspeed, sink: soaring.sinkRate } : null });
+  polarChart.draw({ polar: polarNow, others: otherPolars.filter(o => o.id !== glider.preset?.id), now: mode === 'gliding' ? { airspeed: soaring.airspeed, sink: soaring.sinkRate } : null, reference: glider.reference?.points });
 }
 presetSelect.addEventListener('change', () => {
   glider.usePreset(presetSelect.value); vgTarget = glider.vg; syncVG(); describePreset(); syncTunePanel(); drawPolar(true);

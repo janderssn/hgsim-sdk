@@ -111,18 +111,29 @@ The run steps the glider's own flight state through the flight model's own lift 
 
 ### Glider presets and polars
 
-Presets are named wings for the force model, each with its own performance and handling:
+Presets are named wings for the force model, each with its own performance and handling. Each one is fitted to reference data: geometry, mass, speeds and polar points, with their sources, kept in `src/presets.js`. `npm run fit` (`tools/fit-presets.mjs`) refits them.
 
-| Preset | Wing | Best glide | Min sink | Stall | Handling |
+| Preset | Wing | Stall · trim · top (km/h) | Min sink | Best glide | Handling |
 |---|---|---|---|---|---|
-| `rogallo-1975` | 1970s standard Rogallo | 4.1 | 2.66 m/s | 28 km/h | slow and heavy in roll; it mushes rather than stalls |
-| `alpha-235` | Wills Wing Alpha 235 style trainer | 8.0 | 1.33 m/s | 28 km/h | light, quick roll and a very gentle stall |
-| `vintage-1985` | 1980s double-surface flex wing | 9.6 | 1.14 m/s | 33 km/h | moderate |
-| `intermediate` | the force model's defaults | 12.3 | 0.99 m/s | 35 km/h | the wing the range was tuned on |
-| `sport-2` | Wills Wing Sport 2 155 style, VG | 11.5 off / 13.0 on | 0.93 m/s | 33 km/h | friendly loose, firmer tight |
-| `t2c-144` | Wills Wing T2C 144 style topless, VG | 14.5 off / 16.5 on | 0.79 m/s | 35 km/h | heavy roll (more so tight), firm bar, sharper stall |
+| `rogallo-1975` | 1970s standard Rogallo | 23 · 30 · 48 | 2.12 m/s | 4.1 | slow and heavy in roll; mushes; luffing dive at low angles |
+| `alpha-235` | Wills Wing Alpha 235 trainer | 23 · 32 · 58 | 1.11 m/s | 8.1 | light, quick roll, very gentle stall |
+| `vintage-1985` | mid-1980s double-surface wing | 27 · 35 · 75 | 1.01 m/s | 10.8 | moderate |
+| `intermediate` | the force model's defaults (a game wing) | 35 · 47 · 170 | 0.99 m/s | 12.3 | the wing the range was tuned on |
+| `sport-2` | Wills Wing Sport 2 155, VG off / on | 28 · 32 / 36 · 66 / 80 | 0.94 / 0.91 m/s | 12.2 / 12.8 | friendly loose, firmer tight |
+| `t2c-144` | Wills Wing T2C 144, VG off / on | 30 · 34 / 44 · 82 / 105 | 0.90 / 0.87 m/s | 14.1 / 14.7 | heavy roll (more so tight), firm bar, sharper stall |
 
-The figures are estimates for each class of wing, calibrated on the force model. They are not manufacturer data.
+How far to trust the reference data: no independently measured polar is published for any of these wings.
+
+- **Sport 2 (VG on):** Wills Wing's own estimated polar.
+- **T2C:** Wills Wing has published no glide figures since about 1990. Its reference is the estimated polar of its predecessor, the Talon, checked against Moyes's published points for the comparable Litespeed RS.
+- **Alpha 235 and the 1985 wing:** estimates built from their neighbours' curves.
+- **Rogallo:** period claims from 1970s patents.
+- **VG-off polars:** estimates derived from the VG-on ones.
+- **Geometry, weights and speed limits:** manufacturer figures and DHV data.
+
+Wills Wing's polars assume a pilot of 130% of the minimum hook-in weight; the presets fly at the reference's total mass.
+
+The fitted wings trim only 10–20% above the stall, as real wings do. Fly the final with some speed in hand (the bar a little in) and flare from 1–2 m. The `intermediate` game wing trims faster and flares from about 3 m.
 
 ```js
 const glider = createGlider({ world, preset: 't2c-144', config: { mass: 115 } });   // a preset, then your own changes on top
@@ -131,13 +142,14 @@ glider.polar().speedToFly({ headwind: 5, sink: 1 });   // the airspeed for the f
 glider.usePreset('alpha-235');   // switch wings in flight; glider.tune() changes it further, glider.tune() alone restores it
 glider.setVG(1);         // a wing with a VG (glider.hasVG): 0 loose (lighter roll, slower) .. 1 tight (flatter glide, heavier roll)
 glider.pitchStability(); // { curves: [{ bar, points: [{ alpha, rate }], trim }], stiffness, lowAlphaRecovery }
+glider.reference;        // the data the preset was fitted to (at the current VG), with its sources
 ```
 
 **The polar** is sink rate against airspeed in steady, straight flight. The highest point of the curve is the minimum sink, the speed to circle in lift. The point where a line from the origin just touches the curve is the best glide, the speed for distance in still air. Against a headwind or through sinking air, the speed to fly moves faster.
 
 **Pitch stability** is how strongly a wing returns to its trimmed angle of attack after something pitches it away. Certification bodies such as the HGMA and DHV measure it as the pitching moment against angle of attack on a test vehicle. A stable wing pitches nose down above its trim angle and nose up below it, and it still pitches nose up at very low angles, deep in a dive, so it recovers on its own. hgsim's chart is the model's equivalent: the rate (°/s, positive is nose up) at which the wing pitches back toward trim at each angle of attack, at the steady speed for that angle. There is one curve each for the bar pulled in, hands off and pushed out. Each curve crosses zero at that bar's trim. The steeper it falls through zero, the firmer the wing holds its trim. A curve that sags toward zero at low angles is a wing with little will to pull out of a dive. The 1970s Rogallo does this through `luffLoss`, its luffing sail, which is what made the luffing dive dangerous. Modern wings have luff lines and reflex instead.
 
-`npm run polars` prints the presets side by side, VG off and on. In the range, the panel's Glider section picks a preset (also `?glider=t2c-144`) and sets the VG (key **V**). Its polar and pitch stability charts redraw as you tune or pull the VG. The polar shows the other wings faintly behind, and both charts mark where the wing is flying now.
+`npm run polars` prints the presets side by side, VG off and on. In the range, the panel's Glider section picks a preset (also `?glider=t2c-144`) and sets the VG (key **V**). Its polar and pitch stability charts redraw as you tune or pull the VG. The polar shows the reference data as rings over the model's curve and the other wings faintly behind, and both charts mark where the wing is flying now.
 
 ### Flight models
 
@@ -164,7 +176,7 @@ Any other object with the same shape drops in. `examples/extend.mjs` flies a poi
 | `wind.js` | Live wind: a mean speed and direction with a meander and gusts, and conversions to and from compass bearings. |
 | `recorder.js` | Records each round as samples and marked moments. `tools/flight-report.mjs` reads them back. |
 | `config.js` | `defineConfig` and `overridesOf`. |
-| `presets.js`, `polar.js` | The glider presets, and the polar of any glider (`polarOf`). |
+| `presets.js`, `polar.js` | The glider presets with their reference data, and the polar and pitch stability of any glider (`polarOf`, `pitchStabilityOf`). |
 | `assists/` | The optional terrain-skimming assist, which keeps a low glider off the ground, and its drawn bank. |
 | `three/` (`hgsim/three`) | Three.js presentation: `createPilotRig` poses the pilot on the skinned glider model, and `createLandingCues` draws the shadow, height gauge and FLARE prompt. Each takes `THREE` as an argument. |
 

@@ -8,7 +8,8 @@
  *   chart.draw({ stability: glider.pitchStability(), stallAlpha, now: { alpha, rate } });
  */
 const DEG = 180 / Math.PI;
-export function createPitchChart(canvas, { maxAlpha = 20, minRate = -80, maxRate = 80 } = {}) {
+export function createPitchChart(canvas, { minRate = -80, maxRate = 80 } = {}) {
+  let maxAlpha = 20;
   const ctx = canvas.getContext('2d');
   let width = 0, height = 0;
   const pad = { l: 26, r: 14, t: 16, b: 22 };
@@ -21,8 +22,9 @@ export function createPitchChart(canvas, { maxAlpha = 20, minRate = -80, maxRate
   return {
     draw({ stability, stallAlpha = null, now = null }) {
       fit(); ctx.clearRect(0, 0, width, height);
+      maxAlpha = Number.isFinite(stallAlpha) ? Math.max(20, Math.ceil((stallAlpha * DEG + 6) / 5) * 5) : 20;
       ctx.font = '10px system-ui, sans-serif'; ctx.fillStyle = 'rgba(244,241,234,.55)'; ctx.lineWidth = 1;
-      for (let a = 0; a <= maxAlpha; a += 5) { ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.beginPath(); ctx.moveTo(X(a), Y(maxRate)); ctx.lineTo(X(a), Y(minRate)); ctx.stroke(); ctx.fillText(a + '°', X(a) - (a ? 8 : 3), height - 8); }
+      for (let a = 0; a <= maxAlpha; a += maxAlpha > 25 ? 10 : 5) { ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.beginPath(); ctx.moveTo(X(a), Y(maxRate)); ctx.lineTo(X(a), Y(minRate)); ctx.stroke(); ctx.fillText(a + '°', X(a) - (a ? 8 : 3), height - 8); }
       for (let r = minRate; r <= maxRate; r += 40) { ctx.strokeStyle = r === 0 ? 'rgba(255,255,255,.35)' : 'rgba(255,255,255,.08)'; ctx.beginPath(); ctx.moveTo(X(0), Y(r)); ctx.lineTo(X(maxAlpha), Y(r)); ctx.stroke(); ctx.fillText(String(r), 2, Y(r) + 3); }
       ctx.fillText('nose up, °/s ↑', pad.l + 4, 10); ctx.fillText('angle of attack →', width - pad.r - 84, 10);
       if (!stability) { ctx.fillText('not available for this model', X(4), Y(10)); return; }

@@ -1,0 +1,23 @@
+{
+  "name": "hgsim landing range",
+  "short_name": "hgsim",
+  "description": "Hang gliding launches, flight and landings.",
+  "start_url": "./?launch=real",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#1a2027",
+  "theme_color": "#1a2027",
+  "icons": [
+    {
+      "src": "./assets/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "./assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

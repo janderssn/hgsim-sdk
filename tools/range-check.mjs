@@ -101,6 +101,11 @@ try {
   const launched = await touchState();
   await touch('touchStart', [[110, 265]]); await touch('touchMove', [[160, 265]]); await sleep(400);
   const stick = await touchState(); await touch('touchEnd', []);
+  const fullButton = JSON.parse(await page.eval(`JSON.stringify((r => [r.left + r.width / 2, r.top + r.height / 2])(document.querySelector('.touch [data-fullscreen]').getBoundingClientRect()))`));
+  await touch('touchStart', [fullButton]); await sleep(60); await touch('touchEnd', []); await sleep(500);
+  const full = await page.eval('!!document.fullscreenElement');
+  check(full, 'the Full screen button puts the range full screen');
+  await page.key('KeyF'); await sleep(300);
   await page.key('KeyQ'); await sleep(100);
   const keyed = await touchState();
   check(!before.shown && !before.panel && shown.shown && launched.phase === 'balance' && launched.label === 'Run' && stick.shift > .5 && !keyed.shown,

@@ -2,9 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1a2027">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="hgsim">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./assets/icon-180.png">
   <title>Above · Landing range</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="./assets/icon-180.png">
   <style>
     :root { color-scheme: dark; --ink: #f4f1ea; --dim: rgba(244,241,234,.62); --panel: rgba(16,20,24,.78); --accent: #f28c28; --good: #3baa4a; --warn: #f2b100; --bad: #e2323b; }
     * { box-sizing: border-box; }
@@ -139,12 +146,12 @@
       </section>
       <section>
         <h3>Round</h3>
-        <div class="buttons"><button class="primary" id="btnLaunch">Launch from the ramp</button><button id="btnCliff">Step off the cliff</button><button id="btnSlope">Run down the slope</button><button id="btnOverhead">Start over the field</button></div>
+        <div class="buttons"><button class="primary" id="btnLaunch">Launch from the ramp</button><button id="btnCliff">Step off the cliff</button><button id="btnSlope">Run down the slope</button><button id="btnOverhead">Start over the field</button><button data-fullscreen>Full screen</button></div>
         <div class="best" id="best">Best round: —</div>
         <h3 style="margin-top:12px">Flight recorder</h3>
         <div class="best" id="recorderStatus">—</div>
         <div class="buttons"><button id="btnMark">Mark moment (N / B)</button><button id="btnFlights">Download</button></div>
-        <p class="best" style="margin:8px 0 0">Hide this panel (<b>Tab</b>) and read the windsock instead.</p>
+        <p class="best" style="margin:8px 0 0">Hide this panel (<b>Tab</b>) and read the windsock instead. <b>F</b> full screen; on an iPhone, Share → Add to Home Screen opens it full screen.</p>
       </section>
     </aside>
     <button class="panel-show" id="panelShow" aria-label="Show the settings panel">⚙<span> Settings</span></button>

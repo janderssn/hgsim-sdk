@@ -22,6 +22,7 @@ import { createSpeedStreaks } from './speed-streaks.js';
 import { createAudio } from './audio.js';
 import { createGamepad } from './gamepad.js';
 import { createTouchControls } from './touch.js';
+import { createFullscreen } from './fullscreen.js';
 import { createLandingCues, dropToImpact } from '../src/landing-cues.js';
 import { createFlightRecorder } from '../src/flight-recorder.js';
 import { terrainHeight, slopeAt, landableAt, LAUNCH, MARK, THERMAL, WING_CARRY, DECK_BACK, DECK_LIP, deckY, CLIFF, SLOPE, RAMP_POSTS, LAUNCH_SITES, SITE_ORDER, rockTop, groundUnder } from './world.js';
@@ -250,6 +251,7 @@ let padActive = false;
 const gamepad = createGamepad({ context: () => 'world', onActive: on => { padActive = on; }, onConnect: () => toast('Controller connected') });
 // On a touchscreen, a thumb stick that adds to the controller's left stick, and buttons that send keys.
 const touch = createTouchControls({ root: document.querySelector('.hud') });
+const fullscreen = createFullscreen([...document.querySelectorAll('[data-fullscreen]')]);
 const pad = { get lx() { return gamepad.state.lx + touch.state.lx; }, get ly() { return gamepad.state.ly + touch.state.ly; }, get lt() { return gamepad.state.lt; }, get rt() { return gamepad.state.rt; } };
 function updateFlight(dt) {
   const { roll: turn, pitch: pitchInput } = readFlightControls(keys, pad);
@@ -396,6 +398,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Space' || e.code === 'Enter') { if (runUp) { const s = runUp.launch; if (s.phase === 'balance') s.go = true; else if (s.phase === 'run') runUp.jump = true; } else if (mode === 'gliding') { pilotStand = !pilotStand; if (takeoff) takeoff.ownStance = true; } else launch(); }
   if (e.code === 'Digit1' || e.code === 'KeyE') overhead();
   if (e.code === 'KeyM') togglePanel();
+  if (e.code === 'KeyF') fullscreen.toggle();
   if (e.code === 'KeyN' && !e.repeat) markMoment();
   if (e.code === 'KeyR') { standAtSite(); hideCard(); }
   if (e.code === 'KeyC' && mode !== 'gliding' && !runOut) { hideCard(); standAtSite(nextSite()); }

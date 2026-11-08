@@ -28,6 +28,7 @@ export function createTouchControls({ root = document.body, idleSeconds = 8 } = 
         <button data-key="KeyC" data-when="ground">Next site</button>
         <button data-key="KeyR">To launch</button>
         <button data-key="Digit1">Over field</button>
+        <button data-fullscreen>Full screen</button>
       </div>
     </div>`;
   root.appendChild(el);
@@ -51,7 +52,8 @@ export function createTouchControls({ root = document.body, idleSeconds = 8 } = 
   addEventListener('pointerdown', e => { if (e.pointerType === 'touch') show(); else if (e.isTrusted && state.visible) hide(); }, { capture: true, passive: true });
   addEventListener('keydown', e => { if (e.isTrusted && state.visible) hide(); }, { capture: true, passive: true });
 
-  // The stick: it centres where the thumb comes down in the left zone and follows it out to its radius.
+  // The stick: it centres where the thumb comes down in the left zone and follows it out to its radius (and goes back to its
+  // resting place when let go), so the thumb never has to find it.
   zone.addEventListener('pointerdown', e => {
     if (stickId !== null) return;
     stickId = e.pointerId; capture(zone, e.pointerId);

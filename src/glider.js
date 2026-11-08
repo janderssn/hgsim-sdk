@@ -189,7 +189,7 @@ function createLaunchHandle({ glider, run, site, groundAt, manual, launchCfg }) 
     /** Off the ground: the flight carries on with glider.step(). reason: 'flying' or 'edge' (dropped off below flying speed). */
     get airborne() { return run.airborne; },
     get reason() { return run.reason; },
-    /** How it went wrong, or null: 'crosswind', 'wingdrop', 'turned' or 'stumbled'. See tumble(). */
+    /** How it went wrong, or null: 'wingdrop', 'turned' or 'stumbled'. See tumble(). */
     get failed() { return run.failed; },
     /** The bar to hold through the first moments of flight (what the pilot held on the run). */
     get barHold() { return run.barHold; },

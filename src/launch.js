@@ -35,8 +35,6 @@ export const LAUNCH_DEFAULTS = Object.freeze({
   brakeGain: 3,        // per second: how hard the legs hold back a run going faster than they can (down a slope) ...
   brake: 4,            // ... up to this, m/s^2; overrun by more than overrun m/s the pilot trips
   overrun: 2,
-  runSeconds: 10,      // a sprint with the wing lasts this long: a run the wing has not lifted by then ends in a stumble
-                       // (too little wind for the ground, or the nose held so high the sail never let the run gather speed)
   jogShare: .65,       // a realistic run without the push held is this share of flat out
   legShare: .08,       // the legs push fully while at least this share of the weight is on the feet (a stride pushes on light feet too), fading to nothing as it goes
   holdLift: .85,       // the wing's lift at the angle the pilot holds it on the run, as a share of the weight, at the stall speed (just under the stall warning)
@@ -53,7 +51,6 @@ export const LAUNCH_DEFAULTS = Object.freeze({
   noseWarn: .5 * Math.PI / 180,   // past the stall by this much, the pilot is warned (s.noseWarn)
   wingShare: .28,      // the wing's own weight as a share of the whole: lift below this only floats it off the shoulders
   liftClear: .08,      // how much more the straps stretch once the wing carries the whole weight
-  maxCrosswind: 4.5,   // m/s across the run that lifts a wing, once it is more than the headwind
   rollTip: 1.4,        // per second: how fast a wing that is off level falls further over (a realistic launch: the pilot catches it)
   rollWind: .12,       // rad/s^2 per m/s of crosswind getting under the upwind wing
   rollAuthority: 2.4,  // rad/s^2 of righting the pilot's weight shift gives
@@ -158,8 +155,9 @@ export function createLaunch(flight = createFlightState()) {
  * (start the run from the balance; the pilot then runs flat out) and jump (off the ground as the wing lifts, or off an edge).
  * Returns the distance moved over the ground this step. Afterwards airborne says the flight carries on from s.flight, with
  * reason 'flying' (the wing carries the whole weight) or 'edge' (off the end, or a jump, below flying speed: the pilot pulls
- * in for the airspeed); failed names how the launch went wrong ('crosswind', 'wingdrop': a tip in the ground; 'turned': the wind took
- * the sail round; 'stumbled': the legs gave out, overrun or spent by a run the wing never lifted), which the games play out as a crash where it happened. turnRate (rad/s) turns the run after the wing; sideMoved (m, + right)
+ * in for the airspeed); failed names how the launch went wrong ('wingdrop': a tip in the ground, whatever took it there, a crosswind
+ * or a wobble; 'turned': the wind took the sail round; 'stumbled': the legs overrun down a slope), which the games play out as a crash
+ * where it happened. Nothing else ends a launch: a run the wing never lifts goes on until the ground ends or the pilot stops. turnRate (rad/s) turns the run after the wing; sideMoved (m, + right)
  * is how far it drifted sideways this step.
  */
 export function stepLaunch(s, dt, { headwind = 0, crosswind = 0, slope = 0, edgeAhead = Infinity, airLift = 0, x, y, z, heading, manual = false, balance = 0, nose = 0, push = 0, go = false, jump = false } = {}, T = GLIDER_DEFAULTS, cfg = LAUNCH_DEFAULTS) {
@@ -261,18 +259,14 @@ export function stepLaunch(s, dt, { headwind = 0, crosswind = 0, slope = 0, edge
     if (manual && Math.abs(s.yaw) > cfg.yawFail) { s.failed = 'turned'; return moved; }
     s.noseWarn = manual && running && f.alpha > T.stallAlpha + cfg.noseWarn;
     s.warn = manual && (Math.abs(s.roll) > cfg.warnRoll || Math.abs(s.yaw) > cfg.yawCatch * .7) ? -Math.sign(Math.abs(s.roll) > cfg.warnRoll ? s.roll : s.yaw) : 0;   // (the shift that answers it: +1 right, D; -1 left, A)
-    if (manual && Math.abs(s.roll) > cfg.rollLimit) { s.failed = 'wingdrop'; return moved; }
-    if (!manual) s.roll = clamp(s.roll, -.12, .12);
+    if (Math.abs(s.roll) > cfg.rollLimit) { s.failed = 'wingdrop'; return moved; }   // (an easy launch's own pilot balances too, but only as hard as a weight shift can)
   }
   // The flight state is the launch's state: the wing's speed through the air, its path and its angle, where the body is.
   f.airspeed = Math.max(1, v); f.pathAngle = gammaAir; f.bar = hold.bar; f.verticalSpeed = v * Math.sin(gammaAir); f.groundSpeed = gs; f.loadFactor = s.lift;
   if (Number.isFinite(x)) f.x = x; if (Number.isFinite(y)) f.y = y; if (Number.isFinite(z)) f.z = z; if (Number.isFinite(heading)) f.heading = heading;
-  // A crosswind gets under the upwind wing as soon as it is lifted level (an easy launch; a realistic one lets the pilot fight it).
-  const cross = Math.abs(crosswind);
-  if (!manual && s.phase !== 'pickup' && cross > cfg.maxCrosswind && cross > headwind) { s.failed = 'crosswind'; return moved; }
   if (!running) return 0;
-  // The legs give out: overrun down a slope, or spent by a sprint the wing never lifted.
-  if (!s.cliff && s.normal > .05 && (s.groundSpeed > cfg.topSpeed + cfg.downhillSpeed * Math.max(0, slope) + cfg.liftedSpeed + cfg.overrun || s.phaseT > cfg.runSeconds)) { s.failed = 'stumbled'; return moved; }
+  // The legs give out: overrun down a slope, faster than they can go.
+  if (!s.cliff && s.normal > .05 && s.groundSpeed > cfg.topSpeed + cfg.downhillSpeed * Math.max(0, slope) + cfg.liftedSpeed + cfg.overrun) { s.failed = 'stumbled'; return moved; }
   // The feet leave the ground where it no longer carries anything, where it ends, or where the pilot jumps: off a cliff
   // always, on a run when asked. The jump puts the legs' last push into the wing, up and along.
   const atEdge = edgeAhead - moved <= 0, jumping = s.cliff ? atEdge : manual && jump;

@@ -97,10 +97,10 @@ test('a launch steps the glider\'s own flight state, so the flight just carries 
 });
 
 test('a launch gone wrong becomes a tumble that comes to rest', () => {
-  const glider = createGlider({ world: createWorld({ wind: { x: 6, z: -1 } }) });
+  const glider = createGlider({ world: createWorld({ wind: { x: 12, z: -1 } }) });   // (a crosswind stronger than the weight shift)
   const launch = glider.launch();
   for (let i = 0; i < 600 && !launch.failed; i++) launch.step(1 / 60);
-  assert.equal(launch.failed, 'crosswind');
+  assert.equal(launch.failed, 'wingdrop');
   const wreck = launch.tumble();
   for (let i = 0; i < 600 && !wreck.done; i++) stepTumble(wreck, 1 / 60);
   assert.ok(wreck.done && wreck.y < 3);

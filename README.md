@@ -104,7 +104,7 @@ Configs belong to the glider: two gliders with different numbers fly side by sid
 const launch = glider.launch({ site, manual: false });   // site: { fall(x, z, heading), edgeAhead(x, z, heading), ground?(x, z) }
 while (!launch.airborne && !launch.failed) launch.step(1 / 60, controls);
 // airborne: launch.reason is 'flying' or 'edge'. Carry on with glider.step(dt, { pitch: launch.barHold, ... }).
-// failed: 'crosswind', 'wingdrop', 'turned' or 'stumbled'. launch.tumble() is the wreck as a rigid body (stepTumble until done).
+// failed: 'wingdrop', 'turned' or 'stumbled'. launch.tumble() is the wreck as a rigid body (stepTumble until done).
 ```
 
 The run steps the glider's own flight state through the flight model's own lift and drag, so the run and the flight are one physics: nothing changes at lift-off. The wind and rising air come from the world, and the ground of the run comes from the site. An Easy launch (the default) runs itself. In a Realistic one (`manual: true`), `controls` carries `balance` (A/D), `nose` (W/S), `go` and `jump` (Space). `launch.pose(stride)` says where to draw the wing and the pilot.

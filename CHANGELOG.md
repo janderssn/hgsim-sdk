@@ -26,7 +26,8 @@ The public API is what `hgsim` and `hgsim/three` export, as declared in `types/`
 ### Changed
 
 - The round's `liftoff` event is `airborne`, as on every vehicle. `crash` says what happened: `{ kind: 'terrain' | 'solid' | 'water' | 'launch', impact, hit }`, and a failed launch is a crash too.
-- A hang glider flying into the world's water or its solid things crashes into them; a wreck in the water settles on its surface.
+- A hang glider flying into the world's water or its solid things crashes into them; a wreck in the water settles on its surface. The wreck stops against solid things (walls, huts, pylons) instead of sliding through them, and the crash is found at the wing's nose as well as the body.
+- A tumble ends when the wreck is still, or after 7 s once it is only creeping, or after 60 s; a wreck still falling, down a cliff or a wall, is no longer stopped in mid-air.
 - The package's exports are its two entry points, `hgsim` and `hgsim/three`. The per-module subpaths (`hgsim/launch`, ...) are gone; everything public is exported from the entry points.
 - `round.standAt` takes one of `SITES` as it is, as well as a `{ start, fall, edgeAhead, ground }` site.
 - `glider.step` throws a `RangeError` for a negative or non-finite time step instead of corrupting the flight.

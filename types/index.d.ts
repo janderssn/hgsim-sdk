@@ -577,11 +577,15 @@ export interface Tumble {
   /** Orientation quaternion [x, y, z, w]. */
   q: number[];
   v: number[]; impact: number; done: boolean; speed0: number;
+  /** The first solid thing it struck, or null. */
+  hit: unknown;
   [field: string]: unknown;
 }
 export function createTumble(start: {
   x: number; y: number; z: number; pitch?: number; heading?: number; roll?: number; speed?: number; vy?: number;
   velocity?: number[] | null; rollRate?: number; yawRate?: number; ground: (x: number, z: number) => number; wind?: Vec2;
+  /** The solid things a wreck stops against (World.solidAt): what is at a point, or null. */
+  solid?: ((x: number, y: number, z: number) => unknown) | null;
 }): Tumble;
 export function stepTumble(tumble: Tumble, dt: number): Tumble;
 

@@ -120,6 +120,32 @@ test('the hang glider is a vehicle like the walker: pose, velocity, airborne, an
   assert.equal(what[0].kind, 'solid'); assert.equal(what[0].hit, 'church');
 });
 
+test('a wreck stops against the solid things it flies into: walls, huts and pylons, and falls down a wall it hits high up', () => {
+  for (const [name, solid, at, front] of [
+    ['wall', (x, y, z) => (z > 80 && z < 90 && y < 400 ? 'church' : null), { y: 300, z: 0 }, 80],
+    ['hut', (x, y, z) => (Math.abs(x) < 10 && z > 80 && z < 100 && y < 15 ? 'hut' : null), { y: 14, z: 50 }, 80],
+    ['pylon', (x, y, z) => (Math.hypot(x, z - 80) < 1.5 && y < 60 ? 'pylon' : null), { y: 40, z: 0 }, 78.5],
+  ]) {
+    const world = createWorld({ solid }), hg = createHangGlider({ world }), crashes = [];
+    hg.on('crash', e => crashes.push(e));
+    hg.startAt({ x: 0, ...at, heading: 0 });
+    let inside = 0, faster = false, into = null;
+    for (let i = 0; i < 60 * 90 && hg.phase !== 'crashed'; i++) {
+      hg.step(1 / 60);
+      const body = hg.tumble;
+      if (!body) continue;
+      into ??= body.v[2];
+      if (world.solidAt(body.c[0], body.c[1], body.c[2])) inside++;
+      if (-body.v[2] > into) faster = true;
+    }
+    assert.equal(hg.phase, 'crashed', name); assert.equal(crashes[0].kind, 'solid'); assert.equal(crashes[0].hit, world.solidAt(0, 1, front + 0.5) ?? crashes[0].hit);
+    assert.equal(inside, 0, `${name}: the wreck never passes into it`);
+    assert.ok(!faster, `${name}: it bounces off slower than it hit`);
+    assert.ok(hg.wreck.z < front && hg.wreck.z > front - 25, `${name}: at rest in front of it (${hg.wreck.z.toFixed(1)})`);
+    assert.ok(hg.wreck.y < 3, `${name}: on the ground, not hung on the wall (${hg.wreck.y.toFixed(1)})`);
+  }
+});
+
 test('a game loop: walk, launch, fly, all on one fixed clock and drawn between ticks', () => {
   const world = createWorld({ terrain: SITES.ramp.terrain, wind: { x: 0, z: -4 } });
   let vehicle = createWalker({ world, at: { x: 0, z: -40 } });

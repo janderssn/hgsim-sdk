@@ -226,7 +226,7 @@ function createLaunchHandle({ glider, run, site, groundAt, manual, launchCfg }) 
       const s = glider.state, pose = launchPose(run, stride, glider.config, launchCfg), heading = s.heading + pose.yaw;
       const o = shoulderPivot(pose.pitch, heading, pose.roll, pose.shoulders);
       return createTumble({ x: s.x + o[0], y: groundAt(s.x, s.z) + pose.height + o[1], z: s.z + o[2], pitch: pose.pitch, heading, roll: pose.roll,
-        speed: run.groundSpeed, rollRate: run.rollV || 0, yawRate: (run.yawV || 0) + (run.turnRate || 0), ground, wind: windNow(world, s) });
+        speed: run.groundSpeed, rollRate: run.rollV || 0, yawRate: (run.yawV || 0) + (run.turnRate || 0), ground, wind: windNow(world, s), solid: world.solidAt });
     },
   };
   return launch;

@@ -73,7 +73,7 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
 
   function tumbleFromFlight(crash) {
     const s = glider.state, pose = (bodyPose ?? defaultPose)(s), horizontal = s.airspeed * Math.cos(s.pathAngle || 0);
-    r.tumble = createTumble({ ...pose, ground: r.tumbleGround ?? groundAt, wind: { x: finite(s.windX), z: finite(s.windZ) },
+    r.tumble = createTumble({ ...pose, ground: r.tumbleGround ?? groundAt, solid: world.solidAt, wind: { x: finite(s.windX), z: finite(s.windZ) },
       velocity: [Math.sin(s.heading) * horizontal + finite(s.windX), s.verticalSpeed, Math.cos(s.heading) * horizontal + finite(s.windZ)], yawRate: finite(s.headingRate) });
     r.tumble.fromFlight = true; r.phase = 'tumble'; r.takeoff = null; emit('crash', crash);
   }
@@ -212,7 +212,8 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
       r.distanceFlown += Math.hypot(s.x - px, s.z - pz); r.maxSpeed = Math.max(r.maxSpeed, s.airspeed);
       // Solid things (a deck, a rock), but not in the first moments of the launch off them.
       const early = tk && tk.t < 0.25;
-      const hit = early ? null : (solid ? solid(s) : null) || world.solidAt(s.x, s.y - 1, s.z);
+      // (the body, and the nose of the wing 2.5 m ahead of it, which meets a wall first)
+      const hit = early ? null : (solid ? solid(s) : null) || world.solidAt(s.x, s.y - 1, s.z) || world.solidAt(s.x + Math.sin(s.heading) * 2.5, s.y, s.z + Math.cos(s.heading) * 2.5);
       const water = world.waterAt(s.x, s.z), wet = !hit && water !== null && water > world.heightAt(s.x, s.z) && s.y < water + glider.config.contactHeight;
       if (hit || wet) {
         // Into a solid thing (a building, a deck, a rock) or the water: a crash at the speed it was going, the wreck on the water's top.

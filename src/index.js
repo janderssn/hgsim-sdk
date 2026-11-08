@@ -14,7 +14,7 @@
  */
 export { createWorld, AIR_DEFAULTS } from './world.js';
 export { createGlider } from './glider.js';
-export { PRESETS, getPreset } from './presets.js';
+export { PRESETS, getPreset, defineWing, wingConfig, handlingFor, vgConfig, TRAITS } from './presets.js';
 export { polarOf, pitchStabilityOf } from './polar.js';
 export { defineConfig, overridesOf } from './config.js';
 export { forceModel, GLIDER_DEFAULTS, performance, createFlightState, stepFlight } from './flight.js';
@@ -24,4 +24,5 @@ export { LANDING_RULES, judgeTouchdown, scoreLanding, measureFlareZone, ZONE_LOW
 export { createTumble, stepTumble } from './tumble.js';
 export { createWind, describeWind, compassName, directionFromBearing, bearingFromDirection } from './wind.js';
 export { createFlightRecorder, FLIGHT_FIELDS, SAMPLE_PERIOD } from './recorder.js';
+export { SCENARIOS, SITES, getScenario, startScenario, runScenario, launchPilot } from './scenarios.js';
 export { bankedClearance } from './assists/skim-pose.js';

@@ -17,6 +17,9 @@ export const LANDING_RULES = Object.freeze({
   roughTouchdown: Object.freeze({ vertical: 2.8, ground: 19 }),
   maxTouchdownSlope: 0.45,
   maxTouchdownBank: 0.42,
+  // A wing never pushed out lands on its base bar: faster over the ground than this (m/s) it is a whack, judged firm at best,
+  // however gently it sank (scoreLanding, when the touchdown says whether it flared).
+  unflaredGround: 6,
   // Downwind the ground speed is the airspeed plus the wind, and few pilots can run that out. Above tailwindFree (m/s) only a
   // well flared, slow touchdown survives: airspeed under tailwindAirspeed, less tailwindSlope per m/s of extra tailwind.
   tailwindFree: 1, tailwindAirspeed: 8.5, tailwindSlope: 0.5,
@@ -57,7 +60,9 @@ export function scoreLanding(touchdown = {}, target = null, rules = LANDING_RULE
   const heading = finite(touchdown.heading);
   // Wind is the direction the air travels toward: a headwind blows against the heading.
   const headwind = -(Math.sin(heading) * windX + Math.cos(heading) * windZ);
-  const judged = judgeTouchdown({ ...touchdown, tailwind: -headwind }, rules);
+  const touched = judgeTouchdown({ ...touchdown, tailwind: -headwind }, rules);
+  const whacked = touched === 'soft' && touchdown.flare && !touchdown.flare.pressed && Math.abs(finite(touchdown.groundSpeed)) > finite(cfg.unflaredGround, Infinity);
+  const judged = whacked ? 'firm' : touched;
   const notes = [];
   let points = pts[judged] || 0;
   if (judged === 'soft') notes.push('Soft touchdown');

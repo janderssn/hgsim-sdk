@@ -1,105 +1,127 @@
-// Glider presets: each flies to its own polar, launches, lands, and handles as its kind of wing should.
+// Glider presets: each flies at its own ballpark speeds with the default wing's feel, and the ladder of modern wings (Alpha, Falcon,
+// Sport 2, U2, T2C) runs from the easiest to launch, fly and land to the hardest. Judged by flying the tuning scenarios.
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { PRESETS, getPreset, createGlider, createWorld, GLIDER_DEFAULTS, polarOf, performance, defineConfig } from '../src/index.js';
+import { PRESETS, getPreset, defineWing, wingConfig, handlingFor, TRAITS, createGlider, GLIDER_DEFAULTS, LAUNCH_DEFAULTS, runScenario, startScenario, SCENARIOS } from '../src/index.js';
 
-const ids = Object.keys(PRESETS);
-const polarFor = (id, vg = 1) => createGlider({ preset: id }).setVG(vg).polar();   // (rated with the VG on)
+const ids = Object.keys(PRESETS), LADDER = ['alpha-235', 'falcon-170', 'sport-2', 'u2-160', 't2c-144'];
+const kmh = v => v * 3.6;
+const fly = (id, wing, vg = 0) => runScenario(id, { preset: wing, vg });
 
-test('each preset fits its reference data: the polar points, and the stall, trim and top speeds', () => {
+test('each preset flies at the speeds and glide it was defined with, at both ends of a VG', () => {
   for (const id of ids) {
-    const preset = getPreset(id), refs = !preset.reference ? [] : preset.vg ? [[0, preset.reference.loose], [1, preset.reference.tight]] : [[0, preset.reference]];
-    for (const [vg, ref] of refs) {
-      const g = createGlider({ preset: id }).setVG(vg), p = g.polar(), name = `${id}${preset.vg ? (vg ? ' VG on' : ' VG off') : ''}`;
-      assert.equal(g.config.mass, ref.mass, `${name} flies at the reference mass`);
-      const errors = ref.points.map(([kmh, sink]) => (g.performance.sink(kmh / 3.6) - sink) / sink);
-      const rms = Math.sqrt(errors.reduce((a, e) => a + e * e, 0) / errors.length);
-      assert.ok(rms < 0.03 && errors.every(e => Math.abs(e) < 0.06), `${name} polar within 3% rms of the reference: ${(rms * 100).toFixed(1)}%`);
-      for (const [what, got, want] of [['stall', p.stallSpeed, ref.stallKmh], ['trim', p.trimSpeed, ref.trimKmh], ['top', p.topSpeed, ref.topKmh]])
-        assert.ok(Math.abs(got * 3.6 - want) < 1.5, `${name} ${what} ${(got * 3.6).toFixed(1)} km/h, reference ${want}`);
+    const p = getPreset(id);
+    if (!p.targets) continue;
+    for (const [vg, side] of p.vg ? [[0, p.targets.vg.loose], [1, p.targets.vg.tight]] : [[0, {}]]) {
+      const want = { ...p.targets, ...side }, polar = createGlider({ preset: id }).setVG(vg).polar(), name = `${id}${p.vg ? ` VG ${vg ? 'on' : 'off'}` : ''}`;
+      for (const [what, got, target] of [['stall', kmh(polar.stallSpeed), want.stall], ['trim', kmh(polar.trimSpeed), want.trim], ['top', kmh(polar.topSpeed), want.top]])
+        assert.ok(Math.abs(got - target) < 1, `${name} ${what} ${got.toFixed(1)} km/h, defined ${target}`);
+      assert.ok(Math.abs(polar.bestGlide.glideRatio - want.glide) < 0.35, `${name} glide ${polar.bestGlide.glideRatio.toFixed(2)}, defined ${want.glide}`);
     }
-    if (preset.reference) assert.ok(preset.reference.sources.length && preset.reference.note, `${id} names its sources`);
   }
 });
 
-test('the eras are in order: each generation glides flatter than the last', () => {
-  const ld = id => polarFor(id).bestGlide.glideRatio;
-  assert.ok(ld('rogallo-1975') < ld('alpha-235') && ld('alpha-235') < ld('vintage-1985') && ld('vintage-1985') < ld('intermediate') && ld('intermediate') < ld('sport-2') && ld('sport-2') < ld('t2c-144'));
-  assert.ok(polarFor('rogallo-1975').minSink.sink > 1.8 * polarFor('alpha-235').minSink.sink, 'the Rogallo sinks nearly twice as fast as a modern trainer');
-  assert.ok(polarFor('t2c-144').minSink.sink < polarFor('alpha-235').minSink.sink, 'the topless wing sinks least');
-  assert.ok(polarFor('t2c-144').speedToFly({ headwind: 5 }).airspeed > polarFor('t2c-144').bestGlide.airspeed, 'into wind, fly faster');
+test('ballpark speeds: the T2C dives to 150 km/h with the VG on, and the eras glide flatter as they go', () => {
+  const polar = (id, vg = 0) => createGlider({ preset: id }).setVG(vg).polar();
+  assert.ok(Math.abs(kmh(polar('t2c-144', 1).topSpeed) - 150) < 1);
+  const glide = id => polar(id, 1).bestGlide.glideRatio;
+  const eras = ['rogallo-1975', 'cable-1979', 'vintage-1985', 'performance-1992', 'sport-2', 't2c-144'];
+  for (let i = 1; i < eras.length; i++) assert.ok(glide(eras[i]) > glide(eras[i - 1]), `${eras[i]} glides flatter than ${eras[i - 1]}`);
+  for (let i = 1; i < LADDER.length; i++) assert.ok(polar(LADDER[i]).stallSpeed >= polar(LADDER[i - 1]).stallSpeed, `${LADDER[i]} stalls no slower than ${LADDER[i - 1]}`);
 });
 
-test('every preset trims hands off to its polar, launches off a slope and lands softly from a well-timed flare on a fast final', () => {
-  const slope = createWorld({ terrain: (x, z) => (z < 40 ? -0.15 * z : -300), wind: { x: 0, z: -4 } });
-  const field = createWorld({ wind: { x: 0, z: -3 } });
-  for (const id of ids) {
-    const g = createGlider({ preset: id, at: { y: 2000 } });
-    for (let i = 0; i < 1800; i++) g.step(1 / 60);
-    const p = g.polar();
-    assert.ok(Math.abs(g.state.airspeed - p.trimSpeed) < 0.3 && Math.abs(-g.state.verticalSpeed - p.trimSink) < 0.1, `${id} trim`);
-    const runner = createGlider({ preset: id, world: slope }), launch = runner.launch({ site: { fall: () => 0.15, edgeAhead: (x, z) => 40 - z } });
-    for (let i = 0; i < 1200 && !launch.airborne && !launch.failed; i++) launch.step(1 / 60);
-    assert.equal(launch.reason, 'flying', `${id} launches`);
-    // An approach with some speed in hand (the bar a little in, as pilots fly final: these wings trim close to the stall), then
-    // the flare held. Each wing has its own moment to flare.
-    const flareFrom = h => { const lander = createGlider({ preset: id, world: field, at: { y: 25 } }); let on = false;
-      for (let i = 0; i < 6000 && !lander.contact(); i++) { if (lander.height() - 2.4 < h) on = true; lander.step(1 / 60, { pitch: on ? 1 : -0.3, field: lander.height() < 14 }); }
-      return lander.land().judged; };
-    const judged = [1, 1.5, 2, 2.5, 3].map(flareFrom);
-    assert.ok(judged.includes('soft') && !judged.includes('crash'), `${id} lands softly from a flare between 1 and 3 m: ${judged}`);
+test('a dive held with the bar in keeps going: the speed builds toward the top speed and the path stays steep', () => {
+  for (const id of [...LADDER, 'intermediate']) for (const vg of PRESETS[id].vg ? [0, 1] : [0]) {
+    const r = fly('dive-hold', id, vg), top = kmh(createGlider({ preset: id }).setVG(vg).polar().topSpeed);
+    assert.ok(r.metrics.endKmh > 0.75 * top && r.metrics.steepestDeg < -40, `${id} VG ${vg}: ${JSON.stringify(r.metrics)}, top ${top.toFixed(0)}`);
   }
 });
 
-test('handling: the trainer rolls quickest, the Rogallo slowest, the topless wing heavier than the intermediate', () => {
-  const quarterTurn = (id, vg = 1) => { const g = createGlider({ preset: id, at: { y: 2000 } }).setVG(vg); let t = 0; while (Math.abs(g.state.heading) < Math.PI / 2) { g.step(1 / 60, { roll: 1 }); t += 1 / 60; } return t; };
-  const t = Object.fromEntries(ids.map(id => [id, quarterTurn(id)]));
-  assert.ok(t['alpha-235'] < t.intermediate && t.intermediate < t['t2c-144'] && t['t2c-144'] < t['rogallo-1975'], JSON.stringify(t));
-  assert.ok(quarterTurn('t2c-144', 0) < t['t2c-144'] - 0.15 && quarterTurn('sport-2', 0) < quarterTurn('sport-2', 1), 'VG off rolls quicker');
+test('the Rogallo luffs: dived, its nose keeps tucking hands off, and only a full push-out brings it back, slowly', () => {
+  const D = Math.PI / 180, dive = push => { const run = startScenario('dive-release', { preset: 'rogallo-1975', pilot: 'you' });
+    while (!run.done) run.step(1 / 60, { pitch: run.t < 4 ? -1 : push }); return run.result.samples.filter(s => s.t > 4); };
+  const handsOff = dive(0), pushed = dive(1), out = pushed.find(s => s.pathAngle > -15 * D);
+  assert.ok(handsOff.every(s => s.pathAngle < -25 * D), 'hands off it stays in the dive');
+  assert.ok(out && out.t - 4 > 3, 'pushed out hard, it comes back, after seconds: ' + (out && (out.t - 4).toFixed(1)));
+  assert.equal(fly('dive-release', 'falcon-170').metrics.settleSeconds !== null, true, 'a modern wing comes back by itself');
 });
 
-test('presets are tunable and switchable, and their tuning is relative to the preset', () => {
+test('the ladder on launch: a sloppy pilot gets the easy wings off, and the hard ones go over sooner', () => {
+  const sloppy = Object.fromEntries(LADDER.map(id => [id, fly('ramp-sloppy', id).outcome]));
+  assert.deepEqual(sloppy, { 'alpha-235': 'flying', 'falcon-170': 'flying', 'sport-2': 'flying', 'u2-160': 'wingdrop', 't2c-144': 'wingdrop' });
+  const heldFor = id => { const r = runScenario({ ...SCENARIOS.find(s => s.id === 'ramp-hands-off'), id: 'probe', wind: { head: 5, gusts: 1.6 } }, { preset: id }); return r.outcome === 'wingdrop' ? r.at : Infinity; };
+  const times = LADDER.map(heldFor);
+  for (let i = 1; i < times.length; i++) assert.ok(times[i] <= times[i - 1], `nobody balancing, each harder wing goes over no later: ${times.map(t => t.toFixed?.(1))}`);
+  for (const id of LADDER) for (const sc of ['ramp-calm', 'ramp-breeze', 'slope-calm', 'slope-breeze', 'cliff-light']) assert.equal(fly(sc, id).outcome, 'flying', `${id} launches in ${sc} with a good pilot`);
+  assert.equal(fly('ramp-nose-high', 't2c-144').outcome !== 'flying', true, 'the nose held high spoils the run');
+});
+
+test('the ladder in the air: slower to roll when slow, and a sharper stall that drops a tip', () => {
+  const roll = LADDER.map(id => fly('roll-slow', id).metrics.to30Seconds), drop = LADDER.map(id => fly('stall-straight', id).metrics.dropDeg);
+  for (let i = 1; i < LADDER.length; i++) assert.ok(roll[i] >= roll[i - 1], `each harder wing rolls no quicker near the stall: ${roll}`);
+  assert.ok(drop[4] > 2 * drop[0] && drop[4] > drop[2], `the T2C drops a tip, the Alpha mushes: ${drop}`);
+  assert.ok(fly('roll-reversal', 'rogallo-1975').metrics.reversalSeconds > 1.5 * fly('roll-reversal', 'alpha-235').metrics.reversalSeconds, 'the Rogallo is heavy in roll');
+});
+
+test('landing: a flare at the cue lands softly on every modern wing; no flare is a whack on all of them', () => {
+  for (const id of [...LADDER, 'intermediate']) {
+    assert.equal(fly('land-cue', id).outcome, 'soft', `${id} at the cue`);
+    assert.notEqual(fly('land-no-flare', id).outcome, 'soft', `${id} unflared`);
+  }
+});
+
+test('defineWing makes a wing from ballpark numbers and a character', () => {
+  const wing = defineWing({ id: 'mine', name: 'Mine', mass: 100, stall: 26, trim: 35, top: 90, glide: 10, aspectRatio: 6, difficulty: 0.3, character: { stall: 0.9 }, launch: { topSpeed: 7 } });
+  const g = createGlider({ preset: wing }), p = g.polar();
+  assert.ok(Math.abs(kmh(p.stallSpeed) - 26) < 1 && Math.abs(kmh(p.trimSpeed) - 35) < 1 && Math.abs(kmh(p.topSpeed) - 90) < 1 && Math.abs(p.bestGlide.glideRatio - 10) < 0.35);
+  assert.equal(g.config.stallBlend, handlingFor({ difficulty: 0.3, stall: 0.9 }).config.stallBlend, 'a trait overrides the difficulty');
+  assert.equal(g.launchConfig.topSpeed, 7, 'its launch values reach the launch');
+  assert.equal(g.launchConfig.rollTip, handlingFor(0.3).launch.rollTip);
+  assert.deepEqual(TRAITS, ['roll', 'stall', 'pitch', 'flare', 'launch']);
+  assert.throws(() => wingConfig({ mass: 100, stall: 30, trim: 28, top: 90, glide: 10 }), /stall < trim < top/);
+  const easy = handlingFor(0), hard = handlingFor(1);
+  assert.ok(easy.config.rollFrequency > hard.config.rollFrequency && easy.launch.rollTip < hard.launch.rollTip && easy.config.stallBlend > hard.config.stallBlend);
+});
+
+test('presets are tunable and switchable; the default wing is the force model\'s own', () => {
   const g = createGlider({ preset: 't2c-144', config: { mass: 120 } });
-  assert.equal(g.preset.id, 't2c-144'); assert.equal(g.config.span, 9.9); assert.equal(g.config.mass, 120);
-  assert.deepEqual(g.overrides, { mass: 120 });
-  const before = g.polar().stallSpeed; g.tune({ mass: 90 });
-  assert.ok(g.polar().stallSpeed < before, 'the polar follows the tuning');
+  assert.equal(g.preset.id, 't2c-144'); assert.deepEqual(g.overrides, {});   // (120 kg is the preset's own mass)
+  g.tune({ mass: 90 }); assert.deepEqual(g.overrides, { mass: 90 });
+  const before = g.polar().stallSpeed; g.tune({ mass: 120 }); assert.ok(g.polar().stallSpeed > before, 'the polar follows the tuning');
   g.tune(); assert.equal(g.config.mass, PRESETS['t2c-144'].config.mass, 'tune() restores the preset');
-  g.usePreset('rogallo-1975'); assert.equal(g.config.span, 7.3); assert.deepEqual(g.overrides, {});
+  g.usePreset('rogallo-1975'); assert.deepEqual(g.overrides, {}); assert.ok(g.config.luffTuck > 0);
+  g.usePreset('intermediate'); assert.equal(g.launchConfig, LAUNCH_DEFAULTS);
   g.usePreset(null); assert.equal(g.config, GLIDER_DEFAULTS);
   assert.throws(() => createGlider({ preset: 'nope' }), /unknown glider preset "nope" \(known: rogallo-1975/);
-  assert.deepEqual(polarOf(performance(defineConfig(GLIDER_DEFAULTS, PRESETS['alpha-235'].config))).bestGlide, polarFor('alpha-235').bestGlide);
 });
 
-test('VG: loose for handling, tight for glide; tuning stays on top of it and the polar follows', () => {
-  const g = createGlider({ preset: 't2c-144', config: { mass: 115 } });
+test('VG: loose for handling, tight for glide and speed; tuning stays on top and the polar follows', () => {
+  const g = createGlider({ preset: 't2c-144' });
   assert.ok(g.hasVG && g.vg === 0);
   const loose = g.polar(); g.setVG(1); const tight = g.polar();
-  assert.ok(tight.bestGlide.glideRatio > loose.bestGlide.glideRatio + 0.4 && tight.topSpeed > loose.topSpeed + 5 && tight.trimSpeed > loose.trimSpeed + 2, 'tight glides flatter, trims faster and goes faster');
-  assert.ok(g.performance.sink(80 / 3.6) < createGlider({ preset: 't2c-144' }).performance.sink(80 / 3.6) - 0.2, 'and sinks much less at speed');
+  assert.ok(tight.bestGlide.glideRatio > loose.bestGlide.glideRatio + 1 && tight.topSpeed > loose.topSpeed + 5 && tight.trimSpeed > loose.trimSpeed + 1);
   assert.ok(g.config.rollFrequency < PRESETS['t2c-144'].vg.loose.rollFrequency, 'and is heavier in roll');
-  assert.equal(g.config.mass, 115, 'the tuning survives the VG');
-  g.setVG(0.5); assert.ok(Math.abs(g.config.alphaTrim - (PRESETS['t2c-144'].vg.loose.alphaTrim + PRESETS['t2c-144'].vg.tight.alphaTrim) / 2) < 1e-9, 'half VG blends the sail');
-  g.tune({ cd0: 0.03 }); g.setVG(1); assert.equal(g.config.cd0, 0.03, 'a tuned value wins over the VG');
+  g.tune({ cd0: 0.03 }); g.setVG(0.5); assert.equal(g.config.cd0, 0.03, 'a tuned value wins over the VG');
+  const half = createGlider({ preset: 't2c-144' }).setVG(0.5);
+  assert.ok(Math.abs(half.config.alphaTrim - (PRESETS['t2c-144'].vg.loose.alphaTrim + PRESETS['t2c-144'].vg.tight.alphaTrim) / 2) < 1e-12, 'half VG blends the sail');
   const plain = createGlider({ preset: 'alpha-235' }); assert.ok(!plain.hasVG); plain.setVG(1); assert.equal(plain.vg, 0);
 });
 
 test('the flare zone is measured per wing and per approach speed', () => {
-  const zoneAtTrim = (id, vg = 0) => { const g = createGlider({ preset: id }).setVG(vg); return g.flareZone().at(g.performance.trimSpeed()); };
-  const standard = zoneAtTrim('intermediate');
-  assert.ok(standard.low < 3.3 && standard.high > 2.7, 'the default wing\'s hands-off zone overlaps the tested 2.7-3.3 m: ' + JSON.stringify(standard));
-  const topless = zoneAtTrim('t2c-144');
-  assert.ok(topless.high < standard.low, 'a topless wing trimmed near the stall flares lower: ' + JSON.stringify(topless));
   const g = createGlider({ preset: 't2c-144' }).setVG(1), zone = g.flareZone();
   assert.equal(g.flareZone(), zone, 'measured once per config');
-  assert.ok(zone.at(2 * g.performance.stallSpeed()) === null && zone.at(0.9 * g.performance.stallSpeed()) === null, 'no zone outside the measured speeds');
+  assert.ok(zone.at(2.5 * g.performance.stallSpeed()) === null && zone.at(0.9 * g.performance.stallSpeed()) === null, 'no zone outside the measured speeds');
   g.tune({ mass: 100 }); assert.notEqual(g.flareZone(), zone, 'measured again after tuning');
-  // Flying it: hands off at trim, then the flare held from the middle of the zone, lands softly on every wing.
-  const field = createWorld({ wind: { x: 0, z: -2 } });
-  for (const id of ids) {
-    const z = zoneAtTrim(id), from = (z.low + z.high) / 2, lander = createGlider({ preset: id, world: field, at: { y: 16 } });
-    let on = false;
-    for (let i = 0; i < 6000 && !lander.contact(); i++) { if (lander.height() - 2.3 < from) on = true; lander.step(1 / 60, { pitch: on ? 1 : 0, field: lander.height() < 14 }); }
-    assert.equal(lander.land().judged, 'soft', `${id}: a flare from ${from.toFixed(1)} m lands softly`);
-  }
+  const standard = createGlider({ preset: 'intermediate' }), z = standard.flareZone().at(standard.performance.trimSpeed());
+  assert.ok(z.low < 3.3 && z.high > 2.7, 'the default wing\'s hands-off zone overlaps the tested 2.7-3.3 m: ' + JSON.stringify(z));
+});
+
+test('scenarios are repeatable, and a "you" run takes your controls', () => {
+  const a = runScenario('roll-reversal', { preset: 'u2-160' }), b = runScenario('roll-reversal', { preset: 'u2-160' });
+  assert.deepEqual(a.metrics, b.metrics);
+  const run = startScenario('trim', { preset: 'falcon-170', pilot: 'you' });
+  for (let i = 0; i < 120; i++) run.step(1 / 60, { roll: 1 });
+  assert.ok(run.glider.state.bank > 0.5, 'your weight shift banks it');
+  assert.throws(() => runScenario('nope'), /unknown scenario "nope"/);
+  for (const sc of SCENARIOS) assert.ok(sc.name && sc.look && ['launch', 'flight', 'landing'].includes(sc.kind), sc.id);
 });

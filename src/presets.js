@@ -1,27 +1,113 @@
 /**
- * Glider presets: named wings with their own performance and handling, as overrides of the force model's GLIDER_DEFAULTS.
- * Fly one with createGlider({ preset: 't2c-144' }); anything in config is then applied on top, and glider.tune() still
- * changes it in flight. glider.polar() shows what it does.
+ * Glider presets: named wings with their own speeds, handling and launch, as overrides of the force model's GLIDER_DEFAULTS and the
+ * launch's LAUNCH_DEFAULTS. Fly one with createGlider({ preset: 't2c-144' }); anything in config is applied on top, and glider.tune()
+ * still changes it in flight. glider.polar() shows what it does. defineWing makes your own.
  *
- * Each preset's `reference` is the data it was fitted to (tools/fit-presets.mjs): its total mass, its stall, trim and top speeds,
- * reference polar points [km/h, sink m/s], the sources, and a note on how far to trust them (with a VG: one for each end).
- * The geometry and speeds are mostly manufacturer figures. Sink rates are manufacturer estimates, period claims, or estimates of
- * ours where nothing is published; no independently measured polar was found for any of these wings.
+ * Feel first. The force model's defaults (the 'intermediate' preset) are the wing the game was tuned on, and every other wing is that
+ * wing scaled to its own speeds: the same angles of attack, so the same bar, pitch and flare, at its own stall, trim and top speed and
+ * with its own glide (wingConfig). Its character then comes from a difficulty and five traits, each from forgiving to demanding:
+ * roll, stall, pitch, flare and launch (handlingFor). Old sails can also luff when dived (the 1970s killer). The ladder of modern
+ * wings, easiest to launch and land first: Alpha, Falcon, Sport 2, U2, T2C. The eras run from the 1975 standard Rogallo to today.
+ * The speeds are ballpark figures for each kind of wing, not fits to a polar.
  *
  * A preset with a VG (variable geometry: a rope that tightens the sail) has vg: { loose, tight, default }, the values that change
- * between a loose sail (lighter in roll, slower, more twist and drag) and a tight one (flatter glide at speed, heavier in roll,
- * a sharper stall). glider.setVG(0..1) moves between them in flight.
+ * between a loose sail (lighter in roll, slower, a softer stall) and a tight one (flatter glide at speed, heavier in roll, a sharper
+ * stall). glider.setVG(0..1) moves between them in flight.
  *
- * Handling is set by the same numbers the force model always had: roll response (rollFrequency, rollAuthority, slowBank,
- * maxBank), the bar (barOutSeconds, barPressureExp, barPressureMax: how hard it is to push out at speed), the stall (stallAlpha,
- * stallBlend: how soft it is, plateLift: how much a stalled sail still lifts, stallRollFactor: roll left in a stall), pitch
- * (pitchTau: how quickly the wing returns to its trim, speedStability, luffAlpha and luffLoss: a sail that luffs at low angles
- * of attack, pitchAuthority, loadLimit) and the speed range (alphaMin: full bar in, alphaTrim: hands off).
+ * `reference`, where there is one, is the real wing's published figures, for comparison on the polar chart; the presets do not fit it.
  */
 import { DEG } from './math.js';
+import { GLIDER_DEFAULTS, liftCoefficient } from './flight.js';
 
-const preset = p => Object.freeze({ ...p, reference: p.reference ? Object.freeze(p.reference) : null, config: Object.freeze(p.config),
-  vg: p.vg ? Object.freeze({ default: p.vg.default ?? 0, loose: Object.freeze(p.vg.loose), tight: Object.freeze(p.vg.tight) }) : null });
+const lerp = (a, b, t) => a + (b - a) * t;
+const kmh = v => v / 3.6;
+
+/** The character traits a wing is described by, each 0 (forgiving) .. 1 (demanding). See handlingFor. */
+export const TRAITS = Object.freeze(['roll', 'stall', 'pitch', 'flare', 'launch']);
+
+/**
+ * Handling and launch for a character, as overrides: { config } of the force model's GLIDER_DEFAULTS and { launch } of LAUNCH_DEFAULTS.
+ * character: a difficulty (0 a trainer .. 1 a topless competition wing, up to 1.2 for a wing harder still), or an object with
+ * difficulty and any of TRAITS (each 0..1.2; a trait left out takes the difficulty):
+ *   roll    light and quick even when slow (0) .. heavy, and barely rolling near the stall (1)
+ *   stall   a soft mush straight ahead (0) .. a sharp break that drops a tip (1)
+ *   pitch   calm and stable (0) .. quick and sensitive in pitch (1)
+ *   flare   forgives an early or late flare (0) .. must be on time (1)
+ *   launch  sits still on the shoulders, nose steady (0) .. heavy, quick to go over, the nose rising (1)
+ * Each value is a straight blend between the two ends.
+ */
+export function handlingFor(character = 0.5) {
+  const c = typeof character === 'number' ? { difficulty: character } : character, d0 = c.difficulty ?? 0.5;
+  const trait = name => Math.max(0, Math.min(1.2, c[name] ?? d0)), blend = name => (easy, hard) => lerp(easy, hard, trait(name));
+  const roll = blend('roll'), stall = blend('stall'), pitch = blend('pitch'), flare = blend('flare'), launch = blend('launch');
+  return {
+    config: {
+      rollFrequency: roll(3.3, 2.6), rollAuthority: [Math.max(0.15, roll(0.45, 0.22)), roll(1.3, 1.35)], slowBank: roll(0.6, 0.35),
+      stallBlend: Math.max(5, stall(18, 8)) * DEG, plateLift: stall(1.6, 1.05), stallRollFactor: Math.max(0.2, stall(0.7, 0.3)),
+      rollDamping: 6, airRoughness: 0.25,   // (the physics of a tip drop: whether one happens is the stall's shape, stallBlend and plateLift)
+      pitchTau: Math.max(0.12, pitch(0.26, 0.16)), speedStability: Math.max(0.15, pitch(0.45, 0.28)) * DEG, loadLimit: pitch(2.6, 3.2),
+      dynamicLift: flare(1.7, 1.15), barOutSeconds: flare(0.5, 0.7), barPressureMax: flare(1.6, 2.6),
+    },
+    launch: {
+      rollTip: launch(0.8, 2.4), drift: launch(0.6, 1.8), reflexMax: Math.max(0.2, launch(0.9, 0.3)), rollLimit: Math.max(0.28, launch(0.5, 0.32)),
+      gustRoll: launch(0.05, 0.15), gustYaw: launch(0.04, 0.08),
+      noseRise: launch(1.5, 5) * DEG, noseSwell: launch(0.8, 2.2) * DEG, yawAero: launch(2, 2.6), wingShare: launch(0.22, 0.3),
+      runStall: [0, Math.max(1.5, launch(4.5, 2.5)) * DEG], runStallLift: Math.min(0.9, launch(0.55, 0.8)),
+    },
+  };
+}
+
+/**
+ * A wing from its ballpark numbers: mass (pilot, harness and wing, kg), stall, trim and top speed (km/h, the top with the bar fully
+ * in), best glide, aspect ratio and oswald efficiency. Returns force-model config: the default wing's angles of attack, with the
+ * wing loading that puts the stall where asked (wingArea is the effective area), the trim and full-bar angles at the asked speeds,
+ * and the parasite drag that gives the asked glide.
+ */
+export function wingConfig({ mass, stall, trim, top, glide, aspectRatio = 6.7, oswald = GLIDER_DEFAULTS.oswald }) {
+  for (const [key, v] of Object.entries({ mass, stall, trim, top, glide })) if (!(v > 0)) throw new TypeError(`wingConfig: ${key} must be a positive number`);
+  if (!(stall < trim && trim < top)) throw new TypeError('wingConfig: the speeds must rise: stall < trim < top');
+  const base = { ...GLIDER_DEFAULTS, mass }, clMax = liftCoefficient(base.stallAlpha, base);
+  const wingArea = 2 * mass * base.gravity / (base.airDensity * clMax * kmh(stall) ** 2);
+  const alphaFor = speed => base.zeroLiftAlpha + clMax * (stall / speed) ** 2 / base.liftSlope;
+  const k = 1 / (Math.PI * oswald * aspectRatio);
+  return { mass, wingArea: +wingArea.toFixed(3), span: +Math.sqrt(aspectRatio * wingArea).toFixed(3), oswald,
+    alphaTrim: alphaFor(trim), alphaMin: alphaFor(top), cd0: +(1 / (4 * k * glide * glide)).toFixed(5) };
+}
+
+/**
+ * Defines a preset (frozen):
+ *   id, name, era, class, description   what it is
+ *   mass, stall, trim, top, glide, aspectRatio, oswald   its performance (wingConfig: kg, km/h, glide ratio)
+ *   difficulty, character   its handling (handlingFor): one number, and any traits that differ from it ({ roll, stall, ... })
+ *   luff   an old sail that luffs when dived: { from (degrees of angle of attack below which it luffs), loss (0..1 of the nose-up
+ *          recovery lost), tuck (degrees the luffed sail's nose-down moment moves the wing's trim angle down) }
+ *   handling, launch   any force-model and LAUNCH_DEFAULTS values, over all of the above
+ *   vg   a VG: { default (0 loose .. 1 tight), loose, tight }, each side with its own trim, top, glide, difficulty and traits
+ *   reference   the real wing's published figures (for comparison), or null
+ */
+export function defineWing({ id, name, era, class: kind, description, difficulty = 0.5, character = {}, luff = null, handling = {}, launch = {}, vg = null, reference = null, ...performance }) {
+  const luffing = luff ? { luffAlpha: (luff.from ?? 4) * DEG, luffLoss: luff.loss ?? 0.5, luffTuck: (luff.tuck ?? 0) * DEG } : {};
+  const make = (side = {}) => {
+    const { trim, top, glide, ...traits } = side, h = handlingFor({ difficulty, ...character, ...traits });
+    return { config: { ...wingConfig({ ...performance, ...(trim && { trim }), ...(top && { top }), ...(glide && { glide }) }), ...h.config, ...luffing }, launch: h.launch };
+  };
+  let config, launchConfig, sails = null;
+  if (vg) {
+    const loose = make(vg.loose), tight = make(vg.tight);
+    const varies = Object.keys(loose.config).filter(key => !(key in handling) && JSON.stringify(loose.config[key]) !== JSON.stringify(tight.config[key]));
+    const only = (o, keep) => Object.fromEntries(Object.entries(o).filter(([key]) => varies.includes(key) === keep));
+    config = { ...only(loose.config, false), ...handling };
+    sails = { default: vg.default ?? 0, loose: Object.freeze(only(loose.config, true)), tight: Object.freeze(only(tight.config, true)) };
+    launchConfig = loose.launch;   // (launches are flown with the VG off)
+  } else {
+    const one = make();
+    config = { ...one.config, ...handling }; launchConfig = one.launch;
+  }
+  return Object.freeze({ id, name, era, class: kind, description, difficulty, character: Object.freeze({ ...character }),
+    targets: Object.freeze({ ...performance, vg: vg ? { loose: { ...vg.loose }, tight: { ...vg.tight } } : null }), luff: luff ? Object.freeze({ ...luff }) : null,
+    reference: reference ? Object.freeze(reference) : null, config: Object.freeze(config), launch: Object.freeze({ ...launchConfig, ...launch }),
+    vg: sails ? Object.freeze(sails) : null });
+}
 
 /**
  * A preset's sail at a VG setting (0 loose .. 1 tight): its vg.loose and vg.tight values, blended (numbers and arrays of
@@ -38,125 +124,107 @@ export function vgConfig(p, setting = p?.vg?.default ?? 0) {
 }
 
 export const PRESETS = Object.freeze({
-  'rogallo-1975': preset({
+  'rogallo-1975': defineWing({
     id: 'rogallo-1975', name: 'Standard Rogallo', era: '1970s', class: 'Standard Rogallo',
-    description: 'A 1970s standard Rogallo: a low-aspect cone of sail on an 80-degree nose angle. Slow, steep-gliding and heavy in roll; ' +
-      'it mushes rather than stalls, and pulled in it soon runs out of speed range (the sail luffs).',
+    description: 'A 1970s standard Rogallo: a cone of sail on an 80-degree nose angle, and a bad wing by any measure. It sinks like a ' +
+      'brick at 4 to 1, rolls slowly and reluctantly, and wallows near the stall. Dive it and the sail luffs: the nose keeps tucking ' +
+      'under by itself, hands off it never comes back, and even a full push-out takes seconds and a lot of height to recover.',
+    mass: 95, stall: 24, trim: 30, top: 55, glide: 4.2, aspectRatio: 2.8, oswald: 0.7, difficulty: 0.6,
+    character: { roll: 1.2, stall: 0.4, pitch: 0.2, flare: 0.8, launch: 0.6 },
+    luff: { from: 2, loss: 0.6, tuck: 2.5 },
+    handling: { rollFrequency: 1.5, maxBank: 45 * DEG, plateDrag: 1.3, pitchTau: 0.34, pitchDamping: 0.3, uprightDrag: 0.3, barPressureMax: 1.4, loadLimit: 2.2 },
+    launch: { reflexMax: 0.6 },
     reference: {
       mass: 95, stallKmh: 23, trimKmh: 30, topKmh: 48, points: [[26, 2.2], [29, 2.05], [33, 2.25], [38, 2.7], [43, 3.4], [48, 4.3]],
       sources: ['US patent 3995799 (1976): a commercial Rogallo of 19.3 m², 7.3 m span: L/D 4, stall 23 km/h, sink 2.3 m/s',
         'US patent 4116406 (1978): standard Rogallo wings glide about 4 to 1'],
-      note: 'Period claims for the glide, stall and sink; the shape of the polar between them is an estimate. No measured polar of the era is published.',
-    },
-    config: {
-      mass: 95, wingArea: 19.3, span: 7.3, liftSlope: 3.16, cd0: 0.1041, oswald: 0.788, twistDrag: 0.0614, twistLift: 1.2,
-      alphaMin: 6 * DEG, alphaTrim: 19.9 * DEG, stallAlpha: 36 * DEG, alphaMax: 52 * DEG, stallBlend: 20 * DEG, plateLift: 1.6, plateDrag: 1.2,
-      rollFrequency: 1.6, rollAuthority: [0.3, 1.0], slowBank: 0.35, maxBank: 45 * DEG, stallRollFactor: 0.4,
-      barOutSeconds: 0.4, barPressureExp: 1.5, barPressureMax: 1.4, pitchAuthority: 0.08, loadLimit: 2.2, freeLoad: 1.3,
-      speedStability: 0.5 * DEG, uprightDrag: 0.3, pitchTau: 0.32, luffAlpha: 14 * DEG, luffLoss: 0.85,
+      note: 'Period claims for the glide, stall and sink; the shape of the polar between them is an estimate.',
     },
   }),
-  'vintage-1985': preset({
-    id: 'vintage-1985', name: 'Double-surface flex wing', era: '1980s', class: 'Intermediate double-surface',
+  'cable-1979': defineWing({
+    id: 'cable-1979', name: 'High-aspect cable-braced wing', era: 'late 1970s', class: 'Second-generation flex wing',
+    description: 'A late-1970s high-aspect, cable-braced wing, in the manner of the Seagull Seahawk or the Electra Flyer Cirrus: twice ' +
+      'the Rogallo\'s glide, but a sail with little reflex. It still luffs when dived hard, it is heavy in roll and its stall can bite.',
+    mass: 100, stall: 26, trim: 34, top: 72, glide: 7, aspectRatio: 5, difficulty: 0.6,
+    character: { roll: 0.9, stall: 0.7, pitch: 0.5, flare: 0.6, launch: 0.5 },
+    luff: { from: 1, loss: 0.45, tuck: 1.2 },
+  }),
+  'vintage-1985': defineWing({
+    id: 'vintage-1985', name: 'Double-surface flex wing', era: 'mid 1980s', class: 'Intermediate double-surface',
     description: 'A mid-1980s double-surface flex wing: the step from the Rogallo to the modern wing. A real glide and a usable speed ' +
-      'range, with a moderate roll and a predictable stall.',
+      'range, a moderate roll and a predictable stall.',
+    mass: 110, stall: 27, trim: 36, top: 90, glide: 10, aspectRatio: 7, difficulty: 0.5,
+    character: { roll: 0.7, stall: 0.45 },
+    handling: { maxBank: 55 * DEG },
     reference: {
       mass: 115, stallKmh: 27, trimKmh: 35, topKmh: 75, points: [[34, 1.02], [40, 1.03], [45, 1.15], [50, 1.4], [55, 1.75], [60, 2.15], [65, 2.65]],
-      sources: ['Wills Wing HP II (1986) archive: 15.1 m², AR 7.2; HP AT speed limits',
-        'Wills Wing estimated polars (willswing.com/polar-data-for-wills-wing-hang-gliders) for the Eagle and Ultra Sport, bracketing it',
-        'UP Comet (1980): L/D 8.5, min sink 0.9 m/s; Airwave Kiss/Magic: min 26 km/h, max 80-83 km/h (all-aero.com)'],
-      note: 'No sink or glide figures were published for the era (Wills Wing: "not available in company records"): an estimate between its neighbours.',
-    },
-    config: {
-      mass: 115, wingArea: 15.1, span: 10.4, liftSlope: 4.26, cd0: 0.0373, oswald: 0.8146, twistDrag: 0.026, twistLift: 1.2,
-      alphaMin: 1.2 * DEG, alphaTrim: 16.3 * DEG, stallAlpha: 29.5 * DEG, alphaMax: 45.5 * DEG, stallBlend: 13 * DEG,
-      rollFrequency: 2.3, maxBank: 55 * DEG, barPressureMax: 2.2, pitchTau: 0.26, luffAlpha: 9 * DEG, luffLoss: 0.3,
+      sources: ['Wills Wing HP II (1986) archive: 15.1 m², AR 7.2', 'Wills Wing estimated polars for the Eagle and Ultra Sport, bracketing it'],
+      note: 'No sink or glide figures were published for the era: an estimate between its neighbours.',
     },
   }),
-  'alpha-235': preset({
-    id: 'alpha-235', name: 'Wills Wing Alpha 235', era: '2000s', class: 'Training wing',
-    description: 'A large single-surface training wing in the manner of the Wills Wing Alpha 235: light wing loading, low and slow, ' +
-      'quick and light in roll, and a stall so gentle it is hard to provoke. Forgiving to land; it does not go fast.',
+  'performance-1992': defineWing({
+    id: 'performance-1992', name: 'Early-1990s performance wing', era: 'early 1990s', class: 'Kingposted performance (VG)',
+    description: 'An early-1990s kingposted performance wing with a VG, in the manner of the Wills Wing HPAT or the Moyes XS: a real ' +
+      'glide at speed and a wide speed range, firmer in roll than today\'s wings and less forgiving to land than a Sport 2.',
+    mass: 112, stall: 29, aspectRatio: 7.1, difficulty: 0.6,
+    vg: { default: 0, loose: { trim: 38, top: 100, glide: 11, difficulty: 0.55 }, tight: { trim: 42, top: 115, glide: 12, difficulty: 0.7 } },
+  }),
+  'alpha-235': defineWing({
+    id: 'alpha-235', name: 'Wills Wing Alpha 235', era: 'today', class: 'Training wing',
+    description: 'A big single-surface training wing: low and slow, light and quick in roll, and a stall so gentle it only mushes. The ' +
+      'easiest wing there is to launch and land: it sits still on the shoulders, lifts off at a jog and forgives a flare that is early or late.',
+    mass: 105, stall: 23, trim: 31, top: 65, glide: 7.5, aspectRatio: 4.6, difficulty: 0,
     reference: {
       mass: 115, stallKmh: 23, trimKmh: 32, topKmh: 58, points: [[28, 1.12], [31, 1.1], [35, 1.2], [40, 1.45], [45, 1.8], [50, 2.35], [55, 3.0]],
-      sources: ['willswing.com/alpha: 21.8 m², 10.0 m span, AR 4.6, 23.6 kg, hook-in 68-127 kg, minimum-sink speed 27 km/h',
-        'Alpha owner\'s manual (2020): sustained top speed 53-61 km/h, glide much degraded above 40 km/h',
-        'Wills Wing estimated Falcon polar, degraded for the lower aspect ratio and single-surface sail'],
-      note: 'Geometry and speeds are Wills Wing figures; Wills Wing publishes no sink or glide for the Alpha, so the polar is an estimate.',
-    },
-    config: {
-      mass: 115, wingArea: 21.8, span: 10.0, liftSlope: 3.8, cd0: 0.0527, oswald: 0.9789, twistDrag: 0.0268, twistLift: 1.2,
-      alphaMin: 2.5 * DEG, alphaTrim: 15 * DEG, stallAlpha: 31.8 * DEG, alphaMax: 47.8 * DEG, stallBlend: 18 * DEG, plateLift: 1.6,
-      rollFrequency: 3.1, rollAuthority: [0.45, 1.3], slowBank: 0.6, stallRollFactor: 0.65,
-      barOutSeconds: 0.5, barPressureMax: 1.6, speedStability: 0.45 * DEG, loadLimit: 2.6, pitchTau: 0.24,
+      sources: ['willswing.com/alpha: 21.8 m², 10.0 m span, AR 4.6, hook-in 68-127 kg', 'Alpha owner\'s manual (2020): sustained top speed 53-61 km/h'],
+      note: 'Wills Wing publishes no sink or glide for the Alpha: an estimate.',
     },
   }),
-  intermediate: preset({
-    id: 'intermediate', name: 'Intermediate kingposted wing', era: 'today', class: 'Intermediate',
-    description: 'The force model\'s own defaults (GLIDER_DEFAULTS): a modern kingposted intermediate wing, and the wing the range was ' +
-      'tuned on. It is a game wing rather than a fitted one: it trims faster than real wings (47 km/h against their 32-36), so a ' +
-      'final has speed in hand without asking for it, and a long dive held full bar in keeps building speed.',
-    reference: null,
-    config: {},
+  'falcon-170': defineWing({
+    id: 'falcon-170', name: 'Wills Wing Falcon 170', era: 'today', class: 'Beginner to novice',
+    description: 'The wing most pilots learn to soar on: light and docile, slow to land, a soft stall with no surprises and a forgiving ' +
+      'flare. A little more glide and speed than a trainer, and a little more to do on launch.',
+    mass: 110, stall: 25, trim: 33, top: 75, glide: 9, aspectRatio: 5.6, difficulty: 0.2,
   }),
-  'sport-2': preset({
+  intermediate: Object.freeze({
+    id: 'intermediate', name: 'Intermediate kingposted wing', era: 'today', class: 'Intermediate (game wing)', difficulty: 0.4,
+    description: 'The force model\'s own defaults (GLIDER_DEFAULTS): the wing the range was tuned on, and the feel every other wing is ' +
+      'scaled from. A game wing: it trims fast (47 km/h), so a final has speed in hand, and a dive held full bar in keeps building speed.',
+    character: Object.freeze({}), targets: null, luff: null, reference: null, config: Object.freeze({}), launch: Object.freeze({}), vg: null,
+  }),
+  'sport-2': defineWing({
     id: 'sport-2', name: 'Wills Wing Sport 2 155', era: 'today', class: 'Kingposted performance (VG)',
-    description: 'A kingposted performance wing in the manner of the Wills Wing Sport 2 155, a step up from an intermediate: a good ' +
-      'glide with the VG pulled on, still light and friendly with it off. Easy to launch and land, and it thermals well loose.',
+    description: 'A kingposted performance wing, the step up from a Falcon: a good glide with the VG on, still friendly with it off. ' +
+      'Easy to launch and land, though it wants more speed and a better-timed flare than a Falcon.',
+    mass: 112, stall: 28, aspectRatio: 6.4, difficulty: 0.45,
+    vg: { default: 0, loose: { trim: 37, top: 95, glide: 11, difficulty: 0.4 }, tight: { trim: 41, top: 115, glide: 12.5, difficulty: 0.55 } },
     reference: {
-      tight: {
-        mass: 115, stallKmh: 28, trimKmh: 36, topKmh: 80,
-        points: [[35, 0.93], [39, 0.91], [44, 0.96], [47, 1.02], [50, 1.15], [53, 1.32], [55, 1.42], [58, 1.66], [60, 1.79], [63, 2.09], [64, 2.26], [68, 2.63], [69, 2.83]],
-      },
-      loose: {
-        mass: 115, stallKmh: 28, trimKmh: 32, topKmh: 66,
-        points: [[35, 0.96], [39, 0.94], [44, 1.0], [47, 1.09], [50, 1.26], [53, 1.49], [55, 1.62], [58, 1.94], [60, 2.11], [63, 2.47], [64, 2.67]],
-      },
-      sources: ['Wills Wing estimated Sport 2 polar (willswing.com/polar-data-for-wills-wing-hang-gliders), digitized; Brauniger points 0.94 m/s at 35 and 2.26 at 64 km/h',
-        'willswing.com/hang-gliders/sport-2: 14.4 m², 9.6 m span, AR 6.4, 26.8 kg, hook-in 68-113 kg, minimum-sink speed 30 km/h, VNE 85 km/h',
-        'Sport 2 owner\'s manual: maximum steady speed 76-85 km/h with full VG'],
-      note: 'Wills Wing calls its polars estimates, for a pilot of 130% of the minimum hook-in weight. The VG-off polar is an estimate from the VG-on one.',
-    },
-    config: {
-      mass: 115, wingArea: 14.4, span: 9.6, liftSlope: 4.16, stallAlpha: 29.4 * DEG, alphaMax: 45.4 * DEG, twistLift: 1.2,
-      barOutSeconds: 0.6, barPressureMax: 2.2, pitchTau: 0.2,
-    },
-    vg: {
-      default: 0,
-      loose: { cd0: 0.0257, oswald: 0.9158, twistDrag: 0.0554, alphaMin: 2.8 * DEG, alphaTrim: 21.8 * DEG, rollFrequency: 3.0, slowBank: 0.5, stallBlend: 14 * DEG },
-      tight: { cd0: 0.0242, oswald: 0.9377, twistDrag: 0.0382, alphaMin: 1 * DEG, alphaTrim: 16.6 * DEG, rollFrequency: 2.4, slowBank: 0.42, stallBlend: 12 * DEG },
+      tight: { mass: 115, stallKmh: 28, trimKmh: 36, topKmh: 80, points: [[35, 0.93], [39, 0.91], [44, 0.96], [47, 1.02], [50, 1.15], [53, 1.32], [55, 1.42], [58, 1.66], [60, 1.79], [63, 2.09], [64, 2.26], [68, 2.63], [69, 2.83]] },
+      loose: { mass: 115, stallKmh: 28, trimKmh: 32, topKmh: 66, points: [[35, 0.96], [39, 0.94], [44, 1.0], [47, 1.09], [50, 1.26], [53, 1.49], [55, 1.62], [58, 1.94], [60, 2.11], [63, 2.47], [64, 2.67]] },
+      sources: ['Wills Wing estimated Sport 2 polar (willswing.com/polar-data-for-wills-wing-hang-gliders)', 'willswing.com/hang-gliders/sport-2: 14.4 m², 9.6 m span, AR 6.4, VNE 85 km/h'],
+      note: 'Wills Wing calls its polars estimates. The VG-off polar is an estimate from the VG-on one.',
     },
   }),
-  't2c-144': preset({
+  'u2-160': defineWing({
+    id: 'u2-160', name: 'Wills Wing U2 160', era: 'today', class: 'Kingposted high performance (VG)',
+    description: 'A high-performance kingposted wing: a strong glide and a wide speed range, but heavier in roll when slow, a stall that ' +
+      'can drop a tip, and a launch and flare that need flying properly. Between the Sport 2 and the topless T2C.',
+    mass: 115, stall: 29, aspectRatio: 6.9, difficulty: 0.7,
+    vg: { default: 0, loose: { trim: 38, top: 105, glide: 12, difficulty: 0.65 }, tight: { trim: 43, top: 130, glide: 13.5, difficulty: 0.8 } },
+  }),
+  't2c-144': defineWing({
     id: 't2c-144', name: 'Wills Wing T2C 144', era: 'today', class: 'Topless competition (VG)',
-    description: 'A topless competition wing in the manner of the Wills Wing T2C 144: high aspect ratio, little drag and a flat glide that ' +
-      'holds up at speed with the VG on. VG off it is lighter and easier in roll for launching, thermalling and landing; VG on it is ' +
-      'heavy and deliberate in roll, firm in the bar at speed, and its stall is sharper.',
+    description: 'A topless competition wing: a flat glide and a dive to 150 km/h with the VG on. The hardest of them to launch and land: ' +
+      'heavy on the shoulders and quick to go over, a nose that rises if it is let, a sharp stall that drops a tip, and a flare ' +
+      'that has to be on time. VG on it is heavy and deliberate in roll.',
+    mass: 120, stall: 30, aspectRatio: 7.3, difficulty: 1,
+    vg: { default: 0, loose: { trim: 40, top: 125, glide: 13, difficulty: 0.9 }, tight: { trim: 46, top: 150, glide: 15, difficulty: 1.1 } },
+    handling: { maxBank: 65 * DEG, chord: 1.5 },
     reference: {
-      tight: {
-        mass: 125, stallKmh: 30, trimKmh: 44, topKmh: 105,
-        points: [[40, 0.9], [42, 0.86], [48, 0.89], [51, 0.96], [55, 1.07], [59, 1.24], [64, 1.41], [68, 1.71], [72, 1.96], [76, 2.37], [80, 2.5], [84, 3.05]],
-      },
-      loose: {
-        mass: 125, stallKmh: 30, trimKmh: 34, topKmh: 82,
-        points: [[42, 0.89], [48, 0.93], [51, 1.02], [55, 1.15], [59, 1.36], [64, 1.59], [68, 1.96], [72, 2.28], [76, 2.79], [81, 3.17]],
-      },
-      sources: ['willswing.com/hang-gliders/t2c: 13.4 m², 9.9 m span, AR 7.3, hook-in 73-107 kg, minimum-sink speed 34 km/h, VNE 85 km/h; DHV datasheet K_01-0471-13: 33.4 kg weighed',
-        'T2 owner\'s manual: trim about 34 km/h with the VG off, 40-47 km/h at 3/4 VG; maximum steady speed 85-120 km/h with full VG',
-        'Wills Wing estimated Talon polar (the T2\'s predecessor), with the 6% speed shift for a competition harness',
-        'Moyes Litespeed RS specifications (archived): 0.9 m/s at 40 km/h, 2.5 m/s at 80 km/h'],
-      note: 'Wills Wing has published no glide figures since about 1990: the polar is its Talon estimate and the Moyes Litespeed\'s points. The VG-off polar is an estimate.',
-    },
-    config: {
-      mass: 125, wingArea: 13.4, span: 9.9, liftSlope: 4.28,
-      stallAlpha: 29.1 * DEG, alphaMax: 45.1 * DEG, twistLift: 1.2, plateLift: 1.1, chord: 1.5,
-      rollAuthority: [0.25, 1.35], maxBank: 65 * DEG, stallRollFactor: 0.35,
-      barOutSeconds: 0.7, barPressureExp: 2.2, barPressureMax: 2.6, loadLimit: 3.2, speedStability: 0.3 * DEG, pitchTau: 0.17,
-    },
-    vg: {
-      default: 0,
-      loose: { cd0: 0.0218, oswald: 0.888, twistDrag: 0.0285, alphaMin: 1.3 * DEG, alphaTrim: 22 * DEG, rollFrequency: 2.8, slowBank: 0.45, stallBlend: 11 * DEG },
-      tight: { cd0: 0.0224, oswald: 0.939, twistDrag: 0.0168, alphaMin: -0.4 * DEG, alphaTrim: 11.9 * DEG, rollFrequency: 2.2, slowBank: 0.35, stallBlend: 9 * DEG },
+      tight: { mass: 125, stallKmh: 30, trimKmh: 44, topKmh: 105, points: [[40, 0.9], [42, 0.86], [48, 0.89], [51, 0.96], [55, 1.07], [59, 1.24], [64, 1.41], [68, 1.71], [72, 1.96], [76, 2.37], [80, 2.5], [84, 3.05]] },
+      loose: { mass: 125, stallKmh: 30, trimKmh: 34, topKmh: 82, points: [[42, 0.89], [48, 0.93], [51, 1.02], [55, 1.15], [59, 1.36], [64, 1.59], [68, 1.96], [72, 2.28], [76, 2.79], [81, 3.17]] },
+      sources: ['willswing.com/hang-gliders/t2c: 13.4 m², 9.9 m span, AR 7.3, VNE 85 km/h', 'Wills Wing estimated Talon polar; Moyes Litespeed RS specifications'],
+      note: 'An estimate: Wills Wing has published no glide figures since about 1990.',
     },
   }),
 });

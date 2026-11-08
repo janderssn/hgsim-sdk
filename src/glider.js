@@ -120,7 +120,9 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
       }
       return flare.zone;
     },
-    /** The reference data the preset was fitted to at the current VG (presets.js), or null. */
+    /** LAUNCH_DEFAULTS with the preset's own launch handling (presets.js): how this wing behaves on the shoulders and the run. */
+    get launchConfig() { return current?.launch && Object.keys(current.launch).length ? defineConfig(LAUNCH_DEFAULTS, current.launch, 'launch config') : LAUNCH_DEFAULTS; },
+    /** The real wing's published figures at the current VG (presets.js reference), for comparison, or null. */
     get reference() { const r = current?.reference; return !r ? null : current.vg ? (vgSetting < 0.5 ? r.loose : r.tight) : r; },
     /** Starts over with a fresh flight state (as createGlider's at). */
     reset(init = {}) { state = model.createState({ ...init }, cfg); return glider; },
@@ -162,10 +164,11 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
      * Stands the pilot where the glider is, the wing resting on its base bar, ready to launch; returns the Launch. The run steps
      * this glider's own flight state, so once launch.airborne the flight simply carries on with glider.step().
      * options: site { fall(x, z, heading), edgeAhead(x, z, heading), ground(x, z) } (default: the world's terrain, no edge),
-     * manual (a realistic launch: the pilot balances, holds the nose, starts and jumps), config (LAUNCH_DEFAULTS overrides).
+     * manual (a realistic launch: the pilot balances, holds the nose, starts and jumps), config (LAUNCH_DEFAULTS overrides, over the
+     * preset's own launch handling).
      */
     launch({ site = OPEN_GROUND, manual = false, config: launchConfig = {} } = {}) {
-      const launchCfg = defineConfig(LAUNCH_DEFAULTS, launchConfig, 'launch config');
+      const launchCfg = defineConfig(glider.launchConfig, launchConfig, 'launch config');
       const groundAt = site.ground ?? world.heightAt;
       state = model.createState({ x: state.x, y: groundAt(state.x, state.z) + cfg.contactHeight, z: state.z, heading: state.heading }, cfg);
       return createLaunchHandle({ glider, run: createLaunch(state), site, groundAt, manual, launchCfg });

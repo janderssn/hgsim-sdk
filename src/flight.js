@@ -79,6 +79,10 @@ export const GLIDER_DEFAULTS = Object.freeze({
   // 1970s Rogallo's luffing dive). Modern wings have luff lines, reflex and battens instead: luffLoss 0, as here.
   luffAlpha: 4 * DEG,
   luffLoss: 0,
+  // ... and a luffed sail tucks: its pitching moment turns nose-down, which moves the wing's trim angle down by luffTuck (rad). A dive
+  // that luffs the sail then holds itself in the luff and runs away, unless the pilot pushes out hard enough, and early enough, to
+  // lift the angle back above luffAlpha before the speed (and the bar's load limit) takes the authority away. 0 here.
+  luffTuck: 0,
   speedStability: 0.35 * DEG,      // radians of alpha per m/s of speed away from the bar's trim speed
   // The bar pressure: at speed the pilot cannot push out beyond this load factor.
   loadLimit: 2.8,
@@ -114,6 +118,15 @@ export const GLIDER_DEFAULTS = Object.freeze({
   settleAngle: 4,                  // degrees: a slow wing under S settles at this path while it bleeds speed
   // A stalled wing is sluggish in roll (blended in over a few degrees past the stall: no switch).
   stallRollFactor: 0.5,
+  // Aerodynamic roll damping: a rolling wing's descending tip meets the air at a higher angle of attack than the rising one. While
+  // more angle gives more lift that only damps the roll (the spring above stands for it); past a stall whose lift falls away with
+  // angle, the descending tip loses lift and the roll feeds itself: the wing drops a tip and autorotates until the angle comes down.
+  // rollDamping is that effect's strength (1/s at trim speed, per unit of the lift curve's fall against its linear slope): 0 here,
+  // a mushing wing whose lift never falls; a sharp stall (small stallBlend, low plateLift) with it drops a tip by itself.
+  rollDamping: 0,
+  // The air is never quite smooth: small eddies roll the wing about by up to airRoughness rad/s^2 at trim speed (growing with the
+  // speed, to half as much again). Too small to notice in flight; it is what starts a stalled wing's roll one way or the other.
+  airRoughness: 0,
   // Stall warning this many degrees below the stall.
   stallWarnMargin: 2.5 * DEG,
   // Geometry: the body reference sits footHeight above the feet for the flare and ground effect, and a body reference lower than
@@ -159,6 +172,12 @@ export function stallSpeed(bank = 0, cfg = GLIDER_DEFAULTS) {
   const load = 1 / Math.max(0.5, Math.cos(bank));
   return Math.sqrt(2 * weight(cfg) * load / (cfg.airDensity * cfg.wingArea * clMax));
 }
+/**
+ * The feel was tuned on GLIDER_DEFAULTS; the speeds at which its helpers come in (fine bar control at skimming speed, the ground
+ * cushion, the field's settle, the skim assist's fade) scale with a wing's stall speed against that wing's, so a slower wing
+ * feels the same at the same share of its own speed range.
+ */
+const REFERENCE_STALL = stallSpeed(0, GLIDER_DEFAULTS);
 /** The angle of attack that carries the weight at this airspeed and bank (capped at the stall). */
 function alphaForLevel(speed, bank, cfg) {
   const q = 0.5 * cfg.airDensity * Math.max(1, speed) * Math.max(1, speed);
@@ -207,11 +226,13 @@ export function pitchTrimAlpha(bar, airspeed, cfg = GLIDER_DEFAULTS) {
 
 /**
  * How fast the wing pitches (rad/s of angle of attack, + nose up) from alpha toward alphaTarget: through the pitch lag and its
- * rate limit. A luffing sail (luffLoss > 0) loses that much of its nose-up recovery below luffAlpha.
+ * rate limit. A luffing sail (below luffAlpha) loses luffLoss of its nose-up recovery and has its trim moved down by luffTuck.
  */
 export function pitchRate(alpha, alphaTarget, cfg = GLIDER_DEFAULTS) {
-  const rate = clamp((alphaTarget - alpha) / cfg.pitchTau, -cfg.pitchRateMax, cfg.pitchRateMax);
-  return rate > 0 && cfg.luffLoss > 0 ? rate * (1 - cfg.luffLoss * smoothstep(cfg.luffAlpha, cfg.luffAlpha - 4 * DEG, alpha)) : rate;
+  if (!(cfg.luffLoss > 0) && !(cfg.luffTuck > 0)) return clamp((alphaTarget - alpha) / cfg.pitchTau, -cfg.pitchRateMax, cfg.pitchRateMax);
+  const luffing = smoothstep(cfg.luffAlpha, cfg.luffAlpha - 4 * DEG, alpha);
+  const rate = clamp((alphaTarget - finite(cfg.luffTuck) * luffing - alpha) / cfg.pitchTau, -cfg.pitchRateMax, cfg.pitchRateMax);
+  return rate > 0 ? rate * (1 - cfg.luffLoss * luffing) : rate;
 }
 
 /**
@@ -261,10 +282,11 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
   const step = duration / count;
   let totalVertical = 0;
   const clMax = liftCoefficient(cfg.stallAlpha, cfg);
+  const ks = stallSpeed(0, cfg) / REFERENCE_STALL;   // (the feel's speed thresholds, scaled to this wing)
 
   for (let index = 0; index < count; index++) {
     // The bar: pulled in quickly, pushed out deliberately, released back to neutral.
-    const fineControl = (assist ? 0 : 1) * (1 - smoothstep(6, 12, finite(state.lastFeet, 99))) * smoothstep(18, 24, state.airspeed) * (1 - smoothstep(6 * DEG, 14 * DEG, Math.abs(state.pathAngle)));
+    const fineControl = (assist ? 0 : 1) * (1 - smoothstep(6, 12, finite(state.lastFeet, 99))) * smoothstep(18 * ks, 24 * ks, state.airspeed) * (1 - smoothstep(6 * DEG, 14 * DEG, Math.abs(state.pathAngle)));
     const barInput = pitchInput + (Math.sign(pitchInput) * pitchInput * pitchInput - pitchInput) * fineControl;
     const away = Math.abs(barInput) > Math.abs(state.bar) && barInput * state.bar >= 0;
     const pressure = Math.min(cfg.barPressureMax, Math.pow(Math.max(1, state.airspeed / stallSpeed(0, cfg)), cfg.barPressureExp));
@@ -288,7 +310,7 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
     let alphaTarget = pitchTrimAlpha(bar, v, cfg);
     // (the bar held in holds the dive: the pendulum's trimming only acts on a free bar)
     // (the free bar's pull fades as the nose rises, so a recovery zooms and flows on instead of hanging; S still climbs)
-    const fieldShift = input.field ? cfg.fieldSettle * DEG * (1 - 0.5 * smoothstep(18, 24, v)) * (1 - smoothstep(0, 0.1, bar)) : 0;   // (hands off only: S flares as it always did)
+    const fieldShift = input.field ? cfg.fieldSettle * DEG * (1 - 0.5 * smoothstep(18 * ks, 24 * ks, v)) * (1 - smoothstep(0, 0.1, bar)) : 0;   // (hands off only: S flares as it always did)
     const zoomFade = smoothstep(cfg.zoomFadeStart * DEG + fieldShift, cfg.zoomFadeEnd * DEG + fieldShift, gamma);
     const freePull = cfg.freeLoad + (Math.cos(gamma) - cfg.zoomPushOver - cfg.freeLoad) * zoomFade;
     const speedRatio = v / stallSpeed(0, cfg), pushPull0 = Math.min(cfg.loadLimit, 1 + cfg.pitchAuthority * speedRatio * speedRatio),
@@ -318,7 +340,7 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
         windX: air.windX, windZ: air.windZ, lift: air.lift, bar: barIntent, command: gamma, surface, dt: step,
         pullAccel: (Math.min(cfg.loadLimit, 2.2) - 1) * g, hardPullAccel: (Math.min(cfg.loadLimit, 2.6) - 1) * g,
         maxClimb: 30 * DEG, maxDive: 45 * DEG, stallSpeed: stall }, { surfaceAt: world.surfaceAt, clearance: slow > 0 ? base + (3.8 - base) * slow : requested });
-      const weightOn = Math.max(clamp(state.skimBlend, 0, 1), clamp(state.skimProtect, 0, 1)) * (input.field ? smoothstep(cfg.skimFadeSpeed, cfg.skimFullSpeed, v) : 1);
+      const weightOn = Math.max(clamp(state.skimBlend, 0, 1), clamp(state.skimProtect, 0, 1)) * (input.field ? smoothstep(cfg.skimFadeSpeed * ks, cfg.skimFullSpeed * ks, v) : 1);
       // (the look-ahead command moves as the heading does; it is smoothed over a quarter second before it is flown)
       state.skimCommand = Number.isFinite(state.skimCommand) ? state.skimCommand + (skim.command - state.skimCommand) * (1 - Math.exp(-step / 0.25)) : skim.command;
       if (weightOn > 0.001) {
@@ -353,7 +375,7 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
     state.groundEffect = 1 - sigma;
     state.alphaRateSmooth = finite(state.alphaRateSmooth) + (Math.max(0, alphaRate) - finite(state.alphaRateSmooth)) * (1 - Math.exp(-step / 0.15));
     const CL = liftCoefficient(alpha, cfg) + cfg.dynamicLift * cfg.chord * state.alphaRateSmooth / Math.max(v, 3), CD = dragCoefficient(alpha, sigma, cfg) + cfg.uprightDrag * Math.max(clamp(finite(state.upright), 0, 1) * clamp(bar, 0, 1), Math.min(clamp(finite(state.upright), 0, 1), cfg.finalUpright), state.standing ? clamp(finite(state.upright), 0, 1) * cfg.standDrag : 0);
-    const L = qS * CL + m * cfg.groundCushion * smoothstep(15, 25, v) * (1 - sigma) * Math.max(0, -v * Math.sin(gamma)), D = qS * CD;
+    const L = qS * CL + m * cfg.groundCushion * smoothstep(15 * ks, 25 * ks, v) * (1 - sigma) * Math.max(0, -v * Math.sin(gamma)), D = qS * CD;
     const n = L / W;
     state.loadFactor = n;
     const accel = -D / m - g * Math.sin(gamma);
@@ -366,10 +388,18 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
     // Roll: weight shift toward the wanted bank, rate limited, with authority growing with airspeed.
     const stallBlend = smoothstep(cfg.stallAlpha - 2 * DEG, cfg.stallAlpha + 4 * DEG, alpha);
     const authority = clamp(v / barTargetSpeed(0, 0, cfg), cfg.rollAuthority[0], cfg.rollAuthority[1]) * (1 - (1 - cfg.stallRollFactor) * stallBlend) * (1 - (1 - cfg.uprightRoll) * clamp(finite(state.upright), 0, 1));
-    const bankShare = cfg.slowBank + (1 - cfg.slowBank) * smoothstep(0.95, 1.3, v / stallSpeed(0, cfg)), bankTarget = bankWanted * bankShare;
+    const bankShare = cfg.slowBank + (1 - cfg.slowBank) * smoothstep(0.95, 1.3, v / stallSpeed(0, cfg));
+    const bankTarget = bankWanted * bankShare;
     const w0 = cfg.rollFrequency * authority, rollError = bank - bankTarget, rollDecay = Math.exp(-w0 * step), rollSpring = (state.bankRate + w0 * rollError) * step;
     state.bank = clamp(bankTarget + (rollError + rollSpring) * rollDecay, -cfg.maxBank, cfg.maxBank);
     state.bankRate = (state.bankRate - w0 * rollSpring) * rollDecay;
+    // The air's own roll: a falling lift curve (past a sharp stall) turns the tips' damping round, and the air's eddies give it a start.
+    if (cfg.rollDamping > 0 || cfg.airRoughness > 0) {
+      const trimV = barTargetSpeed(0, 0, cfg), da = 0.5 * DEG;
+      const falling = Math.max(0, -(liftCoefficient(alpha + da, cfg) - liftCoefficient(alpha - da, cfg)) / (2 * da) / cfg.liftSlope);
+      const eddy = Math.sin(state.x * 0.091 + state.z * 0.047 + 1.3) * Math.sin(state.x * 0.023 - state.z * 0.067 + 0.4) + 0.5 * Math.sin(state.x * 0.17 - state.z * 0.13 + 2.1);
+      state.bankRate += (cfg.rollDamping * falling * (v / trimV) * state.bankRate + cfg.airRoughness * Math.min(1.5, v / trimV) * eddy) * step;
+    }
 
     // Integrate speed and path (semi-implicit on the mean speed for an exact energy book).
     let nextSpeed = v + accel * step;

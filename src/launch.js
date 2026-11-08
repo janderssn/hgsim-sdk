@@ -104,6 +104,7 @@ export const LAUNCH_DEFAULTS = Object.freeze({
   wobble: .035,        // the slow roll of balancing it
 });
 
+const REFERENCE_STALL = stallSpeed(0, GLIDER_DEFAULTS);
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = t => { const k = clamp(t, 0, 1); return k * k * (3 - 2 * k); };
@@ -164,6 +165,7 @@ export function createLaunch(flight = createFlightState()) {
 export function stepLaunch(s, dt, { headwind = 0, crosswind = 0, slope = 0, edgeAhead = Infinity, airLift = 0, x, y, z, heading, manual = false, balance = 0, nose = 0, push = 0, go = false, jump = false } = {}, T = GLIDER_DEFAULTS, cfg = LAUNCH_DEFAULTS) {
   if (s.airborne || s.failed) return 0;
   const g = T.gravity, m = T.mass, W = m * g, f = s.flight;
+  const vRef = 9.7 * stallSpeed(0, T) / REFERENCE_STALL;   // (the air's push on the sail, felt against this wing's own stall speed)
   s.t += dt; s.phaseT += dt; if (go) s.go = true;
   if (s.phase === 'pickup') { s.k = ease(s.phaseT / cfg.pickupSeconds); if (s.phaseT >= cfg.pickupSeconds) { s.phase = 'balance'; s.phaseT = 0; s.k = 1; } }
   else if (s.phase === 'balance') { if (manual ? s.go : s.phaseT >= cfg.settleSeconds) { s.phase = 'run'; s.phaseT = 0; s.cliff = edgeAhead < cfg.jumpEdge; } }
@@ -172,7 +174,7 @@ export function stepLaunch(s, dt, { headwind = 0, crosswind = 0, slope = 0, edge
   // Running out of ground below flying speed (an edge, a cliff) the pilot pulls in for the dive.
   const hold = runHold(manual ? 1 : running ? smoothstep(cfg.letFly[0], cfg.letFly[1], s.lift) : 0, T, cfg);
   if (manual && s.phase !== 'pickup') {
-    const vNow = Math.max(0, s.groundSpeed + headwind), q0 = clamp((vNow / 9.7) ** 2, 0, 1.6), swell = Math.sin(s.t * .83 + .6) * Math.sin(s.t * .37 + 1.9);
+    const vNow = Math.max(0, s.groundSpeed + headwind), q0 = clamp((vNow / vRef) ** 2, 0, 1.6), swell = Math.sin(s.t * .83 + .6) * Math.sin(s.t * .37 + 1.9);
     s.noseCmd = clamp(s.noseCmd + (clamp(nose, -1, 1) * cfg.noseRate + cfg.noseRise * q0 + cfg.noseSwell * Math.min(2, vNow / 5) * swell) * dt, -cfg.noseRange, cfg.noseRange);
   } else s.noseCmd = 0;
   s.nose += (s.noseCmd - s.nose) * (1 - Math.exp(-dt / cfg.noseTau));
@@ -248,7 +250,7 @@ export function stepLaunch(s, dt, { headwind = 0, crosswind = 0, slope = 0, edge
     s.roll += s.rollV * dt;
     // Yaw: the nose weathervanes toward the air it meets (stiffer the faster it goes), the gusts push it about, a weight shift
     // swings it with the roll, and the pilot's arms hold it down the run.
-    const q = clamp((v / 9.7) ** 2, 0, 1.6), into = vx > .5 ? -Math.atan2(across, vx) : 0;
+    const q = clamp((v / vRef) ** 2, 0, 1.6), into = vx > .5 ? -Math.atan2(across, vx) : 0;
     const caught = Math.max(0, Math.abs(s.yaw) - cfg.yawCatch) * Math.sign(s.yaw);
     s.yawV += (cfg.yawAero * q * (into - s.yaw) - (manual ? cfg.yawHold : cfg.yawHoldEasy) * s.yaw + (.4 + .6 * loose) * cfg.gustYaw * airOver * gustB
       + loose * q * (manual ? cfg.yawRun * caught : 0)

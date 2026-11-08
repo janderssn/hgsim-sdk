@@ -25,7 +25,7 @@
     "flights": "node tools/flight-report.mjs",
     "golden:record": "node tests/golden/record.mjs",
     "polars": "node tools/polars.mjs",
-    "fit": "node tools/fit-presets.mjs"
+    "scenarios": "node tools/scenarios.mjs"
   },
   "engines": {
     "node": ">=20"

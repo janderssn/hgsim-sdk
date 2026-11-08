@@ -111,33 +111,53 @@ The run steps the glider's own flight state through the flight model's own lift 
 
 ### Glider presets and polars
 
-Presets are named wings for the force model, each with its own performance and handling. Each one is fitted to reference data: geometry, mass, speeds and polar points, with their sources, kept in `src/presets.js`. `npm run fit` (`tools/fit-presets.mjs`) refits them.
+Presets are named wings for the force model. Feel comes first. The force model's own defaults (the `intermediate` preset) are the wing the game was tuned on. Every other wing is that wing scaled to its own speeds, so the bar, the pitch and the flare respond the same way at the same share of each wing's speed range. Each wing's character then comes from a difficulty and five traits. The speeds are ballpark figures for each kind of wing, not fits to a published polar.
 
-| Preset | Wing | Stall · trim · top (km/h) | Min sink | Best glide | Handling |
-|---|---|---|---|---|---|
-| `rogallo-1975` | 1970s standard Rogallo | 23 · 30 · 48 | 2.12 m/s | 4.1 | slow and heavy in roll; mushes; luffing dive at low angles |
-| `alpha-235` | Wills Wing Alpha 235 trainer | 23 · 32 · 58 | 1.11 m/s | 8.1 | light, quick roll, very gentle stall |
-| `vintage-1985` | mid-1980s double-surface wing | 27 · 35 · 75 | 1.01 m/s | 10.8 | moderate |
-| `intermediate` | the force model's defaults (a game wing) | 35 · 47 · 170 | 0.99 m/s | 12.3 | the wing the range was tuned on |
-| `sport-2` | Wills Wing Sport 2 155, VG off / on | 28 · 32 / 36 · 66 / 80 | 0.94 / 0.91 m/s | 12.2 / 12.8 | friendly loose, firmer tight |
-| `t2c-144` | Wills Wing T2C 144, VG off / on | 30 · 34 / 44 · 82 / 105 | 0.90 / 0.87 m/s | 14.1 / 14.7 | heavy roll (more so tight), firm bar, sharper stall |
+| Preset | Wing | Stall · trim · top (km/h) | Best glide | Character |
+|---|---|---|---|---|
+| `rogallo-1975` | 1970s standard Rogallo | 24 · 30 · 55 | 4.3 | Heavy, slow roll. Dived, the sail luffs and the nose keeps tucking: hands off it never recovers, and a full push-out takes seconds and height. |
+| `cable-1979` | late-1970s high-aspect cable-braced wing | 26 · 34 · 72 | 7.1 | Heavy in roll, a stall that can bite, a milder luff. |
+| `vintage-1985` | mid-1980s double-surface wing | 27 · 36 · 90 | 10.0 | Moderate. |
+| `performance-1992` | early-1990s kingposted performance wing, VG off / on | 29 · 38 / 42 · 100 / 115 | 11.0 / 12.0 | Firmer than today's wings. |
+| `alpha-235` | Wills Wing Alpha 235 trainer | 23 · 31 · 65 | 7.6 | The easiest to launch and land. Light, quick roll, a stall that only mushes. |
+| `falcon-170` | Wills Wing Falcon 170 | 25 · 33 · 75 | 9.1 | Docile, a soft stall and a forgiving flare. |
+| `sport-2` | Wills Wing Sport 2 155, VG off / on | 28 · 37 / 41 · 95 / 115 | 11.0 / 12.5 | Friendly loose, firmer tight. |
+| `u2-160` | Wills Wing U2 160, VG off / on | 29 · 38 / 43 · 105 / 130 | 12.0 / 13.5 | Heavier roll when slow, a stall that can drop a tip. |
+| `t2c-144` | Wills Wing T2C 144, VG off / on | 30 · 40 / 46 · 125 / 150 | 13.0 / 15.0 | The hardest to launch and land: heavy and quick to go over on the shoulders, a nose that rises on the run, a sharp stall that drops a tip, a flare that must be on time. |
+| `intermediate` | the force model's defaults (a game wing) | 35 · 47 · 170 | 12.3 | The wing the range was tuned on. |
 
-How far to trust the reference data: no independently measured polar is published for any of these wings.
+The ladder of modern wings runs from the easiest to launch and land to the hardest: Alpha, Falcon, Sport 2, U2, T2C. Every wing holds a dive with the bar in: the speed keeps building toward its top speed and the path stays steep.
 
-- **Sport 2 (VG on):** Wills Wing's own estimated polar.
-- **T2C:** Wills Wing has published no glide figures since about 1990. Its reference is the estimated polar of its predecessor, the Talon, checked against Moyes's published points for the comparable Litespeed RS.
-- **Alpha 235 and the 1985 wing:** estimates built from their neighbours' curves.
-- **Rogallo:** period claims from 1970s patents.
-- **VG-off polars:** estimates derived from the VG-on ones.
-- **Geometry, weights and speed limits:** manufacturer figures and DHV data.
+Make your own wing with `defineWing`:
 
-Wills Wing's polars assume a pilot of 130% of the minimum hook-in weight; the presets fly at the reference's total mass.
+```js
+import { defineWing, createGlider } from 'hgsim';
 
-The fitted wings trim only 10–20% above the stall, as real wings do, so where to flare depends on the wing and on how fast it arrives.
+const wing = defineWing({
+  id: 'mine', name: 'My wing',
+  mass: 110, stall: 27, trim: 36, top: 100, glide: 11, aspectRatio: 6.5,   // kg, km/h, glide ratio
+  difficulty: 0.5,                          // 0 a trainer .. 1 a topless competition wing (up to 1.2)
+  character: { stall: 0.9, launch: 0.3 },   // any traits that differ: roll, stall, pitch, flare, launch (0 forgiving .. 1 demanding)
+  luff: { from: 2, loss: 0.6, tuck: 2.5 },  // an old sail that luffs when dived (optional)
+  vg: { loose: { trim: 36, top: 95, glide: 11 }, tight: { trim: 40, top: 115, glide: 12.5, difficulty: 0.6 } },   // optional
+  handling: { maxBank: 60 * Math.PI / 180 }, launch: { topSpeed: 7 },   // any force-model and launch values, over all of it
+});
+const glider = createGlider({ preset: wing });
+```
 
-- **Measured flare zone:** `glider.flareZone()` flies the wing's finals at a range of approach speeds and records, for each speed, the heights from which holding the bar out lands softly. Holding a little bar in keeps the pilot prone and the wing fast, so it flares lower. A hands-off final lets the pilot come upright and the wing settle.
-- **Examples at trim, hands off:** the `intermediate` wing at 47 km/h flares from 2.4–3.0 m. The T2C with the VG off, at 34 km/h, flares from 0.4–1.0 m. The T2C at 45 km/h, bar slightly in, flares from 0.9–2.4 m.
-- **In the range:** the landing cue's green zone and its FLARE prompt follow that measurement for the wing and its current airspeed. The zone is held once the flare begins. The panel shows the zone at trim and at 1.5× the stall speed, and the result card's tips name the wing's own flare height.
+- **`wingConfig({ mass, stall, trim, top, glide, aspectRatio })`** gives the force-model config for those speeds and that glide: the default wing's angles of attack, with the wing loading, trim and full-bar angles and parasite drag that hit them.
+- **`handlingFor(character)`** gives the handling for a difficulty or a set of traits, as `{ config, launch }`: the force model's roll, stall, pitch and flare values, and the launch's balance and nose values.
+- **The tip drop is physics, not a script.** A rolling wing's descending tip meets the air at a higher angle of attack. Past a stall whose lift falls away with angle (a small `stallBlend`, a low `plateLift`), that tip loses lift and the roll feeds itself (`rollDamping`), started by the air's small eddies (`airRoughness`). A wing whose stall only mushes never drops one.
+- **The luff** is a nose-down moment that moves a luffed sail's trim angle down (`luffAlpha`, `luffLoss`, `luffTuck`).
+- **The launch handling** lives on the preset (`preset.launch`) and reaches `glider.launch()` through `glider.launchConfig`.
+
+`reference`, where a preset has one, is the real wing's published figures, drawn on the range's polar chart for comparison.
+
+Where to flare depends on the wing and on how fast it arrives.
+
+- **Measured flare zone:** `glider.flareZone()` flies the wing's finals at a range of approach speeds and records, for each speed, the heights from which holding the bar out lands softly.
+- **In the range:** the landing cue's green zone and its FLARE prompt follow that measurement for the wing and its current airspeed.
+- **No flare:** a touchdown that was never pushed out lands on the base bar. Above walking pace over the ground it is judged firm at best (`LANDING_RULES.unflaredGround`).
 
 ```js
 const glider = createGlider({ world, preset: 't2c-144', config: { mass: 115 } });   // a preset, then your own changes on top
@@ -146,15 +166,48 @@ glider.polar().speedToFly({ headwind: 5, sink: 1 });   // the airspeed for the f
 glider.usePreset('alpha-235');   // switch wings in flight; glider.tune() changes it further, glider.tune() alone restores it
 glider.setVG(1);         // a wing with a VG (glider.hasVG): 0 loose (lighter roll, slower) .. 1 tight (flatter glide, heavier roll)
 glider.pitchStability(); // { curves: [{ bar, points: [{ alpha, rate }], trim }], stiffness, lowAlphaRecovery }
-glider.reference;        // the data the preset was fitted to (at the current VG), with its sources
+glider.launchConfig;     // LAUNCH_DEFAULTS with the preset's launch handling
+glider.reference;        // the real wing's published figures at the current VG, or null
 glider.flareZone().at(airspeed);   // { low, high }: heights of the feet to flare from at this approach speed (null: none soft)
 ```
 
 **The polar** is sink rate against airspeed in steady, straight flight. The highest point of the curve is the minimum sink, the speed to circle in lift. The point where a line from the origin just touches the curve is the best glide, the speed for distance in still air. Against a headwind or through sinking air, the speed to fly moves faster.
 
-**Pitch stability** is how strongly a wing returns to its trimmed angle of attack after something pitches it away. Certification bodies such as the HGMA and DHV measure it as the pitching moment against angle of attack on a test vehicle. A stable wing pitches nose down above its trim angle and nose up below it, and it still pitches nose up at very low angles, deep in a dive, so it recovers on its own. hgsim's chart is the model's equivalent: the rate (°/s, positive is nose up) at which the wing pitches back toward trim at each angle of attack, at the steady speed for that angle. There is one curve each for the bar pulled in, hands off and pushed out. Each curve crosses zero at that bar's trim. The steeper it falls through zero, the firmer the wing holds its trim. A curve that sags toward zero at low angles is a wing with little will to pull out of a dive. The 1970s Rogallo does this through `luffLoss`, its luffing sail, which is what made the luffing dive dangerous. Modern wings have luff lines and reflex instead.
+**Pitch stability** is how strongly a wing returns to its trimmed angle of attack after something pitches it away. hgsim's chart is the model's equivalent of a certification body's pitching-moment curve: the rate (°/s, positive is nose up) at which the wing pitches back toward trim at each angle of attack, at the steady speed for that angle, one curve each for the bar in, hands off and out. A curve that sags below zero at low angles is a wing with no will to pull out of a dive: the Rogallo's luffing sail.
 
-`npm run polars` prints the presets side by side, VG off and on. In the range, the panel's Glider section picks a preset (also `?glider=t2c-144`) and sets the VG (key **V**). Its polar and pitch stability charts redraw as you tune or pull the VG. The polar shows the reference data as rings over the model's curve and the other wings faintly behind, and both charts mark where the wing is flying now.
+`npm run polars` prints the presets side by side, VG off and on. In the range, the panel's Glider section picks a preset (also `?glider=t2c-144`) and sets the VG (key **V**). Its polar and pitch stability charts redraw as you tune or pull the VG.
+
+### Scenarios and the tuning pages
+
+Scenarios are short, repeatable test flights for tuning how a wing feels (`src/scenarios.js`). Each sets up a site, a wind and a start, flies one thing and reports what happened as plain numbers, so the same scenario can be flown on every wing and compared.
+
+- **Launch:** the ramp, the cliff and the slope in calm, breezy, gusty and cross winds; a sloppy pilot, nobody balancing, the nose held high and held low.
+- **Flight:** a hands-off glide, a dive held and let go, a bar tap, roll reversals at trim and near the stall, a 360, a spiral, straight, turning and whip stalls.
+- **Landing:** a final flared at the cue, too early, too late or not at all, a fast final, an eased-out flare, and calm, windy and gusty days.
+
+A scripted pilot flies each the same way every time. The launch pilot balances, runs with the nose down and lets it up to fly off, and its skill can be turned down. The landing pilot flares from the wing's own measured cue. Everything else is the physics.
+
+```js
+import { SCENARIOS, runScenario, startScenario } from 'hgsim';
+
+runScenario('ramp-sloppy', { preset: 't2c-144' });   // { outcome: 'wingdrop', metrics: { maxRollDeg, ... }, samples }
+runScenario('dive-hold', { preset: 't2c-144', vg: 1, config: { cd0: 0.02 } }).metrics.topKmh;
+const run = startScenario('land-cue', { preset: 'falcon-170', pilot: 'you' });   // live: run.step(dt, { roll, pitch })
+```
+
+```bash
+npm run scenarios                              # every scenario on the ladder (Alpha, Falcon, Sport 2, U2, T2C)
+npm run scenarios -- landing --wings eras      # one kind, the eras from the Rogallo to today
+npm run scenarios -- dive-hold --wings t2c-144,sport-2 --vg both
+```
+
+The tuning pages fly the same scenarios in the browser at `http://127.0.0.1:4180/range/tune/`, a page each for the launch, the flight and the landing.
+
+- **Four views:** the glider from the side, the top, behind and in front, with its trail. The mouse wheel zooms a view.
+- **Run and Fly it:** Run lets the scripted pilot fly it. Fly it hands it to you: W/S the bar (or the nose on a launch), A/D the weight shift, Space to start the run and to jump.
+- **Compare:** Compare with flies the same scenario on another wing alongside, Pin this run keeps a run to compare against, and Every wing runs it on every preset at once.
+- **Feel:** the sliders change the wing live, and Copy values copies what you changed relative to the preset.
+- **URL options:** `glider`, `vg`, `scenario`, `compare`.
 
 ### Flight models
 
@@ -181,7 +234,8 @@ Any other object with the same shape drops in. `examples/extend.mjs` flies a poi
 | `wind.js` | Live wind: a mean speed and direction with a meander and gusts, and conversions to and from compass bearings. |
 | `recorder.js` | Records each round as samples and marked moments. `tools/flight-report.mjs` reads them back. |
 | `config.js` | `defineConfig` and `overridesOf`. |
-| `presets.js`, `polar.js` | The glider presets with their reference data, and the polar and pitch stability of any glider (`polarOf`, `pitchStabilityOf`). |
+| `presets.js`, `polar.js` | The glider presets and `defineWing` (a wing from ballpark speeds and a character), and the polar and pitch stability of any glider (`polarOf`, `pitchStabilityOf`). |
+| `scenarios.js` | Repeatable test flights for tuning the feel: `SCENARIOS`, `SITES`, `runScenario`, `startScenario`, and the scripted launch and landing pilots. |
 | `assists/` | The optional terrain-skimming assist, which keeps a low glider off the ground, and its drawn bank. |
 | `three/` (`hgsim/three`) | Three.js presentation: `createPilotRig` poses the pilot on the skinned glider model, and `createLandingCues` draws the shadow, height gauge and FLARE prompt. Each takes `THREE` as an argument. |
 
@@ -226,7 +280,7 @@ Open `http://127.0.0.1:4180/range/` after `npm start`.
 | `assist=on` | Terrain skimming. |
 | `glider` | A glider preset, such as `t2c-144` or `rogallo-1975`. The default is `intermediate`. |
 
-The side panel sets the wind and the main feel numbers live. Tab hides it.
+The side panel sets the wind and the main feel numbers live. Tab hides it. Its Tuning pages link opens the launch, flight and landing tuning pages.
 
 ### Controls
 

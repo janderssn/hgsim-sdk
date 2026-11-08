@@ -1,0 +1,9 @@
+PASS the range loads
+PASS the panel's switches lead to the range — /range/?wind=5&from=180&quality=low&launch=real 200, /range/?wind=5&from=180&quality=low&model=original 200, /range/?wind=5&from=180&quality=low&assist=on 200
+PASS an easy ramp launch flies — {"mode":"gliding","clearance":24.9}
+PASS an easy cliff launch flies — {"mode":"gliding","airspeed":19.4}
+PASS the range loads with realistic launches
+PASS a realistic launch, balanced and run off the ramp, flies — {"mode":"gliding","clearance":8.8}
+PASS Space sits the pilot up and lays them prone again — {"up":1,"down":0.1}
+PASS a flight from overhead lands and is judged — {"mode":"crashed","judged":"crash"}
+PASS no page errors

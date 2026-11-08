@@ -146,31 +146,27 @@ Rendering starts at full detail. After sustained slow frames it reduces resoluti
 
 ## Alpine visuals and asset authoring
 
-The range combines a real USGS Yosemite backdrop, a shared daylight/cloud model,
-scanned PBR surfaces, four full-crown tree variants and a connected granite launch
-face. [Art direction, in-engine screenshots and architecture](docs/art-direction.md)
-document the concept-first implementation and its remaining review criteria.
+Golden Range gives the flight corridor an illustrated alpine palette: warm
+sunlight, cool teal forest shadows, slate-blue mountains and sage/ochre meadows.
+A shared colour grade, painted terrain, curved grass/herb masses and a cheap
+middle-distance vegetation layer carry the style from close ground into flight.
 
-Rendering and collision consume the same launch triangles; the terrain keeps its
-full 240×240 grid at every quality. Actual canopy footprints drive both floor
-shading and streamed undergrowth. Three vegetation LODs include runtime-lit
-albedo/normal impostors with overhead views. The existing 19-bone glider rig and
-flight forces are preserved; newly authored rock surfaces are solid.
+Four composed places add a weathered refuge, awning, picnic/gear yard, wing bags,
+route boards, trail furniture and a working windsock. Pure site masks reserve
+space for props while allowing grass islands around their paths and occupied
+footprints. Forest groves vary by location; authored cutout mipmaps preserve
+colour, normal direction and canopy coverage at flight distances.
 
-All runtime assets are local with retained licenses and pinned checksums.
-Authoring tools reproduce the forest, compact props, scanned surfaces and ecology
-masks. The new sky supplies the diffuse probe and metal reflections too, removing
-the old 21 MB HDR from startup. A bounded cell cache and partial instance uploads
-reduce movement work.
+[Actual game screenshots, concept and architecture](docs/art-direction.md)
+document the implementation. All runtime assets are local, with retained
+licenses/checksums and reproducible builders. The full 240×240 terrain grid,
+shared rock contacts, force parameters and 19-bone glider rig remain intact.
 
 Use `?quality=high`, `medium` or `low` to hold a preset; default is `auto`.
-High/medium include HDR/contact occlusion; low uses direct rendering. Adaptive
+HDR-capable devices share the grade at all levels; low skips AO/glow. Adaptive
 quality changes visual work independently of the fixed 60 Hz flight simulation.
-[Validation and measurements](docs/graphics/validation.md) record observed limits.
-
-[Twenty source-verified Three.js benchmarks](docs/research/threejs-2026.md) define
-the higher visual and native-GPU target; production-art parity and 1080p/60 remain
-unverified review criteria.
+[Validation and measurements](docs/graphics/validation.md) distinguish functional
+checks, software-renderer observations and unverified native-GPU targets.
 
 ## Tests and checks
 

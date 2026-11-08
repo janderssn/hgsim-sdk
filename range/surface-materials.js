@@ -34,6 +34,10 @@ const PROJECTION = `
   float surfaceDetailFade(float range) {
     return 1.0 - smoothstep(range * 0.70, range, length(vViewPosition));
   }
+  vec3 surfaceEarthPigment(float grain, float earthVariation) {
+    return mix(vec3(0.21, 0.15, 0.10), vec3(0.34, 0.25, 0.16),
+      smoothstep(0.20, 0.80, earthVariation)) * (0.78 + grain * 0.75);
+  }
   vec3 surfaceWeights(vec3 n) {
     vec3 w = abs(n);
     if (surfaceDominantAxis > 0.5) {
@@ -98,26 +102,29 @@ function projectSurface(shader, detailUniforms) {
     .replace('#include <common>', '#include <common>\n' + PROJECTION);
 }
 
-function cliffSurface(material, detailUniforms) {
+function cliffSurface(material, maps, detailUniforms) {
   material.onBeforeCompile = shader => {
     projectSurface(shader, detailUniforms);
+    shader.uniforms.surfaceGranitePaint = { value: maps.graniteMacro };
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
+      uniform sampler2D surfaceGranitePaint;
+    `);
     shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
       surfaceDerivatives();
       float surfaceDetail = surfaceDetailFade(surfaceDetailDistance);
       vec3 stoneWeights = surfaceWeights(normalize(vSurfaceNormal));
-      diffuseColor *= surfaceTexture(map, vSurfacePosition, stoneWeights, 0.19);
+      vec3 stonePigment = surfaceTexture(surfaceGranitePaint, vSurfacePosition, stoneWeights, 0.055).rgb;
+      float mineralLuma = dot(stonePigment, vec3(0.2126, 0.7152, 0.0722));
+      diffuseColor.rgb *= mix(vec3(mineralLuma), stonePigment, 0.55);
     `).replace('#include <roughnessmap_fragment>', `
-      float roughnessFactor = 0.88;
-      if (surfaceDetail > 0.001) roughnessFactor = mix(roughnessFactor,
-        clamp(surfaceTexture(roughnessMap, vSurfacePosition, stoneWeights, 0.19).g,
-          0.60, 0.98), surfaceDetail);
+      float roughnessFactor = 0.94;
     `).replace('#include <normal_fragment_maps>', `
       if (surfaceDetail > 0.001) normal = normalize(mix(normal,
         surfaceNormalTexture(normalMap, vSurfacePosition, stoneWeights,
-          0.19, normal, normalScale), surfaceDetail));
+          0.19, normal, normalScale * 0.25), surfaceDetail * 0.38));
     `);
   };
-  material.customProgramCacheKey = () => 'above-photographic-cliff-v2';
+  material.customProgramCacheKey = () => 'above-painted-granite-props-v3';
 }
 
 function localCliffSurface(material, maps, forestUniforms, detailUniforms) {
@@ -126,13 +133,14 @@ function localCliffSurface(material, maps, forestUniforms, detailUniforms) {
     Object.assign(shader.uniforms, forestUniforms, {
       cliffMacroColor: { value: maps.graniteMacro },
       cliffMeadowColor: { value: maps.meadowMacro },
+      cliffWorldPaint: { value: maps.worldPaint },
       cliffFloorColor: { value: maps.floorColor },
       cliffPathColor: { value: maps.soilColor },
       cliffControls: { value: maps.controls },
       cliffEcology: { value: maps.ecology },
     });
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-      uniform sampler2D cliffMacroColor, cliffMeadowColor, cliffFloorColor, cliffPathColor;
+      uniform sampler2D cliffMacroColor, cliffMeadowColor, cliffFloorColor, cliffPathColor, cliffWorldPaint;
       uniform sampler2D cliffControls, cliffEcology, forestCoverageMap;
       uniform vec4 forestCoverageBounds;
     `).replace('#include <map_fragment>', `
@@ -152,8 +160,8 @@ function localCliffSurface(material, maps, forestUniforms, detailUniforms) {
       vec2 stoneMacroDy = (stoneTop ? surfacePositionDy.xz :
         (stoneSideX ? surfacePositionDy.zy : surfacePositionDy.xy)) / 32.0;
       vec3 stoneColor = textureGrad(cliffMacroColor, stoneMacroUv, stoneMacroDx, stoneMacroDy).rgb;
-      if (surfaceDetail > 0.001) stoneColor = mix(stoneColor,
-        surfaceTexture(map, vSurfacePosition, stoneWeights, 0.19).rgb, surfaceDetail * 0.25);
+      float mineralLuma = dot(stoneColor, vec3(0.2126, 0.7152, 0.0722));
+      stoneColor = mix(vec3(mineralLuma), stoneColor, 0.55);
       vec3 stoneAlbedo = diffuseColor.rgb * stoneColor;
       float stoneGroundCover = 0.0;
       float ledgeFacing = smoothstep(0.70, 0.96, stoneNormal.y);
@@ -169,12 +177,10 @@ function localCliffSurface(material, maps, forestUniforms, detailUniforms) {
         stoneAlbedo *= mix(vec3(1.0), vec3(0.82, 0.92, 0.65), lichen);
         if (ledgeFacing > 0.001) {
           vec2 groundDx = surfacePositionDx.xz, groundDy = surfacePositionDy.xz;
-          vec2 botanicalUv = vSurfacePosition.xz / 14.0;
-          vec3 ledgeMeadow = mix(textureGrad(cliffMeadowColor, botanicalUv,
-              groundDx / 14.0, groundDy / 14.0).rgb,
-            textureGrad(cliffMeadowColor, botanicalUv + vec2(0.417, 0.683),
-              groundDx / 14.0, groundDy / 14.0).rgb,
-            smoothstep(0.22, 0.78, ledgeEcology.b));
+          vec2 botanicalUv = vSurfacePosition.xz / 18.0;
+          vec3 brush = textureGrad(cliffMeadowColor, botanicalUv, groundDx / 18.0, groundDy / 18.0).rgb;
+          vec3 ledgeMeadow = textureGrad(cliffWorldPaint, groundUv, groundDx / 3200.0, groundDy / 3200.0).rgb;
+          ledgeMeadow *= mix(vec3(1.0), clamp(brush / vec3(0.379, 0.232, 0.056), vec3(0.35), vec3(1.80)), 0.80);
           float botanicalLuma = dot(ledgeMeadow, vec3(0.2126, 0.7152, 0.0722));
           float pocket = smoothstep(0.25, 0.66,
             ledgeEcology.b * 0.62 + min(botanicalLuma * 3.0, 1.0) * 0.38);
@@ -186,16 +192,17 @@ function localCliffSurface(material, maps, forestUniforms, detailUniforms) {
             * coverageInside.x * coverageInside.y;
           float humusCover = smoothstep(0.10, 0.70, canopy);
           pocket = max(pocket, humusCover * 0.65);
-          ledgeMeadow *= mix(vec3(1.10, 1.01, 0.80), vec3(0.70, 0.98, 0.88), ledgeControls.g);
-          ledgeMeadow *= (0.90 + ledgeControls.g * 0.16) * (0.80 + ledgeEcology.b * 0.36);
           if (humusCover > 0.001) {
             vec3 humus = textureGrad(cliffFloorColor, vSurfacePosition.xz * 0.22,
               groundDx * 0.22, groundDy * 0.22).rgb;
-            ledgeMeadow = mix(ledgeMeadow, humus * vec3(0.56, 0.59, 0.48), humusCover * 0.90);
+            float humusLuma = dot(humus, vec3(0.2126, 0.7152, 0.0722));
+            vec3 paintedHumus = vec3(0.24, 0.19, 0.13) * (0.76 + humusLuma * 1.5);
+            ledgeMeadow = mix(ledgeMeadow, paintedHumus, humusCover * 0.86);
           }
           if (ledgeControls.r > 0.001) {
             vec3 wornPath = textureGrad(cliffPathColor, vSurfacePosition.xz * 0.24,
-              groundDx * 0.24, groundDy * 0.24).rgb * vec3(0.82, 0.77, 0.66);
+              groundDx * 0.24, groundDy * 0.24).rgb;
+            wornPath = surfaceEarthPigment(dot(wornPath, vec3(0.2126, 0.7152, 0.0722)), ledgeEcology.b);
             ledgeMeadow = mix(ledgeMeadow, wornPath, ledgeControls.r);
             pocket = max(pocket, ledgeControls.r * 0.85);
           }
@@ -206,9 +213,6 @@ function localCliffSurface(material, maps, forestUniforms, detailUniforms) {
       diffuseColor.rgb = stoneAlbedo;
     `).replace('#include <roughnessmap_fragment>', `
       float roughnessFactor = mix(0.91, 0.97, stoneGroundCover);
-      if (surfaceDetail > 0.001) roughnessFactor = mix(roughnessFactor,
-        clamp(surfaceTexture(roughnessMap, vSurfacePosition, stoneWeights, 0.19).g,
-          0.60, 0.98), surfaceDetail * 0.25);
     `).replace('#include <normal_fragment_maps>', `
       // Exfoliation planes and joints come from the common collision/drawing
       // geometry. A height proxy from colour made those planes look swollen;
@@ -218,14 +222,14 @@ function localCliffSurface(material, maps, forestUniforms, detailUniforms) {
           0.19, normal, normalScale * 0.45), surfaceDetail * 0.45 * (1.0 - stoneGroundCover * 0.65)));
     `);
   };
-  material.customProgramCacheKey = () => 'above-local-granite-vegetated-ledges-v3';
+  material.customProgramCacheKey = () => 'above-painted-granite-ledges-v4';
 }
 
 function terrainSurface(material, maps, forestUniforms, detailUniforms) {
   material.onBeforeCompile = shader => {
     projectSurface(shader, detailUniforms);
     Object.assign(shader.uniforms, forestUniforms, {
-      surfaceRockColor: { value: maps.rockColor },
+      surfaceRockColor: { value: maps.graniteMacro },
       surfaceRockNormal: { value: maps.rockNormal },
       surfaceRockRoughness: { value: maps.rockRoughness },
       surfaceSoilColor: { value: maps.soilColor },
@@ -234,6 +238,7 @@ function terrainSurface(material, maps, forestUniforms, detailUniforms) {
       surfaceFloorNormal: { value: maps.floorNormal },
       surfaceFloorRoughness: { value: maps.floorRoughness },
       surfaceMeadowMacro: { value: maps.meadowMacro },
+      surfaceWorldPaint: { value: maps.worldPaint },
       surfaceTalusColor: { value: maps.aerialColor },
       surfaceControls: { value: maps.controls },
       surfaceEcology: { value: maps.ecology },
@@ -242,7 +247,7 @@ function terrainSurface(material, maps, forestUniforms, detailUniforms) {
       uniform sampler2D surfaceRockColor, surfaceRockNormal, surfaceRockRoughness;
       uniform sampler2D surfaceSoilColor, surfaceSoilNormal, surfaceControls;
       uniform sampler2D surfaceFloorColor, surfaceFloorNormal, surfaceFloorRoughness;
-      uniform sampler2D surfaceMeadowMacro, surfaceTalusColor, surfaceEcology;
+      uniform sampler2D surfaceMeadowMacro, surfaceTalusColor, surfaceEcology, surfaceWorldPaint;
       uniform sampler2D forestCanopyMap, forestCoverageMap;
       uniform vec3 forestCanopyBounds;
       uniform vec4 forestCoverageBounds;
@@ -271,53 +276,61 @@ function terrainSurface(material, maps, forestUniforms, detailUniforms) {
       vec2 meadowUv = vSurfacePosition.xz * 0.38;
       vec2 soilUv = vSurfacePosition.xz * 0.24;
       vec2 floorUv = vSurfacePosition.xz * 0.22;
-      vec2 macroUv = vSurfacePosition.xz / 14.0;
-      vec2 macroDx = surfacePositionDx.xz / 14.0, macroDy = surfacePositionDy.xz / 14.0;
-      // Two independent phases blended by a nonrepeating 23 m ecological field
-      // break the source tile's grid. Botanical clusters remain visible after
-      // the fine 2.6 m photographic grass has filtered out at flight height.
-      float macroPhase = smoothstep(0.22, 0.78, landEcology.b);
-      vec3 meadow = mix(textureGrad(surfaceMeadowMacro, macroUv, macroDx, macroDy).rgb,
-        textureGrad(surfaceMeadowMacro, macroUv + vec2(0.417, 0.683), macroDx, macroDy).rgb,
-        macroPhase);
-      meadow *= mix(vec3(1.10, 1.01, 0.80), vec3(0.70, 0.98, 0.88), moisture);
-      meadow *= (0.90 + moisture * 0.16) * (0.80 + landEcology.b * 0.36);
-      if (surfaceDetail > 0.001) {
-        vec3 fineGrass = textureGrad(map, meadowUv,
-          surfacePositionDx.xz * 0.38, surfacePositionDy.xz * 0.38).rgb;
-        float microLuma = dot(fineGrass, vec3(0.2126, 0.7152, 0.0722));
-        meadow *= mix(1.0, clamp(microLuma / 0.208, 0.65, 1.30), surfaceDetail * 0.32);
-      }
+      // Warp the single botanical tile with fields already in registers. Include
+      // that warp in explicit gradients so the stronger brushwork stays stable
+      // under minification rather than revealing an 18-metre repeat grid.
+      vec2 brushWarp = vec2(landEcology.b, moisture) * vec2(1.7, 1.3);
+      vec2 macroUv = vSurfacePosition.xz / 18.0 + brushWarp;
+      vec2 macroDx = surfacePositionDx.xz / 18.0 + dFdx(brushWarp);
+      vec2 macroDy = surfacePositionDy.xz / 18.0 + dFdy(brushWarp);
+      // One authored world field gives the meadow coherent 20–150 m pigment
+      // patches. A single hand-painted botanical sample supplies brush detail;
+      // this replaces two repeated-photo phases and a fine colour fetch.
+      vec3 meadow = texture2D(surfaceWorldPaint, controlUv).rgb;
+      vec3 brush = textureGrad(surfaceMeadowMacro, macroUv, macroDx, macroDy).rgb;
+      vec3 brushPigment = clamp(brush / vec3(0.379, 0.232, 0.056), vec3(0.35), vec3(1.80));
+      meadow *= mix(vec3(1.0), brushPigment, 0.80 * (1.0 - protectedField * 0.30));
+      float brushLuma = dot(brush, vec3(0.2126, 0.7152, 0.0722));
+      float botanicalEarth = (1.0 - smoothstep(0.13, 0.23, brushLuma))
+        * 0.42 * (1.0 - protectedField * 0.65);
+      meadow = mix(meadow, surfaceEarthPigment(brushLuma, landEcology.b), botanicalEarth);
       float mowingPhase = dot(vSurfacePosition.xz, vec2(0.92, 0.38)) * 0.58;
       vec2 mowingRate = vec2(dot(surfacePositionDx.xz, vec2(0.92, 0.38)),
         dot(surfacePositionDy.xz, vec2(0.92, 0.38))) * 0.58;
       float mowing = sin(mowingPhase) * exp(-dot(mowingRate, mowingRate));
-      vec3 mownField = mix(meadow, vec3(0.185, 0.174, 0.071), 0.58) * (1.0 + mowing * 0.035);
-      meadow = mix(meadow, mownField, protectedField * 0.90);
+      meadow *= 1.0 + mowing * 0.035 * protectedField;
       vec2 canopyUv = (vSurfacePosition.xz - forestCanopyBounds.xy) / forestCanopyBounds.z;
       float forestVisibility = texture2D(forestCanopyMap, canopyUv).r;
       vec3 landColor = meadow;
       if (forestFloor > 0.001) {
         vec3 humus = textureGrad(surfaceFloorColor, floorUv,
           surfacePositionDx.xz * 0.22, surfacePositionDy.xz * 0.22).rgb;
-        humus *= vec3(0.70, 0.73, 0.60) * (0.70 + landEcology.b * 0.40);
-        landColor = mix(landColor, humus, forestFloor * 0.91);
+        float humusLuma = dot(humus, vec3(0.2126, 0.7152, 0.0722));
+        vec3 paintedHumus = vec3(0.24, 0.19, 0.13) * (0.76 + humusLuma * 1.5);
+        paintedHumus *= 0.86 + landEcology.b * 0.25;
+        landColor = mix(landColor, paintedHumus, forestFloor * 0.89);
       }
       float bareSoil = max(pathCover, talusCover);
       if (bareSoil > 0.001) {
         vec3 gravel = textureGrad(surfaceSoilColor, soilUv,
           surfacePositionDx.xz * 0.24, surfacePositionDy.xz * 0.24).rgb;
-        gravel *= mix(vec3(0.82, 0.77, 0.66), vec3(0.94, 0.95, 0.92), talusCover);
+        float gravelLuma = dot(gravel, vec3(0.2126, 0.7152, 0.0722));
+        gravel = mix(surfaceEarthPigment(gravelLuma, landEcology.b),
+          gravelLuma * vec3(0.90, 0.91, 0.88), talusCover);
         if (talusCover > 0.01) {
           vec3 debris = textureGrad(surfaceTalusColor, vSurfacePosition.xz / 24.0,
             surfacePositionDx.xz / 24.0, surfacePositionDy.xz / 24.0).rgb;
-          gravel = mix(gravel, debris, talusCover * 0.32);
+          float debrisLuma = dot(debris, vec3(0.2126, 0.7152, 0.0722));
+          gravel = mix(gravel, debrisLuma * vec3(1.06, 1.00, 0.89), talusCover * 0.22);
         }
         landColor = mix(landColor, gravel, bareSoil);
       }
-      if (exposedRock > 0.001) landColor = mix(landColor,
-        surfaceTexture(surfaceRockColor, vSurfacePosition, landWeights, 0.19).rgb,
-        exposedRock);
+      if (exposedRock > 0.001) {
+        vec3 rockPigment = surfaceTexture(surfaceRockColor, vSurfacePosition, landWeights, 0.055).rgb;
+        float rockLuma = dot(rockPigment, vec3(0.2126, 0.7152, 0.0722));
+        landColor = mix(landColor, mix(vec3(rockLuma), rockPigment, 0.55)
+          * vec3(0.65, 0.68, 0.72), exposedRock);
+      }
       diffuseColor.rgb *= landColor;
     `).replace('#include <color_fragment>', `
       #ifdef USE_COLOR
@@ -352,11 +365,11 @@ function terrainSurface(material, maps, forestUniforms, detailUniforms) {
         if (bareSoil > 0.001) landDetail = mix(landDetail,
           textureGrad(surfaceSoilNormal, soilUv, surfacePositionDx.xz * 0.24,
             surfacePositionDy.xz * 0.24).xyz * 2.0 - 1.0, bareSoil);
-        landDetail.xy *= normalScale * 0.70;
+        landDetail.xy *= normalScale * 0.25;
         vec3 landViewNormal = normalize(surfaceFrame(normal, meadowDx, meadowDy) * normalize(landDetail));
         if (exposedRock > 0.001) landViewNormal = normalize(mix(landViewNormal,
           surfaceNormalTexture(surfaceRockNormal, vSurfacePosition, landWeights,
-            0.19, normal, normalScale), exposedRock));
+            0.19, normal, normalScale * 0.25), exposedRock));
         normal = normalize(mix(normal, landViewNormal, surfaceDetail));
       }
     `).replace('#include <aomap_fragment>', `#include <aomap_fragment>
@@ -365,25 +378,22 @@ function terrainSurface(material, maps, forestUniforms, detailUniforms) {
       reflectedLight.directDiffuse *= mix(1.0, forestVisibility, 0.68);
     `);
   };
-  material.customProgramCacheKey = () => 'above-ecological-meadow-v4';
+  material.customProgramCacheKey = () => 'above-painted-ecological-meadow-v5';
 }
 
 function mountainSurface(material, maps, uniforms, detailUniforms) {
   material.onBeforeCompile = shader => {
     projectSurface(shader, detailUniforms);
     Object.assign(shader.uniforms, uniforms, {
-      mountainMeadowColor: { value: maps.grassColor },
-      mountainMeadowNormal: { value: maps.grassNormal },
+      mountainMeadowColor: { value: maps.meadowMacro },
       mountainAerialColor: { value: maps.aerialColor },
       mountainAerialNormal: { value: maps.aerialNormal },
-      mountainAerialRoughness: { value: maps.aerialRoughness },
       mountainGraniteMacro: { value: maps.graniteMacro },
-      mountainGraniteNormal: { value: maps.graniteMacroNormal },
     });
     shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>
-      uniform sampler2D mountainMeadowColor, mountainMeadowNormal, mountainTerrainNormal;
-      uniform sampler2D mountainAerialColor, mountainAerialNormal, mountainAerialRoughness;
-      uniform sampler2D mountainGraniteMacro, mountainGraniteNormal;
+      uniform sampler2D mountainMeadowColor, mountainTerrainNormal;
+      uniform sampler2D mountainAerialColor, mountainAerialNormal;
+      uniform sampler2D mountainGraniteMacro;
       uniform vec4 mountainTerrainBounds;
       uniform float mountainHasTerrainNormal, mountainTreeLine, mountainSnowLine;
     `).replace('#include <map_fragment>', `
@@ -412,53 +422,40 @@ function mountainSurface(material, maps, uniforms, detailUniforms) {
       vec2 graniteDx = (graniteXAxis ? surfacePositionDx.zy : surfacePositionDx.xy) / 384.0;
       vec2 graniteDy = (graniteXAxis ? surfacePositionDy.zy : surfacePositionDy.xy) / 384.0;
       vec3 mountainColor = vec3(0.0);
-      if (mountainCliff < 0.999) mountainColor = textureGrad(mountainAerialColor,
-        aerialUv, aerialDx, aerialDy).rgb;
-      if (mountainCliff > 0.001) mountainColor = mix(mountainColor,
-        textureGrad(mountainGraniteMacro, graniteMacroUv, graniteDx, graniteDy).rgb, mountainCliff);
-      // Meter-scale scans disappear into their average mip in the distance.
-      // Preserve the broad geological photographs and DEM relief instead.
-      if (surfaceDetail > 0.001) {
-        vec3 mountainFineRock = surfaceTexture(map, vSurfacePosition, mountainWeights, 0.10).rgb;
-        float mineralGrain = dot(mountainFineRock, vec3(0.2126, 0.7152, 0.0722));
-        mountainColor *= mix(1.0, 0.82 + mineralGrain * 0.54, surfaceDetail);
+      if (mountainCliff < 0.999) {
+        vec3 aerial = textureGrad(mountainAerialColor, aerialUv, aerialDx, aerialDy).rgb;
+        float aerialLuma = dot(aerial, vec3(0.2126, 0.7152, 0.0722));
+        mountainColor = mix(aerial, aerialLuma * vec3(0.78, 0.88, 0.83), 0.72);
+      }
+      if (mountainCliff > 0.001) {
+        vec3 pigment = textureGrad(mountainGraniteMacro, graniteMacroUv, graniteDx, graniteDy).rgb;
+        float mineralLuma = dot(pigment, vec3(0.2126, 0.7152, 0.0722));
+        mountainColor = mix(mountainColor, mix(vec3(mineralLuma), pigment, 0.55), mountainCliff);
       }
       if (mountainVegetation > 0.001) {
         vec3 mountainMeadow = textureGrad(mountainMeadowColor, vSurfacePosition.xz * 0.012,
           surfacePositionDx.xz * 0.012, surfacePositionDy.xz * 0.012).rgb;
         // Mountain stands are dark, subdued canopy rather than bright field turf.
-        mountainMeadow *= vec3(0.19, 0.31, 0.20);
+        mountainMeadow *= vec3(0.28, 0.44, 0.40);
         mountainColor = mix(mountainColor, mountainMeadow, mountainVegetation * 0.72);
       }
       mountainColor = mix(mountainColor, vec3(0.78, 0.83, 0.86), mountainSnow);
       diffuseColor.rgb *= mountainColor;
     `).replace('#include <roughnessmap_fragment>', `
-      float roughnessFactor = 0.88;
-      if (mountainCliff < 0.999) roughnessFactor = mix(textureGrad(mountainAerialRoughness,
-        aerialUv, aerialDx, aerialDy).r, 0.88, mountainCliff);
-      if (surfaceDetail > 0.001 && mountainCliff > 0.001) roughnessFactor = mix(roughnessFactor,
-        surfaceTexture(roughnessMap, vSurfacePosition, mountainWeights, 0.10).g,
-        mountainCliff * surfaceDetail);
-      roughnessFactor = mix(clamp(roughnessFactor, 0.72, 0.99), 0.96,
-        max(mountainVegetation, mountainSnow));
+      float roughnessFactor = 0.96;
     `).replace('#include <normal_fragment_maps>', `
       vec3 mountainViewNormal = normalize(mat3(viewMatrix) * mountainWorldNormal);
       vec3 geologicalNormal = mountainViewNormal;
       if (mountainCliff < 0.999) {
         vec3 aerialNormal = textureGrad(mountainAerialNormal, aerialUv, aerialDx, aerialDy).xyz * 2.0 - 1.0;
-        aerialNormal.xy *= 0.80;
+        aerialNormal.xy *= 0.24;
         geologicalNormal = normalize(surfaceFrame(mountainViewNormal, aerialDx, aerialDy) * aerialNormal);
       }
-      if (mountainCliff > 0.001) {
-        vec3 graniteNormal = textureGrad(mountainGraniteNormal, graniteMacroUv, graniteDx, graniteDy).xyz * 2.0 - 1.0;
-        graniteNormal.xy *= 0.85;
-        vec3 graniteViewNormal = normalize(surfaceFrame(mountainViewNormal, graniteDx, graniteDy) * graniteNormal);
-        geologicalNormal = normalize(mix(geologicalNormal, graniteViewNormal, mountainCliff));
-      }
+      geologicalNormal = normalize(mix(geologicalNormal, mountainViewNormal, mountainCliff));
       if (surfaceDetail > 0.001) {
         vec3 mountainDetail = surfaceNormalTexture(normalMap, vSurfacePosition,
-          mountainWeights, 0.10, mountainViewNormal, normalScale * 0.55);
-        geologicalNormal = normalize(mix(geologicalNormal, mountainDetail, 0.28 * surfaceDetail));
+          mountainWeights, 0.10, mountainViewNormal, normalScale * 0.20);
+        geologicalNormal = normalize(mix(geologicalNormal, mountainDetail, 0.12 * surfaceDetail));
       }
       normal = normalize(mix(geologicalNormal, mountainViewNormal, mountainSnow * 0.75));
     `).replace('#include <aomap_fragment>', `#include <aomap_fragment>
@@ -468,7 +465,7 @@ function mountainSurface(material, maps, uniforms, detailUniforms) {
       reflectedLight.indirectSpecular *= mountainAmbientOcclusion;
     `);
   };
-  material.customProgramCacheKey = () => 'above-photographic-mountain-v3';
+  material.customProgramCacheKey = () => 'above-painted-mountain-v4';
 }
 
 /** Load locally retained, attributed PBR maps before constructing the scene. */
@@ -486,7 +483,6 @@ export async function createSurfaceMaterials(THREE, { anisotropy = 4 } = {}) {
   };
   const loader = new THREE.TextureLoader();
   const files = {
-    grassColor: ['babylon/grass.png', true],
     grassNormal: ['babylon/grassn.png', false],
     soilColor: ['babylon/rockyGround_basecolor.png', true],
     soilNormal: ['babylon/rockyGround_normal.png', false],
@@ -494,7 +490,6 @@ export async function createSurfaceMaterials(THREE, { anisotropy = 4 } = {}) {
     floorColor: ['scanned/floor-color.webp', true],
     floorNormal: ['scanned/floor-normal.webp', false],
     floorRoughness: ['scanned/floor-roughness.webp', false],
-    rockColor: ['scanned/rock-color.webp', true],
     rockNormal: ['scanned/rock-normal.webp', false],
     rockRoughness: ['scanned/rock-roughness.webp', false],
     woodColor: ['scanned/wood-color.webp', true],
@@ -502,12 +497,11 @@ export async function createSurfaceMaterials(THREE, { anisotropy = 4 } = {}) {
     woodRoughness: ['scanned/wood-roughness.webp', false],
     controls: ['terrain-control.png', false],
     ecology: ['terrain-ecology.png', false],
-    meadowMacro: ['generated/meadow-macro-color.webp', true],
+    meadowMacro: ['generated/botanical-painted-color.webp', true],
+    worldPaint: ['terrain-paint.webp', true],
     aerialColor: ['aerial-rocks/color.webp', true],
     aerialNormal: ['aerial-rocks/normal.webp', false],
-    aerialRoughness: ['aerial-rocks/roughness.webp', false],
-    graniteMacro: ['generated/granite-macro-color.webp', true],
-    graniteMacroNormal: ['generated/granite-macro-normal.webp', false],
+    graniteMacro: ['generated/granite-painted-color.webp', true],
   };
   const textures = [];
   const maps = Object.fromEntries(await Promise.all(Object.entries(files).map(async ([name, [file, color]]) => {
@@ -518,7 +512,7 @@ export async function createSurfaceMaterials(THREE, { anisotropy = 4 } = {}) {
     textures.push(texture);
     return [name, texture];
   })));
-  for (const texture of [maps.controls, maps.ecology]) {
+  for (const texture of [maps.controls, maps.ecology, maps.worldPaint]) {
     texture.wrapS = texture.wrapT = THREE.ClampToEdgeWrapping;
     texture.flipY = false;
   }
@@ -537,21 +531,21 @@ export async function createSurfaceMaterials(THREE, { anisotropy = 4 } = {}) {
   forestUniforms.forestCoverageBounds = { value: new THREE.Vector4(-1600, -1600, 3200, 3200) };
   const terrain = new THREE.MeshStandardMaterial({
     name: 'Alpine meadow, humus and mineral ground', vertexColors: true,
-    map: maps.grassColor, normalMap: maps.grassNormal, normalScale: new THREE.Vector2(.65, .65),
+    map: maps.meadowMacro, normalMap: maps.grassNormal, normalScale: new THREE.Vector2(.65, .65),
     roughnessMap: maps.soilRoughness, roughness: 1, metalness: 0,
   });
   terrainSurface(terrain, maps, forestUniforms, detailUniforms);
 
   const rock = new THREE.MeshStandardMaterial({
     name: 'Fractured launch granite', color: 0xc9cac3,
-    map: maps.rockColor, normalMap: maps.rockNormal, normalScale: new THREE.Vector2(.72, .72),
+    map: maps.graniteMacro, normalMap: maps.rockNormal, normalScale: new THREE.Vector2(.72, .72),
     roughnessMap: maps.rockRoughness, roughness: 1, metalness: 0,
   });
   localCliffSurface(rock, maps, forestUniforms, detailUniforms);
   const granite = rock.clone();
   granite.name = 'Photographic granite props';
   granite.color.setHex(0xc9cac3);
-  cliffSurface(granite, detailUniforms);
+  cliffSurface(granite, maps, detailUniforms);
 
   const timber = new THREE.MeshStandardMaterial({
     name: 'Photographic weathered timber', color: 0xb8b2a5,

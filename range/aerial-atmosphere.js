@@ -12,11 +12,26 @@ const BETA_R = [5.8e-6, 13.5e-6, 33.1e-6];
 const BETA_M = 2.4e-5;
 const SUN_COLOR = [1, .962, .88];
 const DEFAULT_SUN = [.5904601, .6817721, .4319070];
+/** Radiance palettes, applied before output grading and shared by sky/IBL. */
+export const AERIAL_STYLES = Object.freeze({
+  daylight: Object.freeze({
+    rayTint: [1, 1, 1], mieTint: [1, 1, 1], multiple: [.085, .13, .19], ground: [.12, .135, .14],
+    aerialTint: [1, 1, 1], cloudBase: [.18, .215, .25], cloudTop: [.17, .17, .17],
+  }),
+  'illustrated-alpine': Object.freeze({
+    // A cool molecular spectrum against warm aerosol forward scattering:
+    // turquoise windows, apricot banks and violet/slate atmospheric depth.
+    rayTint: [.55, 1.40, 1.65], mieTint: [1.16, .98, .91], multiple: [.055, .17, .27], ground: [.105, .135, .205],
+    aerialTint: [1.16, .87, 1.25], cloudBase: [.20, .235, .35], cloudTop: [.16, .175, .235],
+  }),
+});
 const clamp = x => Math.max(0, Math.min(1, x));
 const smooth = (a, b, x) => { const t = clamp((x - a) / (b - a)); return t * t * (3 - 2 * t); };
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const array = vector => Array.isArray(vector) || ArrayBuffer.isView(vector) ? vector : [vector.x, vector.y, vector.z];
 const normalize = value => { const a = array(value), length = Math.hypot(...a); return a.map(x => x / (length || 1)); };
+const colorChannels = value => value?.isColor ? [value.r, value.g, value.b] : Array.from(array(value));
+const styleFor = name => AERIAL_STYLES[name] || AERIAL_STYLES.daylight;
 
 // A curvature-aware approximation to the exponential atmosphere's slant column.
 // Unlike 1/cos(theta), it remains finite at the horizon and below it.
@@ -28,8 +43,10 @@ const solarTransmittance = sun => {
 };
 
 /** Single-scattering daylight in linear radiance, shared by the sky and IBL bake. */
-export function sampleSkyRadiance(direction, sunDirection = DEFAULT_SUN, { sunDisk = true } = {}) {
+export function sampleSkyRadiance(direction, sunDirection = DEFAULT_SUN,
+  { sunDisk = true, sunColor = SUN_COLOR, style = 'daylight' } = {}) {
   const d = normalize(direction), s = normalize(sunDirection);
+  const solarColor = colorChannels(sunColor), palette = styleFor(style);
   const mu = Math.max(-1, Math.min(1, dot(d, s)));
   const elevation = Math.max(-.035, d[1]);
   const rayColumn = column(elevation, 8000), mieColumn = column(elevation, 1200);
@@ -42,14 +59,15 @@ export function sampleSkyRadiance(direction, sunDirection = DEFAULT_SUN, { sunDi
   return BETA_R.map((beta, i) => {
     const tauR = beta * rayColumn, tauM = BETA_M * mieColumn;
     const sunTransmittance = sunlight[i];
-    const scatter = (rayPhase * tauR + miePhase * tauM) / Math.max(1e-6, tauR + tauM);
-    const sky = (1 - Math.exp(-tauR - tauM)) * scatter * 20 * SUN_COLOR[i] * sunTransmittance;
+    const scatter = (rayPhase * tauR * palette.rayTint[i] + miePhase * tauM * palette.mieTint[i])
+      / Math.max(1e-6, tauR + tauM);
+    const sky = (1 - Math.exp(-tauR - tauM)) * scatter * 20 * solarColor[i] * sunTransmittance;
     // A small higher-order diffuse term keeps the antisolar horizon and cloud
     // bases naturally open; the principal spectrum remains Rayleigh/Mie.
-    const multiple = [ .085, .13, .19 ][i] * (1 - Math.exp(-tauR - tauM));
-    const ground = [ .12, .135, .14 ][i];
+    const multiple = palette.multiple[i] * (1 - Math.exp(-tauR - tauM));
+    const ground = palette.ground[i];
     return (ground * (1 - belowHorizon) + (sky + multiple) * belowHorizon)
-      + disk * 160 * SUN_COLOR[i] * sunTransmittance;
+      + disk * 160 * solarColor[i] * sunTransmittance;
   });
 }
 
@@ -68,10 +86,10 @@ export function atmosphereTransmittance(distance, startHeight = 0, endHeight = s
 }
 
 export const AERIAL_SCATTERING_GLSL = /* glsl */`
-  uniform vec3 aerialSunDirection, aerialCameraPosition, aerialSunTransmittance;
+  uniform vec3 aerialSunDirection, aerialCameraPosition, aerialSunTransmittance, aerialSunColor;
+  uniform vec3 aerialRayTint, aerialMieTint, aerialMultipleScatter, aerialGroundRadiance, aerialInscatterTint;
   const vec3 AERIAL_BETA_R = vec3(5.8e-6, 13.5e-6, 33.1e-6);
   const float AERIAL_BETA_M = 2.4e-5;
-  const vec3 AERIAL_SUN_COLOR = vec3(1.0, 0.962, 0.88);
   float aerialColumn(float mu, float scaleHeight) {
     return scaleHeight / max(0.009, 0.5 * (mu + sqrt(mu * mu + 4.0 * scaleHeight / 6371000.0)));
   }
@@ -84,11 +102,11 @@ export const AERIAL_SCATTERING_GLSL = /* glsl */`
     float rayPhase = 0.0596831 * (1.0 + mu * mu);
     float g = 0.76;
     float miePhase = (1.0 - g * g) / (12.5663706 * pow(1.0 + g * g - 2.0 * g * mu, 1.5));
-    vec3 scatter = (rayPhase * tauR + miePhase * tauM) / max(vec3(1e-6), tauR + tauM);
-    vec3 sky = (1.0 - exp(-tauR - tauM)) * scatter * 20.0 * AERIAL_SUN_COLOR * aerialSunTransmittance;
-    sky += vec3(0.085, 0.13, 0.19) * (1.0 - exp(-tauR - tauM));
-    sky = mix(vec3(0.12, 0.135, 0.14), sky, smoothstep(-0.12, 0.035, d.y));
-    if (sunDisk) sky += smoothstep(0.999986995, 0.99999032, mu) * 160.0 * AERIAL_SUN_COLOR * aerialSunTransmittance;
+    vec3 scatter = (rayPhase * tauR * aerialRayTint + miePhase * tauM * aerialMieTint) / max(vec3(1e-6), tauR + tauM);
+    vec3 sky = (1.0 - exp(-tauR - tauM)) * scatter * 20.0 * aerialSunColor * aerialSunTransmittance;
+    sky += aerialMultipleScatter * (1.0 - exp(-tauR - tauM));
+    sky = mix(aerialGroundRadiance, sky, smoothstep(-0.12, 0.035, d.y));
+    if (sunDisk) sky += smoothstep(0.999986995, 0.99999032, mu) * 160.0 * aerialSunColor * aerialSunTransmittance;
     return sky;
   }
   float aerialPathIntegral(float startHeight, float endHeight, float distanceM, float scaleHeight) {
@@ -108,7 +126,7 @@ export const AERIAL_SCATTERING_GLSL = /* glsl */`
     transmittance = exp(-AERIAL_BETA_R * rayleigh - AERIAL_BETA_M * aerosol);
     // The local segment scatters toward the same sky radiance as the backdrop;
     // no second grey fog colour, display-space blend or fixed distance wall.
-    inscatter = aerialSkyRadiance(direction, false) * (1.0 - transmittance);
+    inscatter = aerialSkyRadiance(direction, false) * aerialInscatterTint * (1.0 - transmittance);
   }
   vec3 aerialApply(vec3 color, vec3 worldPosition) {
     vec3 transmittance, inscatter;
@@ -145,9 +163,10 @@ const VERTEX_WORLD = /* glsl */`
  * camera) once before the normal scene render. Clouds occupy only a bounded
  * low-resolution background pass; ordinary geometry supplies exact occlusion.
  */
-export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, quality = 'high',
+export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunColor = SUN_COLOR, style = 'daylight', quality = 'high',
   cloudOffset = [CLOUD_FIELD.offsetX, CLOUD_FIELD.offsetZ], shapeSize = 64, weatherSize = 128, shadowSize = 128 } = {}) {
   const direction = new THREE.Vector3(...normalize(sunDirection));
+  const solarColor = colorChannels(sunColor), palette = styleFor(style);
   const shape = bakeCloudShape(shapeSize), weather = bakeCloudWeather(weatherSize);
   const shadow = bakeCloudShadow(shape, weather, direction, shadowSize);
   const shapeTexture = new THREE.Data3DTexture(shape.data, shape.size, shape.size, shape.size);
@@ -173,7 +192,13 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, qual
   clearClouds.needsUpdate = true;
   const uniforms = {
     aerialSunDirection: { value: direction },
+    aerialSunColor: { value: new THREE.Vector3(...solarColor) },
     aerialSunTransmittance: { value: new THREE.Vector3(...solarTransmittance(direction.toArray())) },
+    aerialRayTint: { value: new THREE.Vector3(...palette.rayTint) },
+    aerialMieTint: { value: new THREE.Vector3(...palette.mieTint) },
+    aerialMultipleScatter: { value: new THREE.Vector3(...palette.multiple) },
+    aerialGroundRadiance: { value: new THREE.Vector3(...palette.ground) },
+    aerialInscatterTint: { value: new THREE.Vector3(...palette.aerialTint) },
     aerialCameraPosition: { value: new THREE.Vector3() },
     aerialWindOffset: { value: new THREE.Vector2(cloudOffset[0], cloudOffset[1]) },
     aerialCloudShadow: { value: shadowTexture },
@@ -191,6 +216,8 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, qual
       inverseProjection: { value: new THREE.Matrix4() }, inverseView: { value: new THREE.Matrix4() },
       aerialCloudSteps: { value: 48 }, aerialCloudLightSteps: { value: 3 },
       aerialCloudEncodeScale: { value: 1 },
+      aerialCloudBaseRadiance: { value: new THREE.Vector3(...palette.cloudBase) },
+      aerialCloudTopRadiance: { value: new THREE.Vector3(...palette.cloudTop) },
     },
     vertexShader: `out vec2 vCloudUv;
       void main() { vCloudUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
@@ -199,6 +226,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, qual
       out vec4 cloudOutput;
       uniform mat4 inverseProjection, inverseView;
       uniform float aerialCloudSteps, aerialCloudLightSteps, aerialCloudEncodeScale;
+      uniform vec3 aerialCloudBaseRadiance, aerialCloudTopRadiance;
       ${AERIAL_SCATTERING_GLSL}
       ${CLOUD_DENSITY_GLSL}
       uniform sampler2D aerialCloudShadow;
@@ -240,8 +268,8 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, qual
           if (density > 0.001) {
             float sunVisibility = cloudSunVisibility(p);
             float heightInCloud = clamp((p.y - ${CLOUD_FIELD.bottom.toFixed(1)}) / ${(CLOUD_FIELD.top - CLOUD_FIELD.bottom).toFixed(1)}, 0.0, 1.0);
-            vec3 ambient = mix(vec3(0.18, 0.215, 0.25), skyAmbient + vec3(0.17), sqrt(heightInCloud));
-            vec3 sunlight = AERIAL_SUN_COLOR * (sunVisibility * (1.05 + phase * 0.18) + 0.14);
+            vec3 ambient = mix(aerialCloudBaseRadiance, skyAmbient + aerialCloudTopRadiance, sqrt(heightInCloud));
+            vec3 sunlight = aerialSunColor * (sunVisibility * (1.05 + phase * 0.18) + 0.14);
             float stepTransmittance = exp(-density * stepLength * ${CLOUD_FIELD.extinction});
             float weight = transmittance * (1.0 - stepTransmittance);
             radiance += (ambient + sunlight) * weight;
@@ -352,7 +380,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, qual
     sky, shared, uniforms, installMaterial,
     get quality() { return level; },
     get budget() { return AERIAL_QUALITY[level]; },
-    sampleSkyRadiance: (ray, options) => sampleSkyRadiance(ray, direction, options),
+    sampleSkyRadiance: (ray, options) => sampleSkyRadiance(ray, direction, { sunColor: solarColor, style, ...options }),
     generateRadiance(THREEForTexture = THREE, width = 256, height = 128, { sunDisk = false } = {}) {
       const pixels = new Float32Array(width * height * 4);
       for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
@@ -360,7 +388,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, qual
         const latitude = ((y + .5) / height - .5) * PI;
         const longitude = ((x + .5) / width - .5) * 2 * PI;
         const radiance = sampleSkyRadiance([Math.cos(latitude) * Math.cos(longitude),
-          Math.sin(latitude), Math.cos(latitude) * Math.sin(longitude)], direction, { sunDisk });
+          Math.sin(latitude), Math.cos(latitude) * Math.sin(longitude)], direction, { sunDisk, sunColor: solarColor, style });
         const offset = (y * width + x) * 4;
         pixels.set(radiance, offset); pixels[offset + 3] = 1;
       }

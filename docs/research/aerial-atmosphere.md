@@ -16,6 +16,26 @@ aerial.render(renderer, camera, elapsedSeconds);
 renderFinish.render();
 ```
 
+The illustrated afternoon direction uses
+`{ sunDirection, sunColor: [1, .83, .64], style: 'illustrated-alpine' }`, where
+the sun direction is normalized `[.70, .45, .55]` (about 27° elevation).
+`sunColor` is linear RGB and also accepts a `THREE.Color`. The default
+`style: 'daylight'` and solar colour `[1, .962, .88]` preserve the existing API.
+The per-instance CPU `sampleSkyRadiance()` and `generateRadiance()` automatically
+inherit both options, as do the visible sun disc and cloud solar lighting.
+The exported pure `sampleSkyRadiance(direction, sunDirection, options)` accepts
+the same `sunColor` and `style` options.
+
+`illustrated-alpine` shapes the molecular spectrum toward turquoise-blue, the
+forward aerosol scattering toward apricot and the height-integrated inscatter
+toward slate/lavender. Cool cloud bases and the diffuse sky keep forest shadows
+readable against warm direct sun. This is a restrained artistic radiance palette,
+applied before the separate output grade, with the same physical distance and
+altitude extinction law. It adds colour arithmetic/uniforms, without adding
+texture fetches, geometry or rendering passes. Material aerial scattering stays
+in the vertex stage. At the afternoon sun, the default weather phase keeps both
+the launch and landing target fully outside dense cloud shadows at time zero.
+
 `render()` calls `update()` itself. Pass a fixed elapsed time for comparable
 screenshots. `update(cameraOrPosition, elapsedSeconds)` is also available without
 rendering. The medium and shadow texture remain fixed in world space; only the

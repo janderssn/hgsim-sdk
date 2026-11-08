@@ -1,10 +1,11 @@
+import { loadForestMipTexture } from './forest-textures.js';
 /**
  * Full-crown forest library. Meshes and impostors share physically lit albedo;
  * cards choose their view on the GPU, including the directional-shadow camera.
  */
-import { GLTFLoader } from './vendor/GLTFLoader.js';
 
 export async function loadForestAssets(THREE, renderer = null) {
+  const { GLTFLoader } = await import('./vendor/GLTFLoader.js');
   const base = new URL('./assets/forest/', import.meta.url);
   const response = await fetch(new URL('forest.json', base));
   if (!response.ok) throw new Error(`Forest manifest: HTTP ${response.status}`);
@@ -13,20 +14,21 @@ export async function loadForestAssets(THREE, renderer = null) {
   const [library, ...atlases] = await Promise.all([
     loader.loadAsync(new URL(manifest.geometry, base).href),
     ...manifest.variants.map(async variant => {
-      const textures = new THREE.TextureLoader();
+      const texture = async (filename, colorSpace) => {
+        try { return await loadForestMipTexture(THREE, new URL(filename.replace('.png', '-mips.bin.gz'), base).href, colorSpace); }
+        catch (error) {
+          console.warn('Forest mip chain unavailable; using source atlas.', error.message);
+          const fallback = await new THREE.TextureLoader().loadAsync(new URL(filename, base).href);
+          fallback.colorSpace = colorSpace; fallback.flipY = true;
+          fallback.minFilter = THREE.LinearMipmapLinearFilter; fallback.magFilter = THREE.LinearFilter;
+          return fallback;
+        }
+      };
       const [albedo, normals] = await Promise.all([
-        textures.loadAsync(new URL(variant.impostor.albedo, base).href),
-        textures.loadAsync(new URL(variant.impostor.normals, base).href),
+        texture(variant.impostor.albedo, THREE.SRGBColorSpace),
+        texture(variant.impostor.normals, THREE.NoColorSpace),
       ]);
-      albedo.colorSpace = THREE.SRGBColorSpace;
-      normals.colorSpace = THREE.NoColorSpace;
-      for (const texture of [albedo, normals]) {
-        texture.flipY = true;
-        texture.generateMipmaps = true;
-        texture.minFilter = THREE.LinearMipmapLinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.anisotropy = Math.min(4, renderer?.capabilities.getMaxAnisotropy() ?? 1);
-      }
+      for (const texture of [albedo, normals]) texture.anisotropy = Math.min(4, renderer?.capabilities.getMaxAnisotropy() ?? 1);
       return { albedo, normals };
     }),
   ]);
@@ -60,10 +62,18 @@ export async function loadForestAssets(THREE, renderer = null) {
     // transform in the vertex shader. Never rotate instance matrices to camera.
     const far = new THREE.PlaneGeometry(description.impostor.diameter, description.impostor.diameter);
     const impostor = createForestImpostor(THREE, atlases[index], description);
+    const near = geometry('LeavesNear'), trunk = geometry('BarkNear');
+    const mid = geometry('LeavesMid'), midTrunk = geometry('BarkMid');
+    const cullBox = new THREE.Box3();
+    for (const meshGeometry of [near, trunk, mid, midTrunk]) {
+      if (!meshGeometry.boundingBox) meshGeometry.computeBoundingBox();
+      cullBox.union(meshGeometry.boundingBox);
+    }
     return {
       ...description,
-      near: geometry('LeavesNear'), trunk: geometry('BarkNear'),
-      mid: geometry('LeavesMid'), midTrunk: geometry('BarkMid'), far,
+      atlasMipLevels: Math.min(atlases[index].albedo.userData.forestMipMaxLevel || 0, atlases[index].normals.userData.forestMipMaxLevel || 0),
+      near, trunk, mid, midTrunk, far,
+      cullBounds: { min: cullBox.min.toArray(), max: cullBox.max.toArray() },
       foliageMaterial, trunkMaterial: bark.material,
       impostorMaterial: impostor.material,
       impostorDepthMaterial: impostor.depthMaterial,
@@ -95,8 +105,7 @@ export function createForestImpostor(THREE, textures, description) {
   });
   const distanceMaterial = new THREE.MeshDistanceMaterial({ map: albedo, alphaTest: .38, side: THREE.DoubleSide });
   const vertexDeclarations = `
-    varying vec4 vForestFrames;
-    varying vec2 vForestBlend;
+    varying float vForestFrame;
     varying vec3 vForestBasisX;
     varying vec3 vForestBasisY;
     varying vec3 vForestBasisZ;
@@ -122,10 +131,9 @@ export function createForestImpostor(THREE, textures, description) {
     transformed = vec3(${center[0]}, ${center[1]}, ${center[2]}) + vec3(dot(forestOffset, forestX), dot(forestOffset, forestY), dot(forestOffset, forestZ));
     float forestAz = mod(forestAzimuth / 6.28318530718 * ${azimuths.toFixed(1)} + ${azimuths.toFixed(1)}, ${azimuths.toFixed(1)});
     float forestEl = asin(clamp(forestLocalView.y, 0.0, 1.0)) / 1.57079632679 * ${(elevations.length - 1).toFixed(1)};
-    float forestA0 = floor(forestAz), forestA1 = mod(forestA0 + 1.0, ${azimuths.toFixed(1)});
-    float forestE0 = floor(forestEl), forestE1 = min(forestE0 + 1.0, ${(elevations.length - 1).toFixed(1)});
-    vForestFrames = vec4(forestA0 + forestE0 * ${azimuths.toFixed(1)}, forestA1 + forestE0 * ${azimuths.toFixed(1)}, forestA0 + forestE1 * ${azimuths.toFixed(1)}, forestA1 + forestE1 * ${azimuths.toFixed(1)});
-    vForestBlend = fract(vec2(forestAz, forestEl));
+    // One view for the whole tree preserves coherent branches at 18–100px.
+    // Fragment-wise stochastic frame changes turned distant crowns into lace.
+    vForestFrame = mod(floor(forestAz + .5), ${azimuths.toFixed(1)}) + floor(forestEl + .5) * ${azimuths.toFixed(1)};
     vForestBasisX = forestX; vForestBasisY = forestY; vForestBasisZ = forestZ;
   `;
   const fragmentDeclarations = vertexDeclarations + `
@@ -133,19 +141,13 @@ export function createForestImpostor(THREE, textures, description) {
     vec2 forestAtlasUv;
     vec2 forestUvDx;
     vec2 forestUvDy;
-    // Stochastic neighboring-view selection preserves a sharp cutout instead of
-    // blending displaced silhouettes into translucent double branches.
-    float forestNoise(vec2 pixel) { return fract(52.9829189 * fract(dot(pixel, vec2(.06711056, .00583715)))); }
   `;
   const sampleAlbedo = `
-    float forestNoiseA = forestNoise(floor(gl_FragCoord.xy));
-    float forestNoiseE = forestNoise(floor(gl_FragCoord.yx) + vec2(19.0, 71.0));
-    float forestFrame = mix(mix(vForestFrames.x, vForestFrames.y, step(forestNoiseA, vForestBlend.x)), mix(vForestFrames.z, vForestFrames.w, step(forestNoiseA, vForestBlend.x)), step(forestNoiseE, vForestBlend.y));
+    float forestFrame = floor(vForestFrame + 0.5);
     vec2 forestCell = vec2(mod(forestFrame, ${azimuths.toFixed(1)}), floor(forestFrame / ${azimuths.toFixed(1)}));
     vec2 forestCellUv = clamp(vMapUv, vec2(${(2/cellSize).toFixed(8)}), vec2(${(1-2/cellSize).toFixed(8)}));
     forestAtlasUv = (forestCell + forestCellUv) / vec2(${azimuths.toFixed(1)}, ${elevations.length.toFixed(1)});
-    // Derivatives must ignore stochastic cell selection. Implicit derivatives
-    // would span unrelated tiles and collapse every cutout into coarse mips.
+    // Cell-local gradients keep filtering inside the selected view.
     forestUvDx = dFdx(vMapUv) / vec2(${azimuths.toFixed(1)}, ${elevations.length.toFixed(1)});
     forestUvDy = dFdy(vMapUv) / vec2(${azimuths.toFixed(1)}, ${elevations.length.toFixed(1)});
     diffuseColor *= textureGrad(map, forestAtlasUv, forestUvDx, forestUvDy);
@@ -165,8 +167,37 @@ export function createForestImpostor(THREE, textures, description) {
         normal = normalize(mat3(viewMatrix) * forestWorldNormal);
       `);
     };
-    target.customProgramCacheKey = () => `forest-spherical-lit-v2-${description.id}-${center.join(',')}-${azimuths}-${elevations.length}-${lit}`;
+    target.customProgramCacheKey = () => `forest-spherical-lit-v3-${description.id}-${center.join(',')}-${azimuths}-${elevations.length}-${lit}`;
   };
   patch(material, true); patch(depthMaterial, false); patch(distanceMaterial, false);
   return { material, depthMaterial, distanceMaterial };
+}
+
+
+const paletteMaterials = new WeakSet();
+/** A shared pigment treatment for real needles and their diffuse impostors. */
+export function installForestCanopyPalette(material) {
+  if (paletteMaterials.has(material)) return material;
+  paletteMaterials.add(material);
+  const previousCompile = material.onBeforeCompile;
+  const previousKey = material.customProgramCacheKey.bind(material);
+  material.onBeforeCompile = shader => {
+    previousCompile.call(material, shader);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec3 forestCrownTint;\nvarying vec3 vForestCrownTint;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvForestCrownTint = forestCrownTint;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vForestCrownTint;')
+      .replace('#include <color_fragment>', `#include <color_fragment>
+        float forestLeafLuma = dot(diffuseColor.rgb, vec3(.25, .62, .13));
+        // Green chroma distinguishes foliage from brown shoots and pale bark
+        // in the baked card. The same test keeps near/far pigment consistent.
+        float forestGreen = (diffuseColor.g - max(diffuseColor.r * .96, diffuseColor.b * 1.04)) / max(forestLeafLuma, .015);
+        float forestLeafMask = smoothstep(.045, .22, forestGreen);
+        vec3 forestPigment = forestLeafLuma * 1.22 * vForestCrownTint;
+        diffuseColor.rgb = mix(diffuseColor.rgb, forestPigment, forestLeafMask * .78);
+      `);
+  };
+  material.customProgramCacheKey = () => previousKey() + '/grove-pigment-v1';
+  return material;
 }

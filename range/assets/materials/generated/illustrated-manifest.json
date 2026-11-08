@@ -1,0 +1,56 @@
+{
+  "created": "2026-11-08",
+  "generator": "OpenAI image_gen",
+  "art_direction": "docs/concept/illustrated-alpine-polish.png",
+  "purpose": "Hand-painted alpine botanical brushwork and calm warm/cool granite mineral planes",
+  "normal_source": "Existing supplied photographic normal maps, restrained in shader; real geometry supplies main planes",
+  "runtime_colour": "Botanical pigment is mean-neutralized against shared world paint; granite chroma is reduced to55% so sunlight and grade supply most warmth",
+  "assets": [
+    {
+      "role": "botanical",
+      "description": "Original illustrated albedo artwork, not photographic capture or scanned PBR",
+      "source": {
+        "file": "docs/concept/botanical-painted-source.png",
+        "sha256": "a613623a946f76f9353a0e12ca6114451638ba4aad05a6d95ffae88984507f6a",
+        "dimensions": [
+          1254,
+          1254
+        ]
+      },
+      "runtime": {
+        "file": "botanical-painted-color.webp",
+        "sha256": "c305eb4f4af52095b6ab2e3f8f4f673d5a4381ac9958fd02ce968817fb908b43",
+        "bytes": 627148,
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "encoding": "ImageMagick WebP quality91, original dimensions; sRGB albedo"
+      },
+      "lighting": "Neutral diffuse source request; no directional lighting or captured normal/displacement claim"
+    },
+    {
+      "role": "granite",
+      "description": "Original illustrated albedo artwork, not photographic capture or scanned PBR",
+      "source": {
+        "file": "docs/concept/granite-painted-source.png",
+        "sha256": "9e604d835d4b8385cfae7a85d9b0dda28cee572d9ba9ed58093f8da870d2de9c",
+        "dimensions": [
+          1254,
+          1254
+        ]
+      },
+      "runtime": {
+        "file": "granite-painted-color.webp",
+        "sha256": "3a7fa1e87bce537a0a06776d7c7589acb05bb8127b361856fec286585c67fdbf",
+        "bytes": 496282,
+        "dimensions": [
+          1254,
+          1254
+        ],
+        "encoding": "ImageMagick WebP quality91, original dimensions; sRGB albedo"
+      },
+      "lighting": "Neutral diffuse source request; no directional lighting or captured normal/displacement claim"
+    }
+  ]
+}

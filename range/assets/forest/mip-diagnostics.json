@@ -1,0 +1,770 @@
+{
+  "format": "FMP1 RGBA8 little-endian, vertical rows flipped; gzip mtime=0",
+  "generator": "tools/build-forest-mips.py",
+  "alphaCutoff": 0.38,
+  "sourceProvenance": {
+    "treeAuthor": "Daniel Greenheck",
+    "upstream": "https://github.com/dgreenheck/ez-tree",
+    "revision": "dcf309bd86bd521083d9c70f01f2de45fdc7c457",
+    "texturePackage": "@dgreenheck/ez-tree@1.1.0",
+    "license": "MIT",
+    "generatedSource": "hgsim tools/build-forest-assets.mjs and tools/forest-bake.js",
+    "details": "range/assets/forest/README.md"
+  },
+  "storedLevels": 9,
+  "smallestAtlas": [
+    8,
+    4
+  ],
+  "smallestView": [
+    1,
+    1
+  ],
+  "method": "original-visibility-weighted linear albedo and decoded unit normals; independent view tiles through level 8; nearest surface RGB dilation",
+  "variants": {
+    "PineMature": {
+      "albedo": {
+        "file": "PineMature-albedo-mips.bin.gz",
+        "bytes": 788957,
+        "rawBytes": 11184928,
+        "sha256": "fcf9da64c44670df8f0018a8178dfdc1690cbad907c3c4e8c4038c467964b6ea",
+        "levels": 9
+      },
+      "normal": {
+        "file": "PineMature-normal-mips.bin.gz",
+        "bytes": 1099093,
+        "rawBytes": 11184928,
+        "sha256": "63ab72cf5bfbb9e5e53e5f3bcd5b7fdf37a3ea5ce82b88a8fd9c3aa947c1b7ff",
+        "levels": 9
+      },
+      "sourceImages": {
+        "PineMature-albedo.png": "03889ebbd82c6492669d208e673ebf7d727740438ec44ae27746fb14b8fffd03",
+        "PineMature-normal.png": "437e2222c90de0ad81a81916886a9071763415223a95735311e30796e8890272"
+      },
+      "levelLayout": [
+        {
+          "level": 0,
+          "width": 2048,
+          "height": 1024,
+          "pixels": 2097152,
+          "bytes": 8388608,
+          "cellSize": 256
+        },
+        {
+          "level": 1,
+          "width": 1024,
+          "height": 512,
+          "pixels": 524288,
+          "bytes": 2097152,
+          "cellSize": 128
+        },
+        {
+          "level": 2,
+          "width": 512,
+          "height": 256,
+          "pixels": 131072,
+          "bytes": 524288,
+          "cellSize": 64
+        },
+        {
+          "level": 3,
+          "width": 256,
+          "height": 128,
+          "pixels": 32768,
+          "bytes": 131072,
+          "cellSize": 32
+        },
+        {
+          "level": 4,
+          "width": 128,
+          "height": 64,
+          "pixels": 8192,
+          "bytes": 32768,
+          "cellSize": 16
+        },
+        {
+          "level": 5,
+          "width": 64,
+          "height": 32,
+          "pixels": 2048,
+          "bytes": 8192,
+          "cellSize": 8
+        },
+        {
+          "level": 6,
+          "width": 32,
+          "height": 16,
+          "pixels": 512,
+          "bytes": 2048,
+          "cellSize": 4
+        },
+        {
+          "level": 7,
+          "width": 16,
+          "height": 8,
+          "pixels": 128,
+          "bytes": 512,
+          "cellSize": 2
+        },
+        {
+          "level": 8,
+          "width": 8,
+          "height": 4,
+          "pixels": 32,
+          "bytes": 128,
+          "cellSize": 1
+        }
+      ],
+      "diagnostics": [
+        {
+          "level": 0,
+          "width": 2048,
+          "height": 1024,
+          "coverageBefore": 0.07643795013427734,
+          "coverageAfter": 0.07643795013427734,
+          "coverageRelativeToBase": 1.0,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 1.0,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.0,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9999999999660243,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 1,
+          "width": 1024,
+          "height": 512,
+          "coverageBefore": 0.07933998107910156,
+          "coverageAfter": 0.07933998107910156,
+          "coverageRelativeToBase": 1.0379658394779854,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.9332737922668457,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.04077217107002909,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9437966952004696,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 2,
+          "width": 512,
+          "height": 256,
+          "coverageBefore": 0.081939697265625,
+          "coverageAfter": 0.081939697265625,
+          "coverageRelativeToBase": 1.0719766440842908,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.883339524269104,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.07867783985102421,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9018355797177259,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 3,
+          "width": 256,
+          "height": 128,
+          "coverageBefore": 0.084197998046875,
+          "coverageAfter": 0.084197998046875,
+          "coverageRelativeToBase": 1.1015208793402453,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.7739160656929016,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.16274012323305545,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.854520137044037,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 4,
+          "width": 128,
+          "height": 64,
+          "coverageBefore": 0.0875244140625,
+          "coverageAfter": 0.0875244140625,
+          "coverageRelativeToBase": 1.1450387393794212,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.5857466459274292,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.3193863319386332,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.7762793973456683,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 5,
+          "width": 64,
+          "height": 32,
+          "coverageBefore": 0.07568359375,
+          "coverageAfter": 0.07568359375,
+          "coverageRelativeToBase": 0.9901311274968497,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.29392772912979126,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.4967741935483871,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.7624097037047035,
+          "albedoLumaFractionAfter": 1.0
+        }
+      ]
+    },
+    "PineYoung": {
+      "albedo": {
+        "file": "PineYoung-albedo-mips.bin.gz",
+        "bytes": 846364,
+        "rawBytes": 11184928,
+        "sha256": "2e086877f06c427f4508dc8672a44bd6ab7ce5542116da8d4e6eb717ff567dbf",
+        "levels": 9
+      },
+      "normal": {
+        "file": "PineYoung-normal-mips.bin.gz",
+        "bytes": 1143179,
+        "rawBytes": 11184928,
+        "sha256": "6a12fd56a63dc347614cd7a3db0178c4679a234fa87e1ff2abe0c1e518c4fd98",
+        "levels": 9
+      },
+      "sourceImages": {
+        "PineYoung-albedo.png": "6cabc3656d3e1e520c17fadf9df3ae623f3dfa405578c7b158b30d991de2507e",
+        "PineYoung-normal.png": "b3814bc171172aa056bc7d5ea48456e4ff954a7ead47725aa4e64862e4cf74f5"
+      },
+      "levelLayout": [
+        {
+          "level": 0,
+          "width": 2048,
+          "height": 1024,
+          "pixels": 2097152,
+          "bytes": 8388608,
+          "cellSize": 256
+        },
+        {
+          "level": 1,
+          "width": 1024,
+          "height": 512,
+          "pixels": 524288,
+          "bytes": 2097152,
+          "cellSize": 128
+        },
+        {
+          "level": 2,
+          "width": 512,
+          "height": 256,
+          "pixels": 131072,
+          "bytes": 524288,
+          "cellSize": 64
+        },
+        {
+          "level": 3,
+          "width": 256,
+          "height": 128,
+          "pixels": 32768,
+          "bytes": 131072,
+          "cellSize": 32
+        },
+        {
+          "level": 4,
+          "width": 128,
+          "height": 64,
+          "pixels": 8192,
+          "bytes": 32768,
+          "cellSize": 16
+        },
+        {
+          "level": 5,
+          "width": 64,
+          "height": 32,
+          "pixels": 2048,
+          "bytes": 8192,
+          "cellSize": 8
+        },
+        {
+          "level": 6,
+          "width": 32,
+          "height": 16,
+          "pixels": 512,
+          "bytes": 2048,
+          "cellSize": 4
+        },
+        {
+          "level": 7,
+          "width": 16,
+          "height": 8,
+          "pixels": 128,
+          "bytes": 512,
+          "cellSize": 2
+        },
+        {
+          "level": 8,
+          "width": 8,
+          "height": 4,
+          "pixels": 32,
+          "bytes": 128,
+          "cellSize": 1
+        }
+      ],
+      "diagnostics": [
+        {
+          "level": 0,
+          "width": 2048,
+          "height": 1024,
+          "coverageBefore": 0.08681011199951172,
+          "coverageAfter": 0.08681011199951172,
+          "coverageRelativeToBase": 1.0,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 1.0,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.0,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9999999999553322,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 1,
+          "width": 1024,
+          "height": 512,
+          "coverageBefore": 0.08890533447265625,
+          "coverageAfter": 0.08890533447265625,
+          "coverageRelativeToBase": 1.024135696002285,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.9564462900161743,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.026924397150948253,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9580640413187103,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 2,
+          "width": 512,
+          "height": 256,
+          "coverageBefore": 0.090087890625,
+          "coverageAfter": 0.090087890625,
+          "coverageRelativeToBase": 1.0377580278378942,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.930038571357727,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.044715447154471545,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9328588735607218,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 3,
+          "width": 256,
+          "height": 128,
+          "coverageBefore": 0.09210205078125,
+          "coverageAfter": 0.09210205078125,
+          "coverageRelativeToBase": 1.0609599349643513,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.8671404719352722,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.09542743538767395,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.8932080373340532,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 4,
+          "width": 128,
+          "height": 64,
+          "coverageBefore": 0.0926513671875,
+          "coverageAfter": 0.0926513671875,
+          "coverageRelativeToBase": 1.0672877278170214,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.7952067255973816,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.16205533596837945,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.8471072377271582,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 5,
+          "width": 64,
+          "height": 32,
+          "coverageBefore": 0.1123046875,
+          "coverageAfter": 0.1123046875,
+          "coverageRelativeToBase": 1.2936820943236622,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.4389907717704773,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.3739130434782609,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.682613905643486,
+          "albedoLumaFractionAfter": 1.0
+        }
+      ]
+    },
+    "FirMature": {
+      "albedo": {
+        "file": "FirMature-albedo-mips.bin.gz",
+        "bytes": 888938,
+        "rawBytes": 11184928,
+        "sha256": "2ad14da5054415ea23cf95fe525bfb176b1faaa57469197097d637e9ae48d701",
+        "levels": 9
+      },
+      "normal": {
+        "file": "FirMature-normal-mips.bin.gz",
+        "bytes": 1289414,
+        "rawBytes": 11184928,
+        "sha256": "5542b5dc2c9a568ea728e839210da1134f8caef3125a034606116fef5f71bdc1",
+        "levels": 9
+      },
+      "sourceImages": {
+        "FirMature-albedo.png": "192e2f577a206664fa2a168855649b177cd9ab679c072276dbe58cb6e21bda95",
+        "FirMature-normal.png": "cf911def0c4482f5dd35ebe12ad2db2d7791c3fa7c9660f27f2a6eb00c8d3920"
+      },
+      "levelLayout": [
+        {
+          "level": 0,
+          "width": 2048,
+          "height": 1024,
+          "pixels": 2097152,
+          "bytes": 8388608,
+          "cellSize": 256
+        },
+        {
+          "level": 1,
+          "width": 1024,
+          "height": 512,
+          "pixels": 524288,
+          "bytes": 2097152,
+          "cellSize": 128
+        },
+        {
+          "level": 2,
+          "width": 512,
+          "height": 256,
+          "pixels": 131072,
+          "bytes": 524288,
+          "cellSize": 64
+        },
+        {
+          "level": 3,
+          "width": 256,
+          "height": 128,
+          "pixels": 32768,
+          "bytes": 131072,
+          "cellSize": 32
+        },
+        {
+          "level": 4,
+          "width": 128,
+          "height": 64,
+          "pixels": 8192,
+          "bytes": 32768,
+          "cellSize": 16
+        },
+        {
+          "level": 5,
+          "width": 64,
+          "height": 32,
+          "pixels": 2048,
+          "bytes": 8192,
+          "cellSize": 8
+        },
+        {
+          "level": 6,
+          "width": 32,
+          "height": 16,
+          "pixels": 512,
+          "bytes": 2048,
+          "cellSize": 4
+        },
+        {
+          "level": 7,
+          "width": 16,
+          "height": 8,
+          "pixels": 128,
+          "bytes": 512,
+          "cellSize": 2
+        },
+        {
+          "level": 8,
+          "width": 8,
+          "height": 4,
+          "pixels": 32,
+          "bytes": 128,
+          "cellSize": 1
+        }
+      ],
+      "diagnostics": [
+        {
+          "level": 0,
+          "width": 2048,
+          "height": 1024,
+          "coverageBefore": 0.10061264038085938,
+          "coverageAfter": 0.10061264038085938,
+          "coverageRelativeToBase": 1.0,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 1.0,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.0,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9999999999958469,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 1,
+          "width": 1024,
+          "height": 512,
+          "coverageBefore": 0.10285186767578125,
+          "coverageAfter": 0.10285186767578125,
+          "coverageRelativeToBase": 1.0222559241706162,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.9577286839485168,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.025851197982345524,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9654666808454216,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 2,
+          "width": 512,
+          "height": 256,
+          "coverageBefore": 0.104095458984375,
+          "coverageAfter": 0.104095458984375,
+          "coverageRelativeToBase": 1.034616113744076,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.9268458485603333,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.05020521841102316,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.942775447430567,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 3,
+          "width": 256,
+          "height": 128,
+          "coverageBefore": 0.105499267578125,
+          "coverageAfter": 0.105499267578125,
+          "coverageRelativeToBase": 1.048568720379147,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.863303542137146,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.09430141741394273,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9104460754355805,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 4,
+          "width": 128,
+          "height": 64,
+          "coverageBefore": 0.1085205078125,
+          "coverageAfter": 0.1085205078125,
+          "coverageRelativeToBase": 1.0785971563981043,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.6836774945259094,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.22947131608548932,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.8507058902787068,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 5,
+          "width": 64,
+          "height": 32,
+          "coverageBefore": 0.1123046875,
+          "coverageAfter": 0.1123046875,
+          "coverageRelativeToBase": 1.1162085308056873,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.44770070910453796,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.4217391304347826,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.7624445204496222,
+          "albedoLumaFractionAfter": 1.0
+        }
+      ]
+    },
+    "AshMature": {
+      "albedo": {
+        "file": "AshMature-albedo-mips.bin.gz",
+        "bytes": 1009425,
+        "rawBytes": 11184928,
+        "sha256": "aaec756709d59c3afbb7d637d2bd87aa30851777446c0e3eeefd9b5fdef677b9",
+        "levels": 9
+      },
+      "normal": {
+        "file": "AshMature-normal-mips.bin.gz",
+        "bytes": 1584488,
+        "rawBytes": 11184928,
+        "sha256": "a92960909d0f8dd696ca5b976ae80962c0260aa87a103535a8c7e7bacd70729d",
+        "levels": 9
+      },
+      "sourceImages": {
+        "AshMature-albedo.png": "fac5bd222de4e4b0820b20c29fcdc872578060b814ab6c8ba3ad9d2df4408ab1",
+        "AshMature-normal.png": "f378000960a94395e96773a28134b46a320a3ba915c0b435cfd017ba04e438be"
+      },
+      "levelLayout": [
+        {
+          "level": 0,
+          "width": 2048,
+          "height": 1024,
+          "pixels": 2097152,
+          "bytes": 8388608,
+          "cellSize": 256
+        },
+        {
+          "level": 1,
+          "width": 1024,
+          "height": 512,
+          "pixels": 524288,
+          "bytes": 2097152,
+          "cellSize": 128
+        },
+        {
+          "level": 2,
+          "width": 512,
+          "height": 256,
+          "pixels": 131072,
+          "bytes": 524288,
+          "cellSize": 64
+        },
+        {
+          "level": 3,
+          "width": 256,
+          "height": 128,
+          "pixels": 32768,
+          "bytes": 131072,
+          "cellSize": 32
+        },
+        {
+          "level": 4,
+          "width": 128,
+          "height": 64,
+          "pixels": 8192,
+          "bytes": 32768,
+          "cellSize": 16
+        },
+        {
+          "level": 5,
+          "width": 64,
+          "height": 32,
+          "pixels": 2048,
+          "bytes": 8192,
+          "cellSize": 8
+        },
+        {
+          "level": 6,
+          "width": 32,
+          "height": 16,
+          "pixels": 512,
+          "bytes": 2048,
+          "cellSize": 4
+        },
+        {
+          "level": 7,
+          "width": 16,
+          "height": 8,
+          "pixels": 128,
+          "bytes": 512,
+          "cellSize": 2
+        },
+        {
+          "level": 8,
+          "width": 8,
+          "height": 4,
+          "pixels": 32,
+          "bytes": 128,
+          "cellSize": 1
+        }
+      ],
+      "diagnostics": [
+        {
+          "level": 0,
+          "width": 2048,
+          "height": 1024,
+          "coverageBefore": 0.12221097946166992,
+          "coverageAfter": 0.12221097946166992,
+          "coverageRelativeToBase": 1.0,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 1.0,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.0,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 1.000000000005634,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 1,
+          "width": 1024,
+          "height": 512,
+          "coverageBefore": 0.1279277801513672,
+          "coverageAfter": 0.1279277801513672,
+          "coverageRelativeToBase": 1.046778126767982,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.9329855442047119,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.042149364106692906,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9472821213568853,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 2,
+          "width": 512,
+          "height": 256,
+          "coverageBefore": 0.13034820556640625,
+          "coverageAfter": 0.13034820556640625,
+          "coverageRelativeToBase": 1.0665834292514484,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.9012649059295654,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.0620427275387767,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.9213479155904865,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 3,
+          "width": 256,
+          "height": 128,
+          "coverageBefore": 0.1339111328125,
+          "coverageAfter": 0.1339111328125,
+          "coverageRelativeToBase": 1.0957373339316023,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.8285305500030518,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.12055606198723792,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.881187478565768,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 4,
+          "width": 128,
+          "height": 64,
+          "coverageBefore": 0.139892578125,
+          "coverageAfter": 0.139892578125,
+          "coverageRelativeToBase": 1.144680934079869,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.6497013568878174,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.2582897033158813,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.8270965662748697,
+          "albedoLumaFractionAfter": 1.0
+        },
+        {
+          "level": 5,
+          "width": 64,
+          "height": 32,
+          "coverageBefore": 0.1474609375,
+          "coverageAfter": 0.1474609375,
+          "coverageRelativeToBase": 1.2066095710021654,
+          "alphaScale": 1.0,
+          "normalAlignmentBefore": 0.3833332061767578,
+          "normalAlignmentAfter": 1.0,
+          "wrongNormalFractionBefore": 0.49337748344370863,
+          "wrongNormalFractionAfter": 0.0,
+          "albedoLumaFractionBefore": 0.7308627937502215,
+          "albedoLumaFractionAfter": 1.0
+        }
+      ]
+    }
+  }
+}

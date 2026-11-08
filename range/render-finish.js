@@ -1,9 +1,11 @@
+import { ALPINE_ART, ART_GRADING_GLSL } from './art-direction.js';
+
 /**
  * HDR output and short-range contact occlusion. Depth comes from the beauty
  * render, so cutout foliage uses exactly the same alpha/atlas logic as colour.
  * There is no second geometry pass, material override, or temporal history.
  */
-export function createRenderFinish(THREE, renderer, scene, camera) {
+export function createRenderFinish(THREE, renderer, scene, camera, { grade = ALPINE_ART.grade } = {}) {
   const hdrAvailable = renderer.extensions.has('EXT_color_buffer_float');
   const size = new THREE.Vector2();
   const beauty = new THREE.WebGLRenderTarget(1, 1, {
@@ -118,7 +120,7 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
     `,
   });
   const outputMaterial = new THREE.ShaderMaterial({
-    name: 'Above photographic output',
+    name: 'Above illustrated alpine finish',
     depthTest: false,
     depthWrite: false,
     toneMapped: true,
@@ -131,23 +133,45 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
       aoResolution: { value: new THREE.Vector2() },
       fullResolution: { value: size },
       crossResolve: { value: false },
+      useOcclusion: { value: true },
+      artGradeEnabled: { value: true },
+      artSaturation: { value: grade.saturation },
+      artContrast: { value: grade.contrast },
+      artShadowBalance: { value: new THREE.Vector3(...grade.shadows) },
+      artHighlightBalance: { value: new THREE.Vector3(...grade.highlights) },
+      artShadowLift: { value: new THREE.Vector3(...grade.lift) },
+      artVignette: { value: grade.vignette },
+      artBloom: { value: grade.bloom },
     },
     vertexShader,
     fragmentShader: `
       varying vec2 vUv;
       uniform sampler2D sceneColor, contactOcclusion;
       uniform vec2 aoResolution;
-      uniform bool crossResolve;
+      uniform bool crossResolve, useOcclusion;
+      uniform float artBloom;
       ${reconstruct}
+      ${ART_GRADING_GLSL}
       #include <common>
       #include <dithering_pars_fragment>
       void main() {
         vec3 color = texture2D(sceneColor, vUv).rgb;
-        float centerZ = viewPosition(vUv).z;
+        if (artBloom > 0.0) {
+          vec3 glow = vec3(0.0);
+          for (int i = 0; i < 4; i++) {
+            vec2 offset = i == 0 ? vec2(3.0, 0.0) : i == 1 ? vec2(-3.0, 0.0)
+              : i == 2 ? vec2(0.0, 3.0) : vec2(0.0, -3.0);
+            vec3 bright = texture2D(sceneColor, vUv + offset / fullResolution).rgb;
+            glow += max(vec3(0.0), bright - vec3(1.25));
+          }
+          color += glow * (artBloom * 0.25);
+        }
         float ao = 1.0;
         // AO is identically one past its 180 m fade. Aerial views and sky need
         // no bilateral texture fetches across most of the output framebuffer.
-        if (-centerZ < 180.0) {
+        if (useOcclusion) {
+          float centerZ = viewPosition(vUv).z;
+          if (-centerZ < 180.0) {
           float weightSum = 0.0, aoSum = 0.0;
           // Bilateral reconstruction removes half-resolution noise while
           // keeping sail wires and cutout tree silhouettes free of fringes.
@@ -163,9 +187,11 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
             }
           }
           ao = aoSum / max(weightSum, 0.0001);
+          }
         }
         gl_FragColor = vec4(color * ao, 1.0);
         #include <tonemapping_fragment>
+        gl_FragColor.rgb = artGrade(gl_FragColor.rgb, vUv);
         #include <colorspace_fragment>
         #include <dithering_fragment>
       }
@@ -181,12 +207,12 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
   function resize() {
     renderer.getDrawingBufferSize(size);
     const w = Math.max(1, Math.floor(size.x)), h = Math.max(1, Math.floor(size.y));
-    const scale = level === 'high' ? .5 : 1 / 3;
+    const scale = level === 'high' ? .5 : level === 'medium' ? 1 / 3 : 0;
     if (width === w && height === h && aoScale === scale) return;
     width = w; height = h;
     aoScale = scale;
     beauty.setSize(w, h);
-    const aoWidth = Math.ceil(w * scale), aoHeight = Math.ceil(h * scale);
+    const aoWidth = Math.max(1, Math.ceil(w * scale)), aoHeight = Math.max(1, Math.ceil(h * scale));
     occlusion.setSize(aoWidth, aoHeight);
     outputMaterial.uniforms.aoResolution.value.set(aoWidth, aoHeight);
   }
@@ -194,7 +220,7 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
   return {
     render({ resetInfo = true } = {}) {
       if (disposed) return;
-      if (!hdrAvailable || level === 'low') {
+      if (!hdrAvailable) {
         renderer.render(scene, camera);
         return;
       }
@@ -208,9 +234,11 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
       try {
         renderer.setRenderTarget(beauty);
         renderer.render(scene, camera);
-        renderer.setRenderTarget(occlusion);
-        quad.material = aoMaterial;
-        renderer.render(quadScene, quadCamera);
+        if (level !== 'low') {
+          renderer.setRenderTarget(occlusion);
+          quad.material = aoMaterial;
+          renderer.render(quadScene, quadCamera);
+        }
         renderer.setRenderTarget(target);
         quad.material = outputMaterial;
         renderer.render(quadScene, quadCamera);
@@ -225,11 +253,14 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
       level = next;
       aoMaterial.uniforms.sampleCount.value = next === 'high' ? 12 : 8;
       outputMaterial.uniforms.crossResolve.value = next !== 'high';
-      const samples = Math.min(next === 'high' ? 4 : 2, renderer.capabilities.maxSamples || 0);
-      if (next === 'low' || beauty.samples !== samples) beauty.dispose();
+      outputMaterial.uniforms.useOcclusion.value = next !== 'low';
+      outputMaterial.uniforms.artBloom.value = next === 'low' ? 0 : grade.bloom * (next === 'medium' ? .65 : 1);
+      const samples = Math.min(next === 'high' ? 4 : next === 'medium' ? 2 : 0, renderer.capabilities.maxSamples || 0);
+      if (beauty.samples !== samples) beauty.dispose();
       if (next === 'low') occlusion.dispose();
       beauty.samples = samples;
     },
+    setGradeEnabled(enabled) { outputMaterial.uniforms.artGradeEnabled.value = !!enabled; },
     resize,
     dispose() {
       if (disposed) return;

@@ -44,17 +44,42 @@ test('contact occlusion reads depth from the original beauty pass, with no mater
   } finally { finish.dispose(); original.dispose(); tree.geometry.dispose(); }
 });
 
-test('low quality and devices without HDR buffers render directly', () => {
+test('low retains the same grade with no occlusion pass; unsupported HDR renders directly', () => {
   for (const hdr of [true, false]) {
     const { finish, scene, calls } = fixture(hdr);
     if (hdr) finish.setQuality('low');
     try {
       finish.render();
-      assert.equal(calls.length, 1);
+      assert.equal(calls.length, hdr ? 2 : 1);
       assert.equal(calls[0].scene, scene);
-      assert.equal(calls[0].target, null);
+      if (hdr) {
+        assert.equal(calls[0].target.samples, 0);
+        const output = calls[1].scene.children[0].material;
+        assert.equal(output.uniforms.useOcclusion.value, false);
+        assert.equal(output.uniforms.artBloom.value, 0);
+        assert.equal(output.uniforms.artGradeEnabled.value, true);
+        assert.equal(calls[1].target, null);
+      } else assert.equal(calls[0].target, null);
     } finally { finish.dispose(); }
   }
+});
+
+test('the authored grade follows the only tone map and precedes display encoding at every preset', () => {
+  const { finish, calls } = fixture();
+  try {
+    for (const level of ['high', 'medium', 'low', 'high']) {
+      finish.setQuality(level); calls.length = 0; finish.render();
+      const output = calls.at(-1).scene.children[0].material;
+      const shader = output.fragmentShader;
+      assert.ok(shader.indexOf('#include <tonemapping_fragment>') < shader.indexOf('gl_FragColor.rgb = artGrade'));
+      assert.ok(shader.indexOf('gl_FragColor.rgb = artGrade') < shader.indexOf('#include <colorspace_fragment>'));
+      assert.equal(shader.match(/#include <tonemapping_fragment>/g).length, 1);
+      assert.ok(output.uniforms.artShadowLift.value.z > output.uniforms.artShadowLift.value.x);
+      assert.ok(output.uniforms.artHighlightBalance.value.x > output.uniforms.artHighlightBalance.value.z);
+      finish.setGradeEnabled(false); assert.equal(output.uniforms.artGradeEnabled.value, false);
+      finish.setGradeEnabled(true);
+    }
+  } finally { finish.dispose(); }
 });
 
 test('medium reduces AO sampling and resolution and restores high without resizing the viewport', () => {

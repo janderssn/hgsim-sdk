@@ -227,15 +227,25 @@ async function bakeAtlases() {
         console.log('Baked ' + filename);
       }
     }
+    if (flags.has('--bake') || flags.has('--bake-normals')) {
+      const mips = spawnSync('python3', [path.join(ROOT, 'tools/build-forest-mips.py')], { cwd: ROOT, encoding: 'utf8' });
+      if (mips.status !== 0) throw new Error(mips.stderr || mips.stdout || 'Forest mip authoring failed');
+      console.log('Built independent, surface-weighted forest mip chains.');
+    }
     if (flags.has('--bake')) {
       const contactSheet = await page.eval('forestBaker.preview()');
       await fs.writeFile(path.join(OUT, 'species-preview.jpg'), Buffer.from(contactSheet.split(',')[1], 'base64'));
     }
     if (flags.has('--verify')) {
-      const result = await page.eval('forestBaker.verify()');
+      const result = await page.eval('forestBaker.verify(0, [.80,1.20,1.08])');
       await fs.mkdir(path.join(ROOT, 'work'), { recursive: true });
       for (const view of ['perspective', 'overhead']) await fs.writeFile(path.join(ROOT, 'work/forest-' + view + '.jpg'), Buffer.from(result[view].split(',')[1], 'base64'));
       console.log('Impostor render check: ' + JSON.stringify({ programs: result.programs, draws: result.draws }));
+      const gold = await page.eval('forestBaker.verify(3, [2.06,1.55,.48])');
+      for (const view of ['perspective', 'overhead']) await fs.writeFile(path.join(ROOT, 'work/forest-gold-' + view + '.jpg'), Buffer.from(gold[view].split(',')[1], 'base64'));
+      console.log('Golden broadleaf render check: ' + JSON.stringify({ programs: gold.programs, draws: gold.draws }));
+      const distanceProof = await page.eval('forestBaker.distanceProof()');
+      await fs.writeFile(path.join(ROOT, 'work/forest-distance.jpg'), Buffer.from(distanceProof.split(',')[1], 'base64'));
     }
     if (errors.length) throw new Error(errors.join('\n'));
   } finally { page?.close(); await browser?.close(); await new Promise(resolve => server.close(resolve)); }
@@ -245,4 +255,9 @@ const flags = new Set(process.argv.slice(2));
 if (!flags.size) console.log('Use --fetch-textures, --geometry, --bake (can be combined).');
 if (flags.has('--fetch-textures')) await fetchTextures();
 if (flags.has('--geometry')) await buildGeometry();
+if (flags.has('--mips') && !flags.has('--bake') && !flags.has('--bake-normals')) {
+  const mips = spawnSync('python3', [path.join(ROOT, 'tools/build-forest-mips.py')], { cwd: ROOT, encoding: 'utf8' });
+  if (mips.status !== 0) throw new Error(mips.stderr || mips.stdout || 'Forest mip authoring failed');
+  console.log('Built independent, surface-weighted forest mip chains.');
+}
 if (flags.has('--bake') || flags.has('--bake-normals') || flags.has('--verify')) await bakeAtlases();

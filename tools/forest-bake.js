@@ -107,10 +107,10 @@ window.forestBaker = {
   },
 };
 
-window.forestBaker.verify = async () => {
-  const { loadForestAssets } = await import('../range/forest-models.js');
+window.forestBaker.verify = async (variantIndex = 0, tint = null) => {
+  const { loadForestAssets, installForestCanopyPalette } = await import('../range/forest-models.js');
   const assets = await loadForestAssets(THREE, renderer);
-  const variant = assets.treeVariants[0];
+  const variant = assets.treeVariants[variantIndex];
   scene.clear(); renderer.setSize(1000, 700);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -124,6 +124,10 @@ window.forestBaker.verify = async () => {
   const plane = new THREE.Mesh(new THREE.PlaneGeometry(110,110),new THREE.MeshStandardMaterial({color:0x728369,roughness:1}));
   plane.rotation.x=-Math.PI/2;plane.receiveShadow=true;scene.add(plane);
   const matrix = new THREE.Matrix4(), q = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),.7), scale = new THREE.Vector3(1,1,1);
+  if (tint) {
+    for (const geometry of [variant.near, variant.far]) geometry.setAttribute('forestCrownTint', new THREE.InstancedBufferAttribute(new Float32Array(tint), 3));
+    installForestCanopyPalette(variant.foliageMaterial); installForestCanopyPalette(variant.impostorMaterial);
+  }
   for(const [geometry,material] of [[variant.near,variant.foliageMaterial],[variant.trunk,variant.trunkMaterial]]) {
     const mesh=new THREE.InstancedMesh(geometry,material,1);mesh.setMatrixAt(0,matrix.compose(new THREE.Vector3(-16,0,0),q,scale));mesh.castShadow=true;mesh.receiveShadow=true;mesh.frustumCulled=false;scene.add(mesh);
   }
@@ -139,4 +143,22 @@ window.forestBaker.verify = async () => {
   renderer.render(scene,view);
   const overhead=renderer.domElement.toDataURL('image/jpeg',.95);
   return {perspective,overhead,programs:renderer.info.programs.length,draws:renderer.info.render.calls};
+};
+
+window.forestBaker.distanceProof = async () => {
+  await window.forestBaker.verify(0, [1.1,1.37,.96]);
+  renderer.shadowMap.enabled = false;
+  const sheet = document.createElement('canvas'); sheet.width = 960; sheet.height = 365;
+  const context = sheet.getContext('2d'); context.fillStyle='#d7dfd9';context.fillRect(0,0,960,365);
+  const view = new THREE.PerspectiveCamera(43,1000/700,.1,1800);
+  for (const [index,distance] of [200,600,1200].entries()) {
+    view.position.set(0,12+distance*.45,distance);view.lookAt(0,12,0);view.updateMatrixWorld(true);
+    renderer.render(scene,view);
+    // Keep native pixel size: distant trees must remain 18–110px, not enlarged
+    // full-resolution cards that hide mipmap and silhouette-coverage defects.
+    context.drawImage(renderer.domElement,340,190,320,320,index*320,0,320,320);
+    context.fillStyle='#21332b';context.font='18px sans-serif';
+    context.fillText(`${distance}m: mesh left / card right`,index*320+10,345);
+  }
+  return sheet.toDataURL('image/jpeg',.97);
 };

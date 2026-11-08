@@ -58,6 +58,34 @@ test('single-scattering sky is finite at the horizon and sun-aligned across sky 
   } finally { aerial.dispose(); }
 });
 
+test('illustrated afternoon keeps one linear solar colour across sky, IBL and cloud lighting', () => {
+  const direction = new THREE.Vector3(.7, .45, .55).normalize();
+  const sunColor = new THREE.Color().setRGB(1, .83, .64);
+  const style = 'illustrated-alpine';
+  const aerial = createAerialAtmosphere(THREE, { sunDirection: direction, sunColor, style,
+    shapeSize: 16, weatherSize: 16, shadowSize: 16 });
+  try {
+    assert.deepEqual(aerial.uniforms.aerialSunColor.value.toArray(), [1, .83, .64]);
+    const disc = aerial.sampleSkyRadiance(direction), diffuse = aerial.sampleSkyRadiance(direction, { sunDisk: false });
+    const transmittance = aerial.uniforms.aerialSunTransmittance.value.toArray();
+    [1, .83, .64].forEach((channel, i) => near((disc[i] - diffuse[i]) / (160 * transmittance[i]), channel, 1e-10));
+    const zenith = aerial.sampleSkyRadiance([0, 1, 0], { sunDisk: false });
+    assert.ok(zenith[0] < zenith[1] * .5 && zenith[1] > zenith[2] * .55,
+      'warm direct sunlight leaves a saturated cyan-blue diffuse sky');
+    const reference = sampleSkyRadiance([0, 1, 0], direction, { sunColor, style, sunDisk: false });
+    zenith.forEach((channel, i) => near(channel, reference[i]));
+    const ibl = aerial.generateRadiance(THREE, 32, 16);
+    for (const [x, y] of [[3, 12], [18, 10], [21, 5]]) {
+      const lat = ((y + .5) / 16 - .5) * Math.PI, lon = ((x + .5) / 32 - .5) * Math.PI * 2;
+      const sample = aerial.sampleSkyRadiance([Math.cos(lat) * Math.cos(lon), Math.sin(lat), Math.cos(lat) * Math.sin(lon)], { sunDisk: false });
+      sample.forEach((channel, i) => near(channel, ibl.image.data[(y * 32 + x) * 4 + i], 1e-6));
+    }
+    assert.ok(aerial.uniforms.aerialInscatterTint.value.z > aerial.uniforms.aerialInscatterTint.value.y,
+      'the height-integrated aerial spectrum shifts toward slate/lavender');
+    ibl.dispose();
+  } finally { aerial.dispose(); }
+});
+
 test('periodic 3D cloud banks and their sun optical-depth map share one medium', () => {
   const shape = bakeCloudShape(24), weather = bakeCloudWeather(32);
   assert.deepEqual(bakeCloudShape(24), shape, 'reloading uses the same deterministic field');

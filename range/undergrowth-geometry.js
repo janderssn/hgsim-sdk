@@ -72,6 +72,48 @@ class BotanicalMesh {
   }
 }
 
+/** A painted meadow fan: three intertwined crowns, with long arching leaves. */
+export function createGrassFanGeometry(THREE, { bladesPerCrown = 8 } = {}) {
+  const mesh = new BotanicalMesh(THREE);
+  const stations = [0, .15, .33, .52, .70, .86, 1];
+  const widths = [.12, .65, 1, .93, .66, .32, 0];
+  const random = n => { const value = Math.sin(n * 127.1 + 311.7) * 43758.5453; return value - Math.floor(value); };
+  for (let crown = 0; crown < 3; crown++) {
+    const crownAngle = crown * 2.399963;
+    const rootX = Math.cos(crownAngle) * .19, rootZ = Math.sin(crownAngle) * .19;
+    for (let blade = 0; blade < bladesPerCrown; blade++) {
+      const seed = crown * 8 + blade, angle = blade * 2.399963 + crown * .8 + random(seed + 1) * .45;
+      const height = .28 + random(seed + 3) * .4;
+      const bend = .34 + random(seed + 7) * .34;
+      const width = .010 + random(seed + 11) * .010;
+      const twist = (random(seed + 17) - .5) * .85;
+      const arc = 2.35 + random(seed + 19) * .48;
+      const first = mesh.positions.length / 3;
+      for (let row = 0; row < stations.length; row++) {
+        const t = stations[row], sideAngle = angle + Math.PI / 2 + twist * t;
+        const radius = .02 + bend * Math.pow(t, 1.4);
+        const center = [rootX + Math.cos(angle) * radius,
+          -.025 + height * Math.sin(t * arc), rootZ + Math.sin(angle) * radius];
+        for (const side of row === stations.length - 1 ? [0] : [-1, 1]) {
+          const color = [ .46 + t * .48, .58 + t * .39, .42 + t * .34 ];
+          // A cool folded edge and warm blade face read as intentional brushwork.
+          const paintedEdge = side === -1 ? .91 : 1;
+          mesh.vertex([center[0] + Math.cos(sideAngle) * width * widths[row] * side,
+            center[1] + width * .22 * side, center[2] + Math.sin(sideAngle) * width * widths[row] * side],
+          color.map(channel => channel * paintedEdge * (.94 + random(seed + 23) * .12)), (side + 1) / 2, t);
+        }
+      }
+      for (let row = 0; row < stations.length - 2; row++) {
+        const base = first + row * 2;
+        mesh.triangle(base, base + 1, base + 2); mesh.triangle(base + 1, base + 3, base + 2);
+      }
+      const last = first + (stations.length - 2) * 2;
+      mesh.triangle(last, last + 1, last + 2);
+    }
+  }
+  return mesh.finish();
+}
+
 export function createFernGeometry(THREE) {
   const mesh = new BotanicalMesh(THREE);
   for (let frond = 0; frond < 7; frond++) {
@@ -80,17 +122,17 @@ export function createFernGeometry(THREE) {
     const height = .3 + Math.sin(frond * 3.8 + .6) ** 2 * .18;
     const radial = [Math.cos(angle), Math.sin(angle)], side = [-radial[1], radial[0]];
     const point = t => [radial[0] * length * t, -.025 + height * Math.sin(t * 2.1), radial[1] * length * t];
-    for (let segment = 0; segment < 5; segment++) mesh.ribbon(point(segment / 5), point((segment + 1) / 5), .004, [.17, .235, .055]);
+    for (let segment = 0; segment < 5; segment++) mesh.ribbon(point(segment / 5), point((segment + 1) / 5), .004, [.13, .2, .095]);
     for (let pair = 0; pair < 8; pair++) {
       const t = .13 + pair * .103, center = point(t);
       const leafLength = (.11 + length * .11) * Math.sin(Math.PI * (.15 + t * .8));
       for (const sign of [-1, 1]) {
         const end = [center[0] + side[0] * sign * leafLength + radial[0] * .055,
           center[1] + .018 - t * .035, center[2] + side[1] * sign * leafLength + radial[1] * .055];
-        mesh.leaf(center, end, leafLength * .17, [.19 + t * .045, .31 + t * .05, .065 + t * .015], .012);
+        mesh.leaf(center, end, leafLength * .17, [.16 + t * .04, .26 + t * .06, .10 + t * .025], .012);
       }
     }
-    mesh.leaf(point(.87), point(1.05), .012, [.24, .36, .08], .01);
+    mesh.leaf(point(.87), point(1.05), .012, [.22, .33, .14], .01);
   }
   return mesh.finish();
 }

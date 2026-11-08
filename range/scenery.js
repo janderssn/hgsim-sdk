@@ -17,14 +17,16 @@ const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t
  * Adds scenery and returns birds, drawing quality, and camera-detail updates.
  * Quality changes affect drawing only; world.js remains the physics source.
  */
-export function buildScenery(THREE, scene, { models = createEnvironmentModels(THREE), materials = {}, sunDirection, forestAssets = null, aerial = null, streamedCover = false } = {}) {
+export function buildScenery(THREE, scene, { models = createEnvironmentModels(THREE), materials = {}, sunDirection,
+  forestAssets = null, aerial = null, streamedCover = false, forestExclusionAt, legacyProps = true } = {}) {
   addTerrain(THREE, scene, materials.terrain);
   addMark(THREE, scene);
   addLaunch(THREE, scene, materials);
   const trees = forestAssets
-    ? createForest(THREE, scene, forestAssets, { sunDirection, ecologyAt: sampleTerrainEcology, groundHeight: physicalGroundHeight, atmosphere: aerial?.shared })
+    ? createForest(THREE, scene, forestAssets, { sunDirection, ecologyAt: sampleTerrainEcology,
+      groundHeight: physicalGroundHeight, atmosphere: aerial?.shared, exclusionAt: forestExclusionAt })
     : addTrees(THREE, scene, models, sunDirection);
-  addAlpineProps(THREE, scene, models, materials);
+  if (legacyProps) addAlpineProps(THREE, scene, models, materials);
   const grass = streamedCover ? { setQuality: () => false, updateDetail() {} } : addGrass(THREE, scene);
   return {
     birds: addBirds(THREE, scene),
@@ -74,11 +76,46 @@ function addTerrain(THREE, scene, surfaceMaterial) {
   return terrain;
 }
 
-/** The mark: bullseye rings on the field and the 60 m landing zone, with four cones at the field's corners to judge drift by. */
+/** Worn warm-ivory field paint and small timber pennants give the target scale. */
 function addMark(THREE, scene) {
-  const ring = (inner, outer, color, y = .07) => { const m = new THREE.Mesh(new THREE.RingGeometry(inner, outer, 64), new THREE.MeshStandardMaterial({ color, roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 })); m.rotation.x = -Math.PI / 2; m.position.set(MARK.x, terrainHeight(MARK.x, MARK.z) + y, MARK.z); m.receiveShadow = true; scene.add(m); return m; };
-  ring(0, 6, '#e23c2e', .09); ring(6, 7.2, '#f6f1e6', .085); ring(13.8, 15, '#f6f1e6'); ring(28.6, 30, '#f6f1e6'); ring(59, 60, '#f6f1e6', .06);
-  for (const [x, z] of [[-70, -70], [70, -70], [-70, 70], [70, 70]]) { const cone = new THREE.Mesh(new THREE.ConeGeometry(.9, 2.4, 10), new THREE.MeshStandardMaterial({ color: '#f6f1e6', roughness: .8 })); cone.position.set(x, terrainHeight(x, z) + 1.2, z); cone.castShadow = true; scene.add(cone); }
+  const size = 128, pixels = new Uint8Array(size * size * 4);
+  for (let row = 0; row < size; row++) for (let column = 0; column < size; column++) {
+    const i = (row * size + column) * 4;
+    const scuff = noise(column / 9 + 23, row / 11 - 8) * .65 + hash(column, row) * .35;
+    const pigment = Math.round(218 + 37 * noise(column / 17, row / 17));
+    pixels[i] = pixels[i + 1] = pixels[i + 2] = pigment;
+    pixels[i + 3] = scuff < .28 ? 0 : 255;
+  }
+  const paint = new THREE.DataTexture(pixels, size, size, THREE.RGBAFormat);
+  paint.name = 'Original weathered field-paint mask'; paint.colorSpace = THREE.SRGBColorSpace;
+  paint.minFilter = THREE.LinearMipmapLinearFilter; paint.magFilter = THREE.LinearFilter;
+  paint.generateMipmaps = true; paint.needsUpdate = true;
+  const finish = color => new THREE.MeshStandardMaterial({ color, map: paint, alphaTest: .35,
+    roughness: 1, polygonOffset: true, polygonOffsetFactor: -2 });
+  const ivory = finish('#e9dcb8'), rust = finish('#c7643d');
+  const ring = (inner, outer, material, y = .07) => {
+    const m = new THREE.Mesh(new THREE.RingGeometry(inner, outer, 64), material);
+    m.rotation.x = -Math.PI / 2;
+    m.position.set(MARK.x, terrainHeight(MARK.x, MARK.z) + y, MARK.z);
+    m.receiveShadow = true; m.name = 'Weathered landing target'; scene.add(m);
+  };
+  ring(0, 6, rust, .09); ring(6, 7.2, ivory, .085);
+  ring(13.8, 15, ivory); ring(28.6, 30, ivory); ring(59, 60, ivory, .06);
+  const timber = new THREE.MeshStandardMaterial({ color: '#8c7756', roughness: .96 });
+  const canvas = new THREE.MeshStandardMaterial({ color: '#d4ad6b', roughness: .96, side: THREE.DoubleSide });
+  const parts = [];
+  for (const [x, z] of [[-70, -70], [70, -70], [-70, 70], [70, 70]]) {
+    const y = terrainHeight(x, z);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(.045, .065, 1.55, 6), timber);
+    post.position.set(x, y + .775, z); post.castShadow = true; parts.push(post);
+    const shape = new THREE.BufferGeometry();
+    shape.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, .62, -.13, .06, 0, -.37, 0], 3));
+    shape.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 1, .5, 0, 0], 2));
+    shape.computeVertexNormals();
+    const flag = new THREE.Mesh(shape, canvas); flag.position.set(x, y + 1.48, z);
+    flag.rotation.y = .4; flag.castShadow = true; parts.push(flag);
+  }
+  scene.add(...batchStaticMeshes(THREE, parts, { name: 'FieldPennants' }));
 }
 
 /** One shared physical escarpment, and the timber launch resting on its crest. */

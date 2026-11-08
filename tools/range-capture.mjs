@@ -15,9 +15,10 @@ try {
     width: { type: 'string', default: '1280' },
     height: { type: 'string', default: '800' },
   } });
-  if (!['flight', 'launch', 'meadow', 'woodland'].includes(values.view)
+  const views = values.view.split(',');
+  if (views.some(view => !['flight', 'launch', 'meadow', 'woodland', 'staging', 'refuge'].includes(view))
     || !['high', 'medium', 'low'].includes(values.quality)) {
-    throw new Error('Use --view flight|launch|meadow|woodland and --quality high|medium|low.');
+    throw new Error('Use --view flight|launch|meadow|woodland|staging|refuge (comma-separated for a gallery).');
   }
   const width = Number(values.width), height = Number(values.height);
   if (![width, height].every(value => Number.isInteger(value) && value >= 240 && value <= 4096)) {
@@ -53,35 +54,47 @@ try {
   }
   if (!ready) throw new Error('The range did not finish loading within 60 seconds.');
   await page.eval("document.getElementById('panel').classList.add('hidden');1");
-  if (values.view === 'flight') {
-    await page.eval('rangeDemo.startAt({x:0,z:-470,agl:75,heading:0,kmh:48,pathDeg:-3});1');
-  } else if (values.view === 'meadow') {
-    // Center the sun's local shadow volume here before inspecting nearby grass.
-    await page.eval('rangeDemo.startAt({x:200,z:-250,agl:3,heading:0,kmh:0});1');
-  }
-  await sleep(1000);
+  // Freeze immediately after readiness: inspection poses advance the same
+  // production ticks without queuing dozens of unnecessary software-GPU frames.
   await page.eval('(() => { const last = requestAnimationFrame(() => {}); for (let id = Math.max(0, last - 32); id <= last; id++) cancelAnimationFrame(id); window.requestAnimationFrame=()=>0; })();1');
-  await sleep(600);
-  // Inspection views move only the camera. drawScene refreshes real production
-  // culling, terrain LOD and ground-cover streaming at that camera position.
-  const frame = await page.eval(`(() => {
+  const reports = [];
+  for (const view of views) {
+    const output = views.length > 1 ? path.join(values.out, view + '.jpg') : values.out;
+    if (view === 'flight') await page.eval('rangeDemo.startAt({x:0,z:-470,agl:75,heading:0,kmh:48,pathDeg:-3});rangeDemo.advance(1/60,null,{render:false});rangeDemo.player.visible=true;1');
+    // Inspection views share production culling, streaming and finishing.
+    const frame = await page.eval(`(() => {
     const d = rangeDemo;
+    d.player.visible = ${JSON.stringify(view)} === 'flight';
+    document.querySelector('.hud').style.display = 'none';
     document.getElementById('toast').style.display = 'none';
-    if (${JSON.stringify(values.view)} === 'flight') {
+    if (${JSON.stringify(view)} === 'flight') {
       const p = d.player.position;
       d.camera.position.set(p.x, p.y + 6, p.z - 18);
       d.camera.lookAt(p.x, p.y - 1.8, p.z + 18);
-    } else if (${JSON.stringify(values.view)} === 'launch') {
+    } else if (${JSON.stringify(view)} === 'launch') {
       const z = d.LAUNCH.z, y = d.deckY(z);
       d.camera.position.set(78, y + 13, z + 88);
       d.camera.lookAt(13, y - 22, z - 15);
-    } else if (${JSON.stringify(values.view)} === 'meadow') {
+    } else if (${JSON.stringify(view)} === 'meadow') {
       const x = 200, z = -250, y = d.terrainHeight(x, z);
       d.player.visible = false;
       d.camera.position.set(x, y + 1.25, z);
       d.camera.lookAt(x - 3, y + .7, z + 35);
       document.querySelector('.hud').style.display = 'none';
-    } else if (${JSON.stringify(values.view)} === 'woodland') {
+    } else if (${JSON.stringify(view)} === 'staging') {
+      const site = d.setDressing?.sites.find(site => site.id === 'launch-staging');
+      const x = site?.x ?? -30, z = site?.z ?? -620, y = d.terrainHeight(x, z);
+      d.player.visible = false;
+      d.camera.position.set(x - 8, y + 3.8, z - 11);
+      d.camera.lookAt(x, y + 1.4, z + 1);
+      document.querySelector('.hud').style.display = 'none';
+    } else if (${JSON.stringify(view)} === 'refuge') {
+      const x = -205, z = 122, y = d.terrainHeight(x, z);
+      d.player.visible = false;
+      d.camera.position.set(x + 23, y + 4.5, z - 8);
+      d.camera.lookAt(x, y + 2.5, z);
+      document.querySelector('.hud').style.display = 'none';
+    } else if (${JSON.stringify(view)} === 'woodland') {
       const x = -240, z = -670, y = d.terrainHeight(x, z);
       d.player.visible = false;
       d.camera.position.set(x, y + 1.7, z);
@@ -89,7 +102,7 @@ try {
       document.querySelector('.hud').style.display = 'none';
     }
     const sun = d.scene.children.find(object => object.isDirectionalLight && object.castShadow);
-    if (sun && ${JSON.stringify(values.view)} !== 'flight') {
+    if (sun && ${JSON.stringify(view)} !== 'flight') {
       const delta = sun.position.clone().sub(sun.target.position);
       sun.target.position.copy(d.camera.position);
       sun.position.copy(d.camera.position).add(delta);
@@ -98,15 +111,13 @@ try {
     d.render ? d.render() : d.renderer.render(d.scene, d.camera);
     // Read the same draw before the WebGL drawing buffer is discarded. This
     // avoids a stale compositor frame when rendering on a slow software GPU.
-    return { camera: d.camera.position.toArray(), render: { ...d.renderer.info.render }, scene: {quality:d.quality,visuals:d.scene.userData.visuals,forest:d.forestStats}, image: d.renderer.domElement.toDataURL(${JSON.stringify(values.out.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg')}, .95) };
+    return { camera: d.camera.position.toArray(), render: { ...d.renderer.info.render }, scene: {quality:d.quality,visuals:d.scene.userData.visuals,forest:d.forestStats,props:d.setDressing?.stats,cover:d.coverStats}, image: d.renderer.domElement.toDataURL(${JSON.stringify(output.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg')}, .95) };
   })()`);
-  await mkdir(path.dirname(values.out), { recursive: true });
-  await writeFile(values.out, Buffer.from(frame.image.slice(frame.image.indexOf(',') + 1), 'base64'));
-  console.log(JSON.stringify({
-    output: values.out, view: values.view, errors,
-    scene: frame.scene,
-    camera: frame.camera, render: frame.render,
-  }, null, 2));
+    await mkdir(path.dirname(output), { recursive: true });
+    await writeFile(output, Buffer.from(frame.image.slice(frame.image.indexOf(',') + 1), 'base64'));
+    reports.push({output,view,errors:[...errors],scene:frame.scene,camera:frame.camera,render:frame.render});
+  }
+  console.log(JSON.stringify(reports.length === 1 ? reports[0] : {output:values.out,errors,frames:reports},null,2));
   if (errors.length) process.exitCode = 1;
 } catch (error) {
   console.error(error.message);

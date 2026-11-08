@@ -48,6 +48,13 @@ for (const maximumAnisotropy of [1, 4, 16]) {
       }
     };
     assert.ok(textures.every(texture => texture.anisotropy === Math.min(8, maximumAnisotropy)));
+    for (const name of ['terrain-control.png', 'terrain-ecology.png', 'terrain-paint.webp']) {
+      const texture = loadedTextures.find(texture => texture.name.endsWith('/' + name));
+      assert.ok(texture);
+      assert.equal(texture.flipY, false, `${name}: the atlas row origin is world minZ`);
+      assert.equal(texture.colorSpace, name.endsWith('.webp') ? THREE.SRGBColorSpace : THREE.NoColorSpace,
+        'paint is decoded as albedo while masks retain linear control values');
+    }
 
     for (const [level, cap] of [['low', 1], ['medium', 2], ['high', 8]]) {
       const target = Math.min(cap, maximumAnisotropy);
@@ -151,9 +158,13 @@ test('ecology controls retain opaque linear channels and match their physical so
   for (const [path, expected] of [
     ['range/world.js', manifest.world_source_sha256],
     ['range/launch-geology.js', manifest.geology_source_sha256],
+    ['range/surface-style.js', manifest.style_source_sha256],
+    ['range/alpine-sites.js', manifest.site_source_sha256],
     ['tools/build-surface-textures.py', manifest.builder_sha256],
   ]) {
     assert.equal(hash(await readFile(new URL(path, root))), expected,
       `${path} changed: rebuild ecological masks with python3 tools/build-surface-textures.py`);
   }
+  assert.equal(hash(await readFile(new URL(manifest.paint_atlas.file, assets))), manifest.paint_atlas.sha256);
+  assert.equal(manifest.paint_atlas.color_space, 'sRGB');
 });

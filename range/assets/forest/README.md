@@ -17,8 +17,9 @@ Y-up normals in linear RGB. `range/forest-models.js` supplies MeshStandardMateri
 impostors that reconstruct world-space normals from the original instance yaw.
 SH/HDR/direct sunlight, shadows, cloud shadows, and aerial perspective therefore
 continue to operate at every distance. The vertex shader chooses the view from
-the current render camera, including an orthographic light camera. Neighbor views
-use stochastic selection and explicit texture gradients to preserve cutout detail.
+the current render camera, including an orthographic light camera. Each card selects one view on the GPU, keeping distant branches coherent.
+Explicit texture gradients and independently authored mip levels preserve cutout
+detail without mixing neighboring view tiles.
 
 Keep the original tree transform on far instances. Do not rotate instances toward
 the player camera. Assign the variant's `impostorDepthMaterial` and
@@ -27,20 +28,34 @@ quad's centre is created in the vertex shader; use manifest bounds when culling.
 
 ## Rebuild
 
-No npm install is required. Node 22+, curl, tar, and a Chromium with WebGL2 are
-needed only for authoring:
+No npm install is required. Node 22+, curl, tar, Python with Pillow/NumPy/SciPy, and a Chromium with
+WebGL2 are needed only for authoring:
 
 ```sh
 node tools/build-forest-assets.mjs --fetch-textures --geometry --bake
 node tools/build-forest-assets.mjs --verify
+# Rebuild mip chains alone after changing source atlases:
+node tools/build-forest-assets.mjs --mips
 ```
 
 Set `CHROME_PATH` when Chromium is not in a standard location. Cloud execution
 uses the existing `/workspace/.hgsim-environment/bin/benchmark-chromium` wrapper.
 `--verify` renders instanced mesh/card pairs in perspective and directly overhead,
-including the card's real directional-shadow pass. Review images are written to
+including the card's real directional-shadow pass and native-size tree pairs
+at 200, 600, and 1200 metres. Review images are written to
 `work/forest-perspective.jpg` and `work/forest-overhead.jpg`. `species-preview.jpg`
 is a neutral, physically lit contact sheet; it is not a gameplay screenshot.
+
+`tools/build-forest-mips.py` produces per-view, surface-weighted mip chains.
+Albedo averages in linear RGB; decoded normals average with original visibility
+weights and are normalized before encoding. Every mip fills transparent RGB from
+the nearest surface in the same view tile while preserving alpha. Nine levels
+end with one texel per view (8×4 atlas), so unrelated views never mix. The FMP1
+RGBA8 data is stored bottom-up in deterministic gzip files; Three r180 allocates
+exactly nine immutable texture levels. The local loader handles both octet-stream
+and HTTP gzip delivery and falls back to source PNGs if a chain fails to load.
+Source/output SHA256s, provenance, and before/after measurements are recorded in
+`mip-diagnostics.json`. No light is baked into the mip chain.
 
 The build runs entirely against locally vendored Three r180. The game downloads
 only same-origin generated assets; it has no authoring-library/npm/CDN dependency.

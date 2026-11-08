@@ -40,15 +40,20 @@ try {
   for(const query of ['model=original','assist=on']) {
     await open(query);
     const data=await page.eval(`(()=>{let bones=0;rangeDemo.player.traverse(o=>{if(o.isBone)bones++});return {visuals:rangeDemo.scene.userData.visuals,bones};})()`);
-    assert.equal(data.visuals.forest,'forest');assert.equal(data.bones,19);
+    assert.equal(data.visuals.forest,'forest');assert.equal(data.visuals.props,'illustrated-kit');assert.ok(data.visuals.forestMipLevels.every(level=>level===8));assert.equal(data.bones,19);
     await launch();console.log('PASS '+query+' assets, rig and launch');
   }
   await page.viewport(480,720);await sleep(500);
   assert.ok(await page.eval('Math.abs(rangeDemo.camera.aspect-480/720)<.001'));
   assert.ok(await page.eval('!rangeDemo.renderer.info.programs.some(p=>p.diagnostics?.runnable===false)'));
   console.log('PASS portrait resize and shader programs');
+  await page.send('Fetch.enable',{patterns:[{urlPattern:'*assets/forest/*-mips.bin.gz*',requestStage:'Request'}]});
+  await open();
+  const sourceAtlas=await page.eval('rangeDemo.scene.userData.visuals');
+  assert.equal(sourceAtlas.forest,'forest');assert.ok(sourceAtlas.forestMipLevels.every(level=>level===0));
+  await launch();console.log('PASS intentionally missing prepared mips fall back to PNG atlases and launch');
+  await page.send('Fetch.disable');
   await page.send('Fetch.enable',{patterns:[
-    {urlPattern:'*assets/alpine/props.glb*',requestStage:'Request'},
     {urlPattern:'*assets/forest/*',requestStage:'Request'},
     {urlPattern:'*yosemite-heightfield.bin*',requestStage:'Request'},
     {urlPattern:'*assets/materials/*',requestStage:'Request'},
@@ -57,7 +62,7 @@ try {
   const fallback=await page.eval('rangeDemo.scene.userData.visuals');
   assert.equal(fallback.models,'fallback');assert.equal(fallback.forest,'fallback');
   assert.equal(fallback.terrain,false);assert.equal(fallback.surfaces,false);
-  await launch();console.log('PASS intentionally missing props/forest/elevation/surfaces still launch');
+  await launch();console.log('PASS intentionally missing forest/elevation/surfaces still launch with local story props');
   assert.equal(errors.length,0,errors.join('\n'));
   console.log('PASS no runtime or shader errors');
 } catch(error) { console.error(error.stack||error.message);process.exitCode=1; }

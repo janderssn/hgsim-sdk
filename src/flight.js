@@ -264,7 +264,7 @@ export function createFlightState(overrides = {}, cfg = GLIDER_DEFAULTS) {
     skimAssist: 0, skimBlend: 0, skimProtect: 0, pullUp: false, pullUpReason: '', pullUpTurn: 0, pullUpLead: 0,
     groundEffect: 0, landing: 0, autoFlare: 0, flare: 0, floatWeight: 0, energyExchange: 0,
     flarePressed: false, flareFeet: NaN, flareRatio: NaN, flareBalloon: 0, flareLow: Infinity, flareHigh: -Infinity, flareStallFeet: NaN,
-    headingRate: 0, upright: 0,
+    headingRate: 0, upright: 0, groundClosing: 0,
   }, overrides);
 }
 
@@ -309,6 +309,9 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
     const air = world.airAt(state.x, state.y, state.z);
     const surface = Math.max(air.groundHeight, world.surfaceAt(state.x, state.z));
     const clearance = state.y - surface, feet = clearance - cfg.footHeight;
+    // How fast the ground comes up to the feet (m/s, + closing), smoothed: a landing approach closes on the ground, a take-off
+    // climbs away from it.
+    if (Number.isFinite(state.lastFeet)) state.groundClosing = finite(state.groundClosing) + ((state.lastFeet - feet) / step - finite(state.groundClosing)) * (1 - Math.exp(-step / 0.25));
     state.lastFeet = feet;
     const q = 0.5 * cfg.airDensity * v * v, qS = q * cfg.wingArea;
     const stall = stallSpeed(bank, cfg);
@@ -452,10 +455,12 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
       // Ballooned: climbed well above where the push-out began, or stalled while still high up.
       state.flareBalloon = state.flareHigh - finite(state.flareFeet) > 1.8 || finite(state.flareStallFeet, 0) > 2.2 ? 1 : 0;
     }
-    // The pilot goes upright as the bar comes out low, and stays upright once there (the landing).
-    const onFinal = input.field && feet < cfg.uprightHeight && v < 1.7 * stall && bar > -0.1 ? cfg.finalUpright : 0;
+    // The pilot goes upright as the bar comes out low with the ground coming up (the landing), and stays upright once there, through
+    // a balloon too. Climbing away from the ground (a take-off with the bar still out from the run) the pilot stays prone.
+    const closing = finite(state.groundClosing), approaching = closing > 0.2 || state.upright > 0.5;
+    const onFinal = input.field && feet < cfg.uprightHeight && v < 1.7 * stall && bar > -0.1 && closing > -0.2 ? cfg.finalUpright : 0;
     state.standing = !!input.stand;   // (the pilot sitting up by choice, anywhere: Space)
-    const wantUpright = state.standing ? 1 : feet < cfg.uprightHeight && bar > 0.15 && v < 1.7 * stall ? 1 : feet < 3 && state.upright > 0.5 ? 1 : onFinal;   // (not in a fast pull-out)
+    const wantUpright = state.standing ? 1 : feet < cfg.uprightHeight && bar > 0.15 && v < 1.7 * stall && approaching ? 1 : feet < 3 && state.upright > 0.5 ? 1 : onFinal;   // (not in a fast pull-out)
     state.upright = clamp(finite(state.upright) + (wantUpright - finite(state.upright)) * (1 - Math.exp(-step / 0.4)), 0, 1);
     // Presentation: how far the bar is pushed out past trim (the HUD's "flare" cue) and the drawn nose.
     state.flare = clamp((alpha - cfg.alphaTrim) / (cfg.alphaMax - cfg.alphaTrim), 0, 1);

@@ -201,13 +201,14 @@ npm run scenarios -- landing --wings eras      # one kind, the eras from the Rog
 npm run scenarios -- dive-hold --wings t2c-144,sport-2 --vg both
 ```
 
-The tuning pages fly the same scenarios in the browser at `http://127.0.0.1:4180/range/tune/`, a page each for the launch, the flight and the landing.
+The tuner flies the same scenarios in the browser at `http://127.0.0.1:4180/range/tune/`, in three modes: launch, flight and landing. It is laid out like a replay app: the 3D stage fills the window, with floating panels over it and a timeline along the bottom.
 
-- **Four views:** the glider from the side, the top, behind and in front, with its trail. The mouse wheel zooms a view.
-- **Run and Fly it:** Run lets the scripted pilot fly it. Fly it hands it to you: W/S the bar (or the nose on a launch), A/D the weight shift, Space to start the run and to jump.
-- **Compare:** Compare with flies the same scenario on another wing alongside, Pin this run keeps a run to compare against, and Every wing runs it on every preset at once.
-- **Feel:** the sliders change the wing live, and Copy values copies what you changed relative to the preset.
-- **URL options:** `glider`, `vg`, `scenario`, `compare`.
+- **Views:** the game view, a chase camera behind the glider, or the side, top, behind and in-front views, one at a time or all four. Double-click a view to fill the stage with it; Esc goes back. The mouse wheel zooms.
+- **Fly or watch:** Play lets the scripted pilot fly it. Fly (F) hands it to you in the game view: W/S the bar (or the nose on a launch), A/D the weight shift, Space to start the run and to jump.
+- **Timeline:** every frame is recorded. Play replays the recording at ¼× to 2×; the step buttons, or , and . (Shift for ten frames), move one frame at a time, and drag the timeline to scrub. The traces of the run sit in lanes lined up with the playhead, the compared run behind them in blue.
+- **Notes:** N pins a note to the moment and the view you are looking at. Notes show as pins on the timeline and over the view at that moment, and the Notes tab lists them; click one to jump back to it. Each note is also saved to `work/notes/` for review, with the moment's numbers and, for a run you flew yourself, the whole recorded flight with your inputs.
+- **Inspector:** Result (the outcome and its numbers), Feel (the values that shape it, in groups, changed live; Copy values copies them relative to the preset), Compare (the same scenario on another wing, a pinned run, or every wing at once) and Notes.
+- **URL options:** `glider`, `vg`, `scenario`, `compare`, `view`.
 
 ### Flight models
 

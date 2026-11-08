@@ -6,7 +6,7 @@
  *   import { SCENARIOS, runScenario } from 'hgsim/scenarios.js';
  *   const r = runScenario('dive-hold', { preset: 't2c-144', vg: 1 });   // flown offline at 60 Hz
  *   r.outcome   // 'done', or for a landing 'soft' | 'firm' | 'rough' | 'crash', for a launch 'flying' | 'wingdrop' | ...
- *   r.metrics   // { topSpeed: 150, ... } in km/h, degrees, metres and seconds; r.samples, every 1/20 s
+ *   r.metrics   // { topKmh: 150, ... } in km/h, degrees, metres and seconds; r.samples, every frame (1/60 s)
  *
  *   const run = startScenario('ramp-calm', { preset: 'falcon-170', pilot: 'you' });   // live, one frame at a time:
  *   run.step(dt, { roll, pitch, stand, go, jump, push });   // your controls (ignored for a scripted pilot)
@@ -198,7 +198,7 @@ export function getScenario(id) {
 /* ---------- running one ---------- */
 
 const windOf = w => typeof w === 'number' ? { head: w, cross: 0, gusts: 0 } : { head: finite(w?.head), cross: finite(w?.cross), gusts: finite(w?.gusts) };
-const SAMPLE = 1 / 20;
+const SAMPLE = 1 / 60;   // (every frame: a run can be stepped through frame by frame)
 
 /**
  * Starts a scenario on a wing. options: preset (id or object), vg (0..1), config (force-model overrides, as glider.tune), launch
@@ -231,7 +231,8 @@ export function startScenario(id, { preset = 'intermediate', vg = null, config =
     samples.push({ t: +t.toFixed(3), phase, x: s.x, y: s.y, z: s.z, heading: s.heading, bank: phase === 'launch' ? finite(l?.roll) : s.bank,
       pitch: s.pitch, alpha: s.alpha, airspeed: s.airspeed, pathAngle: s.pathAngle, verticalSpeed: s.verticalSpeed, load: finite(s.loadFactor, 1),
       bar: finite(s.bar), feet: feetNow(), stalled: !!s.stalled, upright: finite(s.upright), groundSpeed: finite(phase === 'launch' ? l?.groundSpeed : s.groundSpeed),
-      yaw: finite(l?.yaw), lift: finite(l?.lift, 1), launchPhase: l?.phase ?? null, controls: { ...controls } });
+      yaw: finite(l?.yaw), lift: finite(l?.lift, 1), launchPhase: l?.phase ?? null, controls: { ...controls },
+      pose: phase === 'launch' ? handle.pose() : null });   // (where the wing and pilot are on the run, to draw it again later)
   };
   const finish = (outcome, extra = {}) => { phase = 'done'; result = { scenario: sc.id, kind: sc.kind, preset: glider.preset?.id ?? null, vg: glider.vg, outcome, ...extra, metrics: measure(sc, samples, { ...extra, notes, liftoff, maxRoll, maxNose, glider }), samples };
     if (wreck) result.metrics.impactMs = +wreck.impact.toFixed(1); };

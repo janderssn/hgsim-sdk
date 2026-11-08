@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createFlightRecorder, FLIGHT_FIELDS, SAMPLE_PERIOD } from '../src/flight-recorder.js';
+import { createFlightRecorder, FLIGHT_FIELDS, SAMPLE_PERIOD } from '../src/recorder.js';
 
 const memoryStorage = (limit = Infinity) => { const m = new Map(); return { getItem: k => m.has(k) ? m.get(k) : null, setItem(k, v) { if (v.length > limit) throw new Error('full'); m.set(k, v); }, removeItem: k => m.delete(k) }; };
 const results = []; const test = (name, fn) => { fn(); results.push(name); console.log('PASS', name); };

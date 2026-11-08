@@ -9,8 +9,8 @@ The hang-glider simulation from **Above**, and the landing range used to tune it
 
 Balancing the wing on the ramp before a Realistic launch, and a cliff launch just off the edge. Fly it at **https://hgsim.fly.dev**.
 
-- **`src/`** is the library: plain ES modules with no dependencies. It covers the flight model, the launch run, the crash tumble, landing cues, the pilot's body, terrain following, wind and a flight recorder.
-- **`range/`** is the landing range: a small Three.js world with a ramp, a cliff and an open grass slope to launch from (C cycles them, R returns to the current one; on a touchscreen a thumb stick and buttons appear when it is touched), a field with a bullseye, and a thermal. It is for flying the library by hand, with live tuning and every round recorded.
+- **`src/`** is the SDK: plain ES modules with no dependencies. Its small core is a world, a glider and a pluggable flight model. Around the core are the launch run, landing judgement, the crash tumble, wind, a flight recorder and, in `hgsim/three`, the pilot's body and landing cues for Three.js.
+- **`range/`** is the landing range: a small Three.js world with a ramp, a cliff and an open grass slope to launch from (C cycles them, R returns to the current one; on a touchscreen a thumb stick and buttons appear when it is touched), a field with a bullseye, and a thermal. It is for flying the SDK by hand, with live tuning and every round recorded.
 
 The units are metres, seconds and radians throughout.
 
@@ -24,17 +24,21 @@ npm run check:range  # flies the range end to end in a headless Chrome or Edge
 
 No install step is needed. Three.js is vendored under `range/vendor/`, and nothing else is used.
 
-## The library
+## The SDK
+
+hgsim is a small core with three parts: a **world**, a **glider** in it, and the **flight model** that steps the glider.
 
 ```js
-import { createSoaringState, stepSoaring } from 'hgsim';
+import { createWorld, createGlider } from 'hgsim';
 
-const glider = createSoaringState({ x: 0, y: 60, z: 0, heading: 0 });
-const environment = { terrainHeight: (x, z) => 0, wind: { x: 0, z: -3 }, thermals: [] };
-stepSoaring(glider, { roll: 0, pitch: 0 }, 1 / 60, environment);   // call each frame, or in a loop offline
+const world = createWorld({ terrain: (x, z) => 0, wind: { x: 0, z: -3 } });
+const glider = createGlider({ world, at: { x: 0, y: 60, z: 0, heading: 0 } });
+
+while (!glider.contact()) glider.step(1 / 60, { roll: 0, pitch: 0 });   // each frame, or in a loop offline
+glider.land({ x: 0, z: 500, radius: 60 });   // { judged: 'firm', points, stars, notes: ['Firm touchdown', 'Into wind', ...] }
 ```
 
-`examples/glide.mjs` and `examples/launch.mjs` run as they are:
+`examples/glide.mjs`, `examples/launch.mjs` and `examples/extend.mjs` run as they are:
 
 ```text
 $ node examples/glide.mjs
@@ -45,27 +49,97 @@ $ node examples/launch.mjs
 0.00 s  pickup
 1.50 s  balance
 2.10 s  run
-4.40 s  off the ground (flying) after 7.5 m at 9.9 m/s airspeed
+4.60 s  off the ground (flying) after 7.5 m at 10.0 m/s airspeed
+5 s later: 52 km/h, 48 m out, 193 m over the ground
 ```
+
+### The world
+
+```js
+const world = createWorld({
+  terrain: (x, z) => height,          // the ground, m (default: flat at 0)
+  surface: (x, z) => height,          // optional: tops of trees or buildings, for the glider's clearance
+  wind: { x, z },                     // where the air goes, m/s: a vector, a live object (createWind()), or (x, y, z) => ({ x, z })
+  thermals: [{ x, z, radius, strength }],
+  lift: [(x, y, z, air) => metresPerSecond],   // your own rising or sinking air, added to the thermals and ridge lift
+  air: { thermalCeiling: 1500 },      // AIR_DEFAULTS overrides
+});
+world.airAt(x, y, z);   // { lift, thermalLift, ridgeLift, extraLift, windX, windZ, groundHeight, aboveGround }
+world.heightAt(x, z); world.surfaceAt(x, z); world.windAt(x, y, z);
+```
+
+Ridge lift comes from the terrain and the wind on its own, so a world needs nothing more than a height function.
+
+### The glider
+
+```js
+const glider = createGlider({
+  world,
+  model: forceModel,                  // the default; classicModel or your own
+  config: { mass: 100 },              // overrides of the model's defaults (GLIDER_DEFAULTS)
+  at: { x, y, z, heading, airspeed }, // the starting flight state
+  skim: false,                        // the terrain-skimming assist: true, or { clearance: m or bankedClearance }
+  rules: {},                          // LANDING_RULES overrides for judging and scoring touchdowns
+});
+```
+
+| Member | What it does |
+|---|---|
+| `step(dt, input)` | Flies `dt` seconds. `input`: `roll` −1 (left) … +1 (right), `pitch` (the bar) −1 (pulled in: dive) … +1 (pushed out: slow and flare), `stand` (sit up for drag), `field` (low over ground that can be landed on). |
+| `state` | The live flight state: `x y z heading bank pitch airspeed pathAngle alpha bar verticalSpeed groundSpeed loadFactor lift stalled upright ...`. |
+| `contact()` | `null` in the air. On the ground it returns the touchdown: `verticalSpeed` into the ground, `groundSpeed`, `slope`, `bank`, `wind`, `flare` and more. |
+| `land(target)` | Judges and scores the touchdown, `contact()` by default, against a mark `{ x, z, radius }`. |
+| `scrape(contact)` | A fast, light, level touch skips off the ground: `true` when it did, and the flight goes on. |
+| `launch({ site, manual })` | Stands the pilot at the glider's position and returns a `Launch` (below). |
+| `config`, `tune(patch)`, `overrides` | The frozen config, a change of some of its values in flight (`tune()` restores the defaults), and what differs from the defaults. |
+| `performance` | The polar for the current config: `stallSpeed(bank)`, `trimSpeed(bar)`, `sink(v)`, `glideAngle(v)`, `glideRatio(v)`. |
+| `reset(at)`, `place({ x, y, z, heading })` | A fresh flight state, or a move that leaves the flying as it is. |
+| `air()`, `height()` | The air at the glider, and its height over the ground. |
+
+Configs belong to the glider: two gliders with different numbers fly side by side, and nothing is global. `defineConfig(defaults, patch)` makes one on its own. It rejects unknown keys and values of the wrong kind with an error that names the key, so a typo cannot pass silently.
+
+### The launch
+
+```js
+const launch = glider.launch({ site, manual: false });   // site: { fall(x, z, heading), edgeAhead(x, z, heading), ground?(x, z) }
+while (!launch.airborne && !launch.failed) launch.step(1 / 60, controls);
+// airborne: launch.reason is 'flying' or 'edge'. Carry on with glider.step(dt, { pitch: launch.barHold, ... }).
+// failed: 'crosswind', 'wingdrop', 'turned' or 'stumbled'. launch.tumble() is the wreck as a rigid body (stepTumble until done).
+```
+
+The run steps the glider's own flight state through the flight model's own lift and drag, so the run and the flight are one physics: nothing changes at lift-off. The wind and rising air come from the world, and the ground of the run comes from the site. An Easy launch (the default) runs itself. In a Realistic one (`manual: true`), `controls` carries `balance` (A/D), `nose` (W/S), `go` and `jump` (Space). `launch.pose(stride)` says where to draw the wing and the pilot.
+
+### Flight models
+
+A model is a plain object: `{ name, defaults, createState(init, config), step(state, input, dt, world, config, skim) }`. Two more members are optional: `performance(config)` and `scrape(...)`. Two models come with hgsim:
+
+- **`forceModel`**, the default: the wing as forces, with lift, drag, ground effect, stall, flare and push-out bar pressure.
+- **`classicModel`**: the older, simpler energy model, kept for side-by-side comparison. In the range, use `?model=original`.
+
+Any other object with the same shape drops in. `examples/extend.mjs` flies a point mass in ten lines.
 
 ### Modules
 
+`src/index.js` is the public API. Each module can also be imported on its own (`hgsim/launch`, `hgsim/landing`, ...), down to the low-level functions such as `stepFlight`, `stepLaunch` and `liftCoefficient`, which take their config as an argument.
+
 | Module | What it does |
 |---|---|
-| `flight.js` | Models the wing as forces: lift, drag, ground effect, stall, flare and push-out bar pressure. It also models the air it flies in: wind, thermals and ridge lift. It judges and scores a touchdown, and `tuneSoaring` changes its numbers live. |
-| `flight-classic.js` | The older, simpler flight model, kept for side-by-side comparison. In the range, use `?model=original`. |
-| `launch.js` | Covers picking the wing up, balancing it on the shoulders, the run and the lift-off. It runs on the flight model's own lift and drag, and steps the flight state the flight then keeps. That makes the run and the flight one physics. In Easy mode it runs itself. In Realistic mode (`manual`) the pilot balances with A/D, holds the nose with W/S, and starts and jumps with Space. |
-| `tumble.js` | Turns a launch or landing gone wrong into a rigid body. It has gravity, a flat-plate sail and ground contact with friction, and runs until the wreck comes to rest. |
-| `landing-cues.js` | Works out when to round out and flare, and draws the cues for it. |
-| `pilot-rig.js` | Poses the pilot's body on the skinned glider model, from prone to upright. It covers standing inside the control frame with the uprights on the shoulders, the run, and the swing into the harness after a launch. It also covers weight shift, push-out, and moving one hand at a time between bar and uprights. It takes `THREE` as an argument. |
-| `terrain-skimming.js`, `skim-pose.js` | The optional assist that keeps a low glider off the ground. The range flies without it unless you add `?assist=on`. |
-| `wind.js` | Live wind: a mean speed and direction with a meander and gusts. |
-| `flight-recorder.js` | Records each round as samples and marked moments. `tools/flight-report.mjs` reads them back. |
-
-`src/index.js` re-exports the public API. You can also import the files directly, for example `hgsim/launch`.
+| `world.js` | The world: terrain, wind, thermals, ridge lift and extra lift sources. |
+| `glider.js` | The glider handle and its launch. |
+| `flight.js` | The force model: `GLIDER_DEFAULTS`, the aerodynamics, `stepFlight`, `performance`, `scrapeGround`. |
+| `models/classic.js` | The classic model. |
+| `launch.js` | The launch kernel: picking the wing up, balancing it, the run and the lift-off (`LAUNCH_DEFAULTS`). |
+| `landing.js` | `LANDING_RULES`, `judgeTouchdown` and `scoreLanding`, and approach helpers: the flare zone, `pullOutHeights`, `dropToImpact`. |
+| `tumble.js` | A launch or landing gone wrong as a rigid body. It has gravity, a flat-plate sail and ground contact with friction, and runs until the wreck comes to rest. |
+| `wind.js` | Live wind: a mean speed and direction with a meander and gusts, and conversions to and from compass bearings. |
+| `recorder.js` | Records each round as samples and marked moments. `tools/flight-report.mjs` reads them back. |
+| `config.js` | `defineConfig` and `overridesOf`. |
+| `assists/` | The optional terrain-skimming assist, which keeps a low glider off the ground, and its drawn bank. |
+| `three/` (`hgsim/three`) | Three.js presentation: `createPilotRig` poses the pilot on the skinned glider model, and `createLandingCues` draws the shadow, height gauge and FLARE prompt. Each takes `THREE` as an argument. |
 
 ### Conventions
 
+- **Units:** metres, seconds and radians throughout.
 - **Frame:** x is east, y is up and z is north.
 - **Heading:** a heading `h` flies along `(sin h, cos h)`. A model drawn with `rotation.set(pitch, heading, roll, 'YXZ')` faces the way it flies.
 - **Wind:** the wind vector `{x, z}` is where the air is going, in m/s. `directionFromBearing` and `bearingFromDirection` convert to and from compass bearings ("from 190°").
@@ -73,6 +147,21 @@ $ node examples/launch.mjs
   - `roll` is −1 for left and +1 for right.
   - `pitch` is the bar: −1 pulls in (dive) and +1 pushes out (slow and flare).
   - On a launch, `balance` +1 shifts right, which lowers the right wing, the same as in flight.
+
+### Migrating from 0.1
+
+| 0.1 | Now |
+|---|---|
+| `createSoaringState(init)`, `stepSoaring(state, input, dt, environment)` | `createGlider({ world, at })`, then `glider.step(dt, input)`. Or the low-level `createFlightState(init, config)` and `stepFlight(state, input, dt, world, config, skim)`. |
+| `environment = { terrainHeight, wind, thermals, thermalCeiling, terrainSkimming, skimClearance, skimHeight }` | `createWorld({ terrain, wind, thermals, air: { thermalCeiling }, surface })`, plus `createGlider({ skim: { clearance } })`. |
+| `input.ground` | `input.field` |
+| `tuneSoaring(patch)`, `getSoaringTuning()` (global) | `glider.tune(patch)` and `glider.config`, per glider. |
+| `SOARING_DEFAULTS` | `GLIDER_DEFAULTS`. The air's numbers are now `AIR_DEFAULTS` and the touchdown and scoring numbers `LANDING_RULES`. |
+| `sampleSoaringAir(x, y, z, env)` | `world.airAt(x, y, z)` |
+| `judgeTouchdown(c)`, `scoreLanding(t, target)` | The same, with an optional `rules` argument; or `glider.land(target)`. |
+| `createLaunch()`, `stepLaunch(s, dt, conditions)`, `windOnRun(...)` | `glider.launch({ site, manual })` and `launch.step(dt, controls)`. The kernel takes `(s, dt, conditions, gliderConfig, launchConfig)`. |
+| `runProfile(air, stall, distance, slope)` | `runProfile(air, distance, slope)` |
+| `getSkimClearance`, `hgsim/flight-classic`, `hgsim/landing-cues`, `hgsim/pilot-rig`, `hgsim/flight-recorder` | `bankedClearance`, `classicModel`, `hgsim/three`, `hgsim/three`, `hgsim/recorder` |
 
 ## The landing range
 
@@ -118,7 +207,7 @@ The open range reloads itself when `src/` or `range/` changes. It waits until yo
 
 | File | What it holds |
 |---|---|
-| `range/main.js` | Composes the range and owns its launch, flight, landing and crash transitions. |
+| `range/main.js` | Composes the range on one `createWorld` and one `createGlider`, and owns its launch, flight, landing and crash transitions. |
 | `range/simulation-loop.js`, `motion.js` | Fixed simulation ticks and interpolated drawing snapshots. |
 | `range/controls.js` | Keyboard/gamepad normalization and continuous bar control through lift-off. |
 | `range/camera.js`, `hud.js` | Chase-camera smoothing and change-only HUD updates. |
@@ -146,7 +235,7 @@ Rendering starts at full detail. After sustained slow frames it reduces resoluti
 
 ## Tests and checks
 
-- **`npm test`:** the unit tests in `tests/`. They cover the flight model, the launch (both modes, the run length against the wind, the nose, a wing off level and the cliff), landing cues, terrain skimming, the recorder, audio, the range's world, fixed-step timing, takeoff controls, interpolation, rendering quality and HUD updates.
+- **`npm test`:** the unit tests in `tests/`. `golden.test.mjs` flies fixed scripts (flights, skimming, both models, every kind of launch, the tumble, the wind and landing scores) and requires the numbers recorded in `tests/golden/golden.json`, so a change to the physics cannot slip in unnoticed. After an intended change of the physics, re-record them with `npm run golden:record`. `sdk.test.mjs` covers the SDK's surface. The other tests cover the flight model, the launch (both modes, the run length against the wind, the nose, a wing off level and the cliff), landing cues, terrain skimming, the recorder, audio, the range's world, fixed-step timing, takeoff controls, interpolation, rendering quality and HUD updates.
 - **`npm run check:range`:** starts its own server and flies the range in a headless browser. It runs an Easy ramp launch, an Easy cliff launch, an Easy slope launch in calm air, a Realistic launch flown by a simple scripted pilot, sitting up and lying prone in flight, and a landing from overhead. It also checks for page errors. Browser tools require Node 22+ and Chrome/Chromium or Edge; set `CHROME_PATH` if the browser is not discovered automatically.
 
 To measure rendering, start `npm start` and run:
@@ -171,4 +260,4 @@ The range's sounds are synthesized, except the crash. It is mixed from seven rec
 
 ## Origin
 
-This was extracted from Above at commit `fbea2b6`, on branch `claude/flight-physics-landing-a61a59`. Its behaviour is unchanged.
+This was extracted from Above at commit `fbea2b6`, on branch `claude/flight-physics-landing-a61a59`. The SDK refactor kept the physics exactly as it was; the golden tests hold it there.

@@ -2,10 +2,11 @@
   "name": "hgsim",
   "version": "0.1.0",
   "private": true,
-  "description": "Hang-glider flight, launch and landing simulation from Above, with the landing range used to tune it.",
+  "description": "A hang-glider simulation SDK: flight, launch, landing and crash physics with no dependencies, and the landing range used to tune it.",
   "type": "module",
   "exports": {
     ".": "./src/index.js",
+    "./three": "./src/three/index.js",
     "./*.js": "./src/*.js",
     "./*": "./src/*.js"
   },
@@ -21,7 +22,8 @@
     "check:range": "node tools/range-check.mjs",
     "benchmark:range": "node tools/range-benchmark.mjs",
     "check:live": "node tools/range-check.mjs --url https://hgsim.fly.dev",
-    "flights": "node tools/flight-report.mjs"
+    "flights": "node tools/flight-report.mjs",
+    "golden:record": "node tests/golden/record.mjs"
   },
   "engines": {
     "node": ">=20"

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
-import { runProfile, windOnRun, createLaunch, stepLaunch, launchPose, barForSpeed, runHold, LAUNCH } from '../src/launch.js';
-import { stepSoaring } from '../src/flight.js';
+import { runProfile, windOnRun, createLaunch, stepLaunch, launchPose, barForSpeed, runHold, LAUNCH_DEFAULTS as LAUNCH } from '../src/launch.js';
+import { stepSoaring } from './support.mjs';
 
-const stall = 9.7, run = (headwind, crosswind = 0, distance = 60) => runProfile({ headwind, crosswind }, stall, distance);
-const still = run(0, 0, 40), breeze = run(4), strong = run(9), tail = run(-3, 0, 200), cross = run(1, 6), slope = runProfile({ headwind: 4 }, stall, 60, .12);
+const stall = 9.7, run = (headwind, crosswind = 0, distance = 60) => runProfile({ headwind, crosswind }, distance);
+const still = run(0, 0, 40), breeze = run(4), strong = run(9), tail = run(-3, 0, 200), cross = run(1, 6), slope = runProfile({ headwind: 4 }, 60, .12);
 console.log(JSON.stringify({ still: [still.reason, still.lift.toFixed(2), still.groundSpeed.toFixed(1)], breeze: [breeze.reason, breeze.lift.toFixed(2)], slope: [slope.reason, slope.liftDistance?.toFixed(1)], strong: [strong.reason, strong.liftDistance?.toFixed(1)], tail: [tail.reason, tail.lift.toFixed(2)], cross: cross.failed }));
 
 assert.ok(still.reason === 'edge' && still.lift > .1 && still.lift < .6 && still.groundSpeed < 7.5 && still.flight.bar < -.3, 'no wind: nobody runs at flying speed, so the pilot runs off the edge with the wing part flying, pulling in for the dive');
@@ -29,7 +29,7 @@ assert.ok(launchPose(createLaunch(), 0).height < .3 && launchPose(s, 0).height >
 // One physics: the feet stay planted to the last step, and the flight carries on from the launch's own state, the wing's path
 // through the air down the slope it ran on, at the angle of attack the pilot held it at, with nothing changing in the first step.
 const off = launchPose(s, 0), f = s.flight, before = { v: f.airspeed, path: f.pathAngle, alpha: f.alpha, bar: f.bar };
-assert.ok(off.plant === 1 && Math.abs(off.pathAngle - f.pathAngle) < 1e-9 && off.pathAngle < -.07 && Math.abs(f.alpha - runHold(undefined, undefined, 1).alpha) < .03, 'the lift-off path is the run down the slope, with the nose let up to the lift-off angle: ' + JSON.stringify({ path: off.pathAngle, alpha: f.alpha }));
+assert.ok(off.plant === 1 && Math.abs(off.pathAngle - f.pathAngle) < 1e-9 && off.pathAngle < -.07 && Math.abs(f.alpha - runHold(1).alpha) < .03, 'the lift-off path is the run down the slope, with the nose let up to the lift-off angle: ' + JSON.stringify({ path: off.pathAngle, alpha: f.alpha }));
 assert.ok(Math.abs(f.loadFactor - 1) < .03 && f.airspeed > 9.5 && f.airspeed < 11, 'it lifts off with the wing carrying the weight, just above the stall: ' + f.airspeed.toFixed(2));
 stepSoaring(f, { pitch: s.barHold }, 1 / 60, { terrainHeight: () => 0 });
 assert.ok(Math.abs(f.airspeed - before.v) < .08 && Math.abs(f.pathAngle - before.path) < .01 && Math.abs(f.alpha - before.alpha) < .01 && Math.abs(f.bar - before.bar) < .1, 'the first airborne step changes nothing by more than a step (the bar only starts easing from the lift-off hold to the run hold): ' + JSON.stringify({ dv: f.airspeed - before.v, dpath: f.pathAngle - before.path, dalpha: f.alpha - before.alpha }));

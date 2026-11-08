@@ -7,38 +7,13 @@
  *
  *   const cues = createLandingCues(THREE, scene, { onFlareCue() { audio.emit('tip'); } });
  *   cues.update({ flying, x, z, ground, feet, speedRatio, bar, sink, landable, speed, dropToImpact }, dt);
+ *
+ * (dropToImpact and pullOutHeights, the pure parts, are in hgsim's landing.js.)
  */
+import { ZONE_LOW, ZONE_HIGH, pullOutHeights } from '../landing.js';
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const DIVE_SINK = 3;   // m/s that counts as a dive
 const GAUGE_TOP = 170, GAUGE_NEAR = 12, NEAR_SHARE = .6;
-// Where holding S gives a soft touchdown, measured on the flight model: the bar takes time, so the push starts this high.
-export const ZONE_LOW = 2.7, ZONE_HIGH = 3.3;
-
-/**
- * Height a pull-out from this dive uses up, fitted to measured pull-outs of the flight model with a small margin (a full
- * pull-out takes about 3 s whatever the speed). push: pushing out fully at once. free: only letting go of the bar.
- */
-export function pullOutHeights({ speed, sink }) {
-  const s = Math.max(sink, 0), steep = clamp(s / Math.max(speed, 1), 0, 1);
-  return { push: 11 + s * (1.1 + 1.6 * steep), free: 8 + s * (1 + 4 * steep) };
-}
-
-/**
- * Follows the current flight path over the terrain: the height from here down to where it meets the ground, or null if it does
- * not within the look-ahead. Flying parallel to a hillside this stays null; it is the hill running out ahead that it sees.
- */
-export function dropToImpact({ x, feetY, z, vx, vy, vz, terrainHeight, seconds = 8, step = .4 }) {
-  if (vy >= 0) return null;
-  const below = t => feetY + vy * t <= terrainHeight(x + vx * t, z + vz * t);
-  for (let t = step; t <= seconds + 1e-6; t += step) if (below(t)) {
-    // Narrow down where it meets the ground, so the reading moves smoothly instead of in steps of the look-ahead.
-    let a = t - step, b = t;
-    for (let i = 0; i < 5; i++) { const m = (a + b) / 2; if (below(m)) b = m; else a = m; }
-    return Math.max(0, -vy * b);
-  }
-  return null;
-}
-
 export function createLandingCues(THREE, scene, { onFlareCue } = {}) {
   // Shadow: a radial gradient disc, drawn straight below whatever the sun is doing.
   const canvas = document.createElement('canvas'); canvas.width = canvas.height = 128;

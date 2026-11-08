@@ -1,4 +1,4 @@
-/** Soft terrain-skim assist for the energy-based glider (flight.js).
+/** Soft terrain-skim assist for the force model (flight.js), switched on with createGlider({ skim }).
  *  It only shapes the commanded flight-path angle: holding W fast and low blends the command toward a path that
  *  follows a look-ahead terrain envelope at the target clearance, and a protected floor keeps a minimum clearance.
  *  The path filter, its g limits and the energy equation stay in charge, so it never brakes, parks or teleports the
@@ -13,7 +13,7 @@ const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const finite=(v,f=0)=>Number.isFinite(v)?v:f;
 const smooth=(a,b,v)=>{const t=clamp((v-a)/(b-a),0,1);return t*t*(3-2*t);};
 export const SKIM_DEFAULTS=Object.freeze({
- clearance:6.5,        // nominal target clearance (m) when the environment gives no skimClearance
+ clearance:6.5,        // nominal target clearance (m) when the glider's skim options give none
  minClearance:3.6,     // protected floor (m)
  engage:[14,30],       // predicted clearance above the target where the guidance fades in (m)
  hold:[45,75],         // wider window once skimming, so crests and drops do not end a skim
@@ -49,9 +49,10 @@ function turnArc(state,sample,dir,v,track,gs){
 }
 
 /** Per physics step. k: {v, gamma, heading, headingRate, windX, windZ, lift, bar, command, surface, dt, pullAccel,
- *  hardPullAccel, maxClimb, maxDive, stallSpeed}. Updates the state fields above, returns {command, frequencyBoost}. */
-export function skimGuidance(state,k,environment){
- const cfg=SKIM_DEFAULTS,sample=environment.skimHeight||environment.terrainHeight;
+ *  hardPullAccel, maxClimb, maxDive, stallSpeed}. ground: {surfaceAt(x,z), clearance}.
+ *  Updates the state fields above, returns {command, frequencyBoost}. */
+export function skimGuidance(state,k,ground){
+ const cfg=SKIM_DEFAULTS,sample=ground.surfaceAt;
  const {v,gamma,heading,headingRate,windX,windZ,lift,bar,command,surface,dt,pullAccel,maxClimb,maxDive,stallSpeed}=k;
  const hardPull=finite(k.hardPullAccel,pullAccel);
  const y=state.y,cg=Math.cos(gamma),gx=Math.sin(heading)*v*cg+windX,gz=Math.cos(heading)*v*cg+windZ,gs=Math.max(1,Math.hypot(gx,gz)),track=Math.atan2(gx,gz);
@@ -66,7 +67,7 @@ export function skimGuidance(state,k,environment){
  }
  // Predicted ground track (an arc at the current turn rate), sampled 0.25..4.2 s ahead.
  for(let i=0;i<TIMES.length;i++)H[i]=at(TIMES[i]);
- const requested=typeof environment.skimClearance==='function'?environment.skimClearance(state):environment.skimClearance;
+ const requested=ground.clearance;
  const c=Number.isFinite(requested)?clamp(requested,3.5,12):cfg.clearance;
  // Follow: pursue the target clearance at the preview time, and never descend faster than a firm round-out can stop
  // above every sampled point (this also climbs early, gently, for rising ground). A fast descent is rounded out with

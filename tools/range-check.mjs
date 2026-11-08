@@ -87,6 +87,25 @@ try {
   s = await until(s => s.judged, 150);
   check(!!s.judged, 'a flight from overhead lands and is judged', JSON.stringify({ mode: s.mode, judged: s.judged }));
 
+  // On a phone: nothing until the screen is touched, then a stick that balances the wing and a button that launches; a key
+  // press puts them away again. The panel starts hidden on a small screen.
+  await page.viewport(812, 375, true); await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  check(await open('wind=4&from=180&launch=real'), 'the range loads on a phone');
+  const touch = (type, points) => page.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(([x, y], i) => ({ x, y, id: i + 1 })) });
+  const touchState = () => page.eval(`JSON.stringify({ shown: document.body.classList.contains('touching'), panel: !document.getElementById('panel').classList.contains('hidden'), label: document.querySelector('.touch-action').textContent, phase: rangeDemo.runUp?.launch.phase ?? null, shift: rangeDemo.runUp?.launch.shift ?? 0 })`).then(JSON.parse);
+  const before = await touchState();
+  await touch('touchStart', [[400, 150]]); await touch('touchEnd', []); await sleep(200);
+  const shown = await touchState();
+  const button = JSON.parse(await page.eval(`JSON.stringify((r => [r.left + r.width / 2, r.top + r.height / 2])(document.querySelector('.touch-action').getBoundingClientRect()))`));
+  await touch('touchStart', [button]); await sleep(80); await touch('touchEnd', []); await sleep(2500);
+  const launched = await touchState();
+  await touch('touchStart', [[110, 265]]); await touch('touchMove', [[160, 265]]); await sleep(400);
+  const stick = await touchState(); await touch('touchEnd', []);
+  await page.key('KeyQ'); await sleep(100);
+  const keyed = await touchState();
+  check(!before.shown && !before.panel && shown.shown && launched.phase === 'balance' && launched.label === 'Run' && stick.shift > .5 && !keyed.shown,
+    'touch controls appear on a touch, launch, balance the wing, and hide on a key', JSON.stringify({ before, shown: shown.shown, launched: [launched.phase, launched.label], shift: +stick.shift.toFixed(2), keyed: keyed.shown }));
+
   check(!errors.length, 'no page errors', errors.slice(0, 2).join(' | '));
 } catch (e) { check(false, 'the check ran', e.message); }
 finally { page?.close(); await chrome?.close(); server.kill(); }

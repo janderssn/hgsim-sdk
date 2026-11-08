@@ -10,7 +10,7 @@ The hang-glider simulation from **Above**, and the landing range used to tune it
 Balancing the wing on the ramp before a Realistic launch, and a cliff launch just off the edge. Fly it at **https://hgsim.fly.dev**.
 
 - **`src/`** is the library: plain ES modules with no dependencies. It covers the flight model, the launch run, the crash tumble, landing cues, the pilot's body, terrain following, wind and a flight recorder.
-- **`range/`** is the landing range: a small Three.js world with a ramp, a cliff and an open grass slope to launch from (C cycles them, R returns to the current one), a field with a bullseye, and a thermal. It is for flying the library by hand, with live tuning and every round recorded.
+- **`range/`** is the landing range: a small Three.js world with a ramp, a cliff and an open grass slope to launch from (C cycles them, R returns to the current one; on a touchscreen a thumb stick and buttons appear when it is touched), a field with a bullseye, and a thermal. It is for flying the library by hand, with live tuning and every round recorded.
 
 The units are metres, seconds and radians throughout.
 

@@ -55,6 +55,37 @@
     .toast.on { opacity: 1; }
     .loading { position: fixed; inset: 0; display: grid; place-items: center; background: #1a2027; font-weight: 700; letter-spacing: .2em; font-size: 14px; z-index: 5; }
     .loading[hidden] { display: none; }
+    .panel-hide { position: sticky; top: 0; float: right; margin: -4px -6px 0 8px; z-index: 1; }
+    .panel-show { position: absolute; right: 16px; top: 16px; pointer-events: auto; }
+    .panel:not(.hidden) ~ .panel-show { display: none; }
+    /* Touch: a thumb stick on the left, buttons on the right, shown while the screen is being touched. */
+    canvas#world { touch-action: none; }
+    .touch { position: absolute; inset: 0; display: none; pointer-events: none; touch-action: none; user-select: none; -webkit-user-select: none; }
+    body.touching .touch { display: block; }
+    body.touching .hints { display: none; }
+    .touch-zone { position: absolute; left: 0; bottom: 0; width: 50%; height: 70%; pointer-events: auto; }
+    .touch-base { position: absolute; left: 110px; top: calc(100% - 110px); width: 112px; height: 112px; margin: -56px 0 0 -56px; border-radius: 50%; background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.35); }
+    .touch-knob { position: absolute; left: 50%; top: 50%; width: 52px; height: 52px; margin: -26px 0 0 -26px; border-radius: 50%; background: rgba(255,255,255,.55); box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+    .touch-buttons { position: absolute; right: 18px; bottom: 18px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+    .touch button { pointer-events: auto; touch-action: none; min-height: 44px; padding: 8px 12px; background: rgba(16,20,24,.55); backdrop-filter: blur(6px); }
+    .touch button.down { background: rgba(242,140,40,.6); }
+    .touch .touch-action { width: 96px; height: 96px; border-radius: 50%; font-size: 15px; background: rgba(242,140,40,.45); border-color: var(--accent); }
+    .touch-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; max-width: 46vw; }
+    .touch-row button[hidden] { display: none; }
+    .touch-row button { min-height: 40px; padding: 6px 10px; font-size: 11px; }
+    .hud:has(.panel:not(.hidden)) .touch-buttons { display: none; }   /* (the panel open: its own controls, then Hide) */
+    @media (max-width: 760px), (max-height: 480px) {
+      .readout { left: 12px; top: 10px; gap: 12px; }
+      .readout div { min-width: 0; }
+      .readout b { font-size: 20px; } .readout .alpha b { font-size: 16px; }
+      .readout small { font-size: 9px; letter-spacing: .08em; }
+      .panel { right: 8px; top: 8px; width: min(290px, calc(100vw - 16px)); max-height: calc(100vh - 16px); }
+      .card { min-width: 0; width: calc(100vw - 32px); max-width: 400px; padding: 16px; }
+    }
+    @media (max-width: 480px) {
+      .panel-show { right: 8px; top: 8px; padding: 6px 9px; font-size: 16px; }
+      .panel-show span { display: none; }
+    }
   </style>
 </head>
 <body>
@@ -72,6 +103,7 @@
     <div class="hints" id="hints"></div>
     <div class="card" id="card"></div>
     <aside class="panel" id="panel">
+      <button class="panel-hide" id="panelHide" aria-label="Hide the panel">Hide ✕</button>
       <section>
         <h3>Physics</h3>
         <div class="wind-now" id="modelName">—</div>
@@ -112,9 +144,10 @@
         <h3 style="margin-top:12px">Flight recorder</h3>
         <div class="best" id="recorderStatus">—</div>
         <div class="buttons"><button id="btnMark">Mark moment (N / B)</button><button id="btnFlights">Download</button></div>
-        <p class="best" style="margin:8px 0 0">Hide this panel with <b>Tab</b> and read the windsock instead.</p>
+        <p class="best" style="margin:8px 0 0">Hide this panel (<b>Tab</b>) and read the windsock instead.</p>
       </section>
     </aside>
+    <button class="panel-show" id="panelShow" aria-label="Show the settings panel">⚙<span> Settings</span></button>
   </div>
   <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
   <script type="module" src="./main.js"></script>

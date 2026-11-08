@@ -21,6 +21,7 @@ import { createWindsock, createStreamer, createWindRod, createWindIndicators } f
 import { createSpeedStreaks } from './speed-streaks.js';
 import { createAudio } from './audio.js';
 import { createGamepad } from './gamepad.js';
+import { createTouchControls } from './touch.js';
 import { createLandingCues, dropToImpact } from '../src/landing-cues.js';
 import { createFlightRecorder } from '../src/flight-recorder.js';
 import { terrainHeight, slopeAt, landableAt, LAUNCH, MARK, THERMAL, WING_CARRY, DECK_BACK, DECK_LIP, deckY, CLIFF, SLOPE, RAMP_POSTS, LAUNCH_SITES, SITE_ORDER, rockTop, groundUnder } from './world.js';
@@ -195,7 +196,7 @@ function stepRunUp(dt) {
   // its deck, the cliff's edge; a slope carries on).
   const slope = here.fall(pos.x, pos.z, heading), edgeAhead = here.edgeAhead(pos.x, pos.z, heading);
   const airLift = sampleSoaringAir(pos.x, pos.y, pos.z, flightEnvironment).lift, run = windOnRun(wind, heading);
-  const controls = readFlightControls(keys, gamepad.state);
+  const controls = readFlightControls(keys, pad);
   const moved = stepLaunch(s, dt, { ...run, slope, edgeAhead, airLift, x: pos.x, y: pos.y, z: pos.z, heading, manual: REAL_LAUNCH, nose: controls.nose, balance: controls.roll, push: controls.push, go: !!s.go, jump: !!runUp.jump }); runUp.jump = false;
   pos.x += Math.sin(heading) * moved - Math.cos(heading) * (s.sideMoved || 0); pos.z += Math.cos(heading) * moved + Math.sin(heading) * (s.sideMoved || 0); heading += (s.turnRate || 0) * dt; speed = s.airspeed; pos.y = here.ground(pos.x, pos.z) + 2.3;
   if (s.failed) {   // it went wrong: the glider and pilot carry on as a body, from exactly this state, until they come to rest
@@ -228,7 +229,7 @@ function leaveGround(launchState, pose, dropped) {
     lift0: pose.lift, carry0: pose.carry, shoulders0: pose.shoulders, plant0: pose.plant, ground0: -pose.height / Math.cos(pose.pitch), tilt0: Math.tan(pose.pitch) - site().fall(pos.x, pos.z, heading),
     holdBar: dropped ? 0 : launchState.barHold,
     controls: createTakeoffControls({
-      heldPitch: readFlightControls(keys, gamepad.state).pitch,
+      heldPitch: readFlightControls(keys, pad).pitch,
       holdBar: dropped ? 0 : launchState.barHold,
       dropped, cliff: launchState.cliff, realistic: REAL_LAUNCH,
     }),
@@ -247,8 +248,11 @@ function overhead() { if (reloadIfStale()) return; tumble = wreck = null; pilotS
 // Its buttons arrive as key events: X (KeyE) starts over the field, D-pad up (KeyR) returns to launch, View (KeyM) toggles the panel.
 let padActive = false;
 const gamepad = createGamepad({ context: () => 'world', onActive: on => { padActive = on; }, onConnect: () => toast('Controller connected') });
+// On a touchscreen, a thumb stick that adds to the controller's left stick, and buttons that send keys.
+const touch = createTouchControls({ root: document.querySelector('.hud') });
+const pad = { get lx() { return gamepad.state.lx + touch.state.lx; }, get ly() { return gamepad.state.ly + touch.state.ly; }, get lt() { return gamepad.state.lt; }, get rt() { return gamepad.state.rt; } };
 function updateFlight(dt) {
-  const { roll: turn, pitch: pitchInput } = readFlightControls(keys, gamepad.state);
+  const { roll: turn, pitch: pitchInput } = readFlightControls(keys, pad);
   const fx = Math.sin(heading), fz = Math.cos(heading);
   const landable = pitchInput <= .1 || landableAt(pos.x, pos.z) || landableAt(pos.x + fx * 30, pos.z + fz * 30) || landableAt(pos.x + fx * 60, pos.z + fz * 60);
   const groundLandable = pos.y - terrainHeight(pos.x, pos.z) < 14 && landableAt(pos.x, pos.z);
@@ -347,7 +351,7 @@ function showCard(r) {
 function updateBest() { $('best').textContent = `Best round: ${best ? best + ' pts' : '—'} · rounds flown ${rounds}`; }
 const hud = createHud();
 function updateHud() {
-  hud.update({
+  const snapshot = {
     mode, speed, verticalSpeed,
     agl: pos.y - terrainHeight(pos.x, pos.z),
     distance: Math.hypot(pos.x - MARK.x, pos.z - MARK.z),
@@ -355,7 +359,8 @@ function updateHud() {
     padActive, pilotStand, launchPhase: runUp?.launch.phase,
     realLaunch: REAL_LAUNCH, launchSite, nextSite: nextSite(),
     wind: { speed: wind.speed, from: wind.from, meanSpeed: wind.meanSpeed, meanFrom: bearingFromDirection(wind.meanDirection) },
-  });
+  };
+  hud.update(snapshot); touch.update(snapshot);
   if (elapsed > toastUntil) $('toast').classList.remove('on');
 }
 // Panel: wind
@@ -380,13 +385,17 @@ addEventListener('pagehide', () => recorder.end({ outcome: 'abandoned' }));
 updateRecorderPanel();
 for (const el of [windSpeed, windDir, windVar, ...tuneInputs]) el.addEventListener('keydown', e => e.stopPropagation());
 
+// The panel: Tab, the controller's View, its own hide button and the settings button bring it back. A small screen starts without it.
+function togglePanel() { $('panel').classList.toggle('hidden'); }
+if (innerWidth < 760 || matchMedia('(pointer: coarse)').matches) $('panel').classList.add('hidden');
+$('panelHide').addEventListener('click', togglePanel); $('panelShow').addEventListener('click', togglePanel);
 addEventListener('keydown', e => {
-  if (e.code === 'Tab') { e.preventDefault(); $('panel').classList.toggle('hidden'); return; }
+  if (e.code === 'Tab') { e.preventDefault(); togglePanel(); return; }
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   audio.unlock(); if (e.repeat) return; keys.add(e.code);
   if (e.code === 'Space' || e.code === 'Enter') { if (runUp) { const s = runUp.launch; if (s.phase === 'balance') s.go = true; else if (s.phase === 'run') runUp.jump = true; } else if (mode === 'gliding') { pilotStand = !pilotStand; if (takeoff) takeoff.ownStance = true; } else launch(); }
   if (e.code === 'Digit1' || e.code === 'KeyE') overhead();
-  if (e.code === 'KeyM') $('panel').classList.toggle('hidden');
+  if (e.code === 'KeyM') togglePanel();
   if (e.code === 'KeyN' && !e.repeat) markMoment();
   if (e.code === 'KeyR') { standAtSite(); hideCard(); }
   if (e.code === 'KeyC' && mode !== 'gliding' && !runOut) { hideCard(); standAtSite(nextSite()); }

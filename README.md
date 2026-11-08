@@ -109,6 +109,29 @@ while (!launch.airborne && !launch.failed) launch.step(1 / 60, controls);
 
 The run steps the glider's own flight state through the flight model's own lift and drag, so the run and the flight are one physics: nothing changes at lift-off. The wind and rising air come from the world, and the ground of the run comes from the site. An Easy launch (the default) runs itself. In a Realistic one (`manual: true`), `controls` carries `balance` (A/D), `nose` (W/S), `go` and `jump` (Space). `launch.pose(stride)` says where to draw the wing and the pilot.
 
+### Glider presets and polars
+
+Presets are named wings for the force model, each with its own performance and handling:
+
+| Preset | Wing | Best glide | Min sink | Stall | Handling |
+|---|---|---|---|---|---|
+| `rogallo-1975` | 1970s standard Rogallo | 4.1 | 2.66 m/s | 28 km/h | slow and heavy in roll; it mushes rather than stalls |
+| `alpha-235` | Wills Wing Alpha 235 style trainer | 8.0 | 1.33 m/s | 28 km/h | light, quick roll and a very gentle stall |
+| `vintage-1985` | 1980s double-surface flex wing | 9.6 | 1.14 m/s | 33 km/h | moderate |
+| `intermediate` | the force model's defaults | 12.3 | 0.99 m/s | 35 km/h | the wing the range was tuned on |
+| `t2c-144` | Wills Wing T2C 144 style topless | 16.5 | 0.79 m/s | 35 km/h | heavy roll, firm bar, sharper stall |
+
+The figures are estimates for each class of wing, calibrated on the force model. They are not manufacturer data.
+
+```js
+const glider = createGlider({ world, preset: 't2c-144', config: { mass: 115 } });   // a preset, then your own changes on top
+glider.polar();          // { points: [{ airspeed, sink, glideRatio }], stallSpeed, trimSpeed, topSpeed, minSink, bestGlide, speedToFly() }
+glider.polar().speedToFly({ headwind: 5, sink: 1 });   // the airspeed for the flattest glide over the ground in that air
+glider.usePreset('alpha-235');   // switch wings in flight; glider.tune() changes it further, glider.tune() alone restores it
+```
+
+`npm run polars` prints the presets side by side. In the range, the panel's Glider section picks a preset (also `?glider=t2c-144`). Its polar chart redraws as you tune, shows the other wings faintly behind, and marks where the wing is flying now.
+
 ### Flight models
 
 A model is a plain object: `{ name, defaults, createState(init, config), step(state, input, dt, world, config, skim) }`. Two more members are optional: `performance(config)` and `scrape(...)`. Two models come with hgsim:
@@ -134,6 +157,7 @@ Any other object with the same shape drops in. `examples/extend.mjs` flies a poi
 | `wind.js` | Live wind: a mean speed and direction with a meander and gusts, and conversions to and from compass bearings. |
 | `recorder.js` | Records each round as samples and marked moments. `tools/flight-report.mjs` reads them back. |
 | `config.js` | `defineConfig` and `overridesOf`. |
+| `presets.js`, `polar.js` | The glider presets, and the polar of any glider (`polarOf`). |
 | `assists/` | The optional terrain-skimming assist, which keeps a low glider off the ground, and its drawn bank. |
 | `three/` (`hgsim/three`) | Three.js presentation: `createPilotRig` poses the pilot on the skinned glider model, and `createLandingCues` draws the shadow, height gauge and FLARE prompt. Each takes `THREE` as an argument. |
 
@@ -176,6 +200,7 @@ Open `http://127.0.0.1:4180/range/` after `npm start`.
 | `launch=real` | Realistic launches. |
 | `model=original` | The older flight model. |
 | `assist=on` | Terrain skimming. |
+| `glider` | A glider preset, such as `t2c-144` or `rogallo-1975`. The default is `intermediate`. |
 
 The side panel sets the wind and the main feel numbers live. Tab hides it.
 

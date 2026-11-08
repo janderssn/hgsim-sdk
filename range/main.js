@@ -7,12 +7,12 @@
  * This file is the app: the game loop, the launch run-up, the flight and its landing, the camera and the HUD. The world
  * it flies over is world.js (where the ground is) and scenery.js (how it is drawn); the simulation is the hgsim SDK in src/ (one createWorld, one createGlider).
  * Open http://127.0.0.1:4180/range/ (npm start). URL options: wind (m/s), from (bearing, degrees), launch=real,
- * model=original (the older flight model), assist=on (the game's terrain-skimming assist).
+ * model=original (the older flight model), assist=on (the game's terrain-skimming assist), glider (a preset id, such as t2c-144).
  */
 import * as THREE from './vendor/three.module.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { createPilotRig, addSailFlutter, createLandingCues } from '../src/three/index.js';
-import { createWorld, createGlider, forceModel, classicModel, bankedClearance, createTumble, stepTumble, scoreLanding, LANDING_RULES, dropToImpact,
+import { createWorld, createGlider, forceModel, classicModel, PRESETS, bankedClearance, createTumble, stepTumble, scoreLanding, LANDING_RULES, dropToImpact,
   createFlightRecorder, createWind, describeWind, compassName, directionFromBearing, bearingFromDirection } from '../src/index.js';
 import { createLaunch, launchPose, shoulderPivot } from '../src/launch.js';
 import { createWindsock, createStreamer, createWindRod, createWindIndicators } from './wind-indicators.js';
@@ -23,6 +23,7 @@ import { createTouchControls } from './touch.js';
 import { createFullscreen } from './fullscreen.js';
 import { terrainHeight, slopeAt, landableAt, LAUNCH, MARK, THERMAL, WING_CARRY, DECK_BACK, DECK_LIP, deckY, CLIFF, SLOPE, RAMP_POSTS, LAUNCH_SITES, SITE_ORDER, rockTop, groundUnder } from './world.js';
 import { buildScenery } from './scenery.js';
+import { createPolarChart } from './polar-chart.js';
 import { createSimulationLoop } from './simulation-loop.js';
 import { readFlightControls, createTakeoffControls } from './controls.js';
 import { createRenderQuality } from './rendering.js';
@@ -121,7 +122,9 @@ const SKIM_ASSIST = MODEL === 'original' || new URLSearchParams(location.search)
 const REAL_LAUNCH = new URLSearchParams(location.search).get('launch') === 'real';
 // The SDK's world and glider (src/): the range's terrain, its live wind and its thermal, and the one glider flown over them.
 const world = createWorld({ terrain: terrainHeight, wind, thermals: [THERMAL], air: { thermalCeiling: 1500, thermalFadeStart: 1150 } });
-const glider = createGlider({ world, model: MODEL === 'original' ? classicModel : forceModel, skim: SKIM_ASSIST && { clearance: bankedClearance } });
+// ?glider picks the wing (src/presets.js); the force model's own defaults are the 'intermediate' preset.
+const PRESET = MODEL === 'original' ? null : (PRESETS[new URLSearchParams(location.search).get('glider')] ?? PRESETS.intermediate);
+const glider = createGlider({ world, model: MODEL === 'original' ? classicModel : forceModel, preset: PRESET, skim: SKIM_ASSIST && { clearance: bankedClearance } });
 const keys = new Set();
 // New code on the server is picked up on its own, but never in the air or over a landing result: the page reloads as soon as
 // you are standing at launch, or when you next start a round.
@@ -366,9 +369,33 @@ $('windCalm').addEventListener('click', () => { wind.set({ speed: 0 }); syncWind
 // Panel: tuning
 const tuneInputs = [...document.querySelectorAll('[data-tune]')];
 function syncTunePanel() { const t = glider.config; for (const input of tuneInputs) { const key = input.dataset.tune, deg = !!input.dataset.deg, v = deg ? t[key] / DEG : t[key]; input.value = v; $('t-' + key).textContent = deg ? (Math.round(v * 10) / 10) + '°' : key === 'cd0' ? Number(v).toFixed(3) : Number(v).toFixed(1); } }
-for (const input of tuneInputs) input.addEventListener('input', () => { const key = input.dataset.tune, v = Number(input.value); glider.tune({ [key]: input.dataset.deg ? v * DEG : v }); syncTunePanel(); });
-$('tuneReset').addEventListener('click', () => { glider.tune(); syncTunePanel(); toast('Defaults restored'); });
+for (const input of tuneInputs) input.addEventListener('input', () => { const key = input.dataset.tune, v = Number(input.value); glider.tune({ [key]: input.dataset.deg ? v * DEG : v }); syncTunePanel(); drawPolar(true); });
+$('tuneReset').addEventListener('click', () => { glider.tune(); syncTunePanel(); drawPolar(true); toast(glider.preset ? `${glider.preset.name} restored` : 'Defaults restored'); });
 $('tuneCopy').addEventListener('click', () => { const diff = glider.overrides; navigator.clipboard?.writeText(JSON.stringify(diff)); toast(Object.keys(diff).length ? 'Copied: ' + JSON.stringify(diff) : 'Nothing changed from the defaults', 4); });
+// Panel: the glider. A preset picker, what the wing is, and its polar, live: tuning moves the curve, and the green dot is where
+// the wing is flying now (its own sink at this drag, so turns, dives and the flare are seen leaving the steady glide).
+const presetSelect = $('preset'), polarChart = createPolarChart($('polar'));
+for (const p of Object.values(PRESETS)) presetSelect.add(new Option(`${p.name} · ${p.era}`, p.id));
+const otherPolars = Object.values(PRESETS).map(p => ({ id: p.id, polar: createGlider({ preset: p }).polar() }));
+let polarNow = null, polarDrawn = 0;
+function describePreset() {
+  const p = glider.preset; presetSelect.value = p?.id ?? '';
+  $('presetInfo').textContent = p ? p.description : 'The original physics: its own fixed polar.';
+}
+function drawPolar(changed = false) {
+  if (changed || !polarNow) {
+    polarNow = glider.polar({ maxSpeed: 120 / 3.6 });
+    const k = v => (v * 3.6).toFixed(0);
+    $('polarStats').textContent = polarNow ? `stall ${k(polarNow.stallSpeed)} · trim ${k(polarNow.trimSpeed)} km/h · min sink ${polarNow.minSink.sink.toFixed(2)} m/s at ${k(polarNow.minSink.airspeed)} · best glide ${polarNow.bestGlide.glideRatio.toFixed(1)} at ${k(polarNow.bestGlide.airspeed)} km/h` : '';
+  }
+  polarChart.draw({ polar: polarNow, others: otherPolars.filter(o => o.id !== glider.preset?.id), now: mode === 'gliding' ? { airspeed: soaring.airspeed, sink: soaring.sinkRate } : null });
+}
+presetSelect.addEventListener('change', () => {
+  glider.usePreset(presetSelect.value); describePreset(); syncTunePanel(); drawPolar(true);
+  const q = new URLSearchParams(location.search); q.set('glider', presetSelect.value); history.replaceState(null, '', '?' + q);
+  toast(glider.preset.name, 1.6); $('world').focus();
+});
+describePreset();
 for (const [id, name] of [['btnLaunch', 'ramp'], ['btnCliff', 'cliff'], ['btnSlope', 'slope']]) $(id).addEventListener('click', () => { standAtSite(name); launch(); $('world').focus(); });
 $('btnOverhead').addEventListener('click', () => { overhead(); $('world').focus(); });
 $('btnMark').addEventListener('click', () => { markMoment(); $('world').focus(); });
@@ -498,6 +525,7 @@ function renderFrame(dt, alpha) {
   birds.forEach((b, i) => { const a = elapsed * (.12 + i * .01) + i * 1.9, r = 60 + i * 11; b.position.set(THERMAL.x + Math.cos(a) * r, terrainHeight(THERMAL.x, THERMAL.z) + 170 + i * 22 + Math.sin(a * 2) * 6, THERMAL.z + Math.sin(a) * r); b.rotation.set(0, -a, -.2); });
   sun.target.position.set(pos.x, pos.y, pos.z); sun.position.set(pos.x - 900, pos.y + 1300, pos.z + 700);
   updateHud();
+  if (elapsed - polarDrawn > .2 && !$('panel').classList.contains('hidden')) { polarDrawn = elapsed; drawPolar(); }
   { const f = mode === 'gliding', g = terrainHeight(pos.x, pos.z); cues.update({ flying: f, x: pos.x, z: pos.z, ground: g, feet: pos.y - g - 2.3, speedRatio: speed / glider.performance.stallSpeed(), bar: soaring.bar || 0, sink: -verticalSpeed, landable: slopeAt(pos.x, pos.z) < .42, speed, dropToImpact: f && verticalSpeed < -3 ? dropToImpact({ x: pos.x, feetY: pos.y - 2.3, z: pos.z, vx: Math.sin(heading) * Math.cos(soaring.pathAngle || 0) * speed + (soaring.windX || 0), vy: verticalSpeed, vz: Math.cos(heading) * Math.cos(soaring.pathAngle || 0) * speed + (soaring.windZ || 0), terrainHeight }) : null }); }
   { const flying = mode === 'gliding', cg = Math.cos(soaring.pathAngle || 0); streaks.update(camera.position, { x: Math.sin(heading) * cg, y: Math.sin(soaring.pathAngle || 0), z: Math.cos(heading) * cg }, flying ? speed : 0, dt);
     audio.update({ mode: flying ? 'gliding' : 'foot', paused: false, speed, verticalSpeed, lift: flying ? soaring.lift : 0, thermalLift: flying ? soaring.thermalLift : 0, ridgeLift: flying ? soaring.ridgeLift : 0, clearance: pos.y - terrainHeight(pos.x, pos.z), skim: flying ? clamp(soaring.skimAssist || 0, 0, 1) : 0, stalled: flying && !!soaring.stalled, stallWarning: flying && !!soaring.stallWarning, pullUp: flying && !!soaring.pullUp, bank, walking: false, sprinting: false, biome: 'alpine', nearSea: 0, altitude: pos.y }, dt); }
@@ -521,10 +549,10 @@ addEventListener('visibilitychange', () => {
   resetMotion();
 });
 
-standAtSite('ramp'); syncWindPanel(); syncTunePanel(); updateBest();
+standAtSite('ramp'); syncWindPanel(); syncTunePanel(); drawPolar(true); updateBest();
 { const other = new URLSearchParams(location.search); if (MODEL === 'original') other.delete('model'); else other.set('model', 'original'); const q = other.toString();
   $('modelName').textContent = MODEL === 'original' ? 'Original physics' : 'Force model'; $('modelSwitch').textContent = MODEL === 'original' ? 'Switch to force model' : 'Switch to original physics'; $('modelSwitch').href = location.pathname + (q ? '?' + q : '');
-  $('feelSection').hidden = MODEL === 'original'; }
+  $('feelSection').hidden = MODEL === 'original'; $('preset').disabled = MODEL === 'original'; }
 { const other = new URLSearchParams(location.search); if (SKIM_ASSIST) other.delete('assist'); else other.set('assist', 'on'); const q = other.toString();
   $('assistName').textContent = SKIM_ASSIST ? 'Skim assist on' : 'Skim assist off'; $('assistSwitch').textContent = SKIM_ASSIST ? 'Turn skim assist off' : 'Turn skim assist on'; $('assistSwitch').href = location.pathname + (q ? '?' + q : ''); $('assistSwitch').parentElement.hidden = MODEL === 'original'; }
 { const other = new URLSearchParams(location.search); if (REAL_LAUNCH) other.delete('launch'); else other.set('launch', 'real'); const q = other.toString();

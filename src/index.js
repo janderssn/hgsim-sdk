@@ -5,7 +5,8 @@
  * - createWorld: the ground, the wind and the air's rise (thermals, ridge lift, your own lift sources).
  * - createGlider: one glider in a world: its flight state, its config and the model that steps it, from the launch run
  *   (glider.launch) through the flight (glider.step) to the ground (glider.contact, glider.land).
- * - Flight models: forceModel (the default) and classicModel; any object with the same shape is one too.
+ * - Flight models: forceModel (the default) and classicModel; any object with the same shape is one too. Presets (PRESETS)
+ *   are named wings for the force model, from a 1970s Rogallo to a topless competition wing; glider.polar() charts any of them.
  *
  * Around it, each usable on its own: launch.js (the run), landing.js (judging and scoring touchdowns, approach helpers),
  * tumble.js (a crash as a rigid body), wind.js (live, gusting wind), recorder.js (recording flights), config.js.
@@ -13,6 +14,8 @@
  */
 export { createWorld, AIR_DEFAULTS } from './world.js';
 export { createGlider } from './glider.js';
+export { PRESETS, getPreset } from './presets.js';
+export { polarOf } from './polar.js';
 export { defineConfig, overridesOf } from './config.js';
 export { forceModel, GLIDER_DEFAULTS, performance, createFlightState, stepFlight } from './flight.js';
 export { classicModel, CLASSIC_DEFAULTS } from './models/classic.js';

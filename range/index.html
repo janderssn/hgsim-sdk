@@ -45,6 +45,10 @@
     .panel h3 { margin: 0 0 8px; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); }
     .panel h3 + .row { margin-top: 4px; }
     .panel section { margin-bottom: 14px; }
+    .panel select { width: 100%; background: rgba(0,0,0,.35); color: var(--ink); border: 1px solid rgba(255,255,255,.2); border-radius: 6px; padding: 5px 6px; font: inherit; }
+    .panel .polar { display: block; width: 100%; height: 170px; margin: 6px 0 2px; }
+    .panel .preset-info { margin: 6px 0 0; line-height: 1.35; }
+    .polar-key { font-size: 11px; } .polar-key .k-now { color: #6dff91; } .polar-key .k-min { color: #7fd0ff; } .polar-key .k-best { color: var(--ink); } .polar-key .k-other { color: rgba(244,241,234,.35); }
     .row { display: grid; grid-template-columns: 1fr 64px; align-items: center; gap: 8px; margin: 6px 0; }
     .row label { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; }
     .row label span { color: var(--dim); font-variant-numeric: tabular-nums; }
@@ -147,11 +151,19 @@
         <div class="row wide"><label>Variability (meander &amp; gusts) <span id="windVarV"></span></label><input id="windVar" type="range" min="0" max="1.5" step="0.1"></div>
         <div class="buttons"><button id="windRandom">Random wind</button><button id="windCalm">Calm</button></div>
       </section>
+      <section id="gliderSection">
+        <h3>Glider</h3>
+        <div class="row wide"><select id="preset" aria-label="Glider preset"></select></div>
+        <p class="best preset-info" id="presetInfo"></p>
+        <canvas id="polar" class="polar" aria-label="Polar: sink rate against airspeed"></canvas>
+        <div class="best polar-key"><span class="k-now">●</span> now <span class="k-min">●</span> min sink <span class="k-best">●</span> best glide <span class="k-other">—</span> other wings</div>
+        <div class="best" id="polarStats"></div>
+      </section>
       <section id="feelSection">
         <h3>Feel (live tuning)</h3>
-        <div class="row wide"><label>All-up mass (kg) <span id="t-mass"></span></label><input data-tune="mass" type="range" min="85" max="140" step="1"></div>
-        <div class="row wide"><label>Parasite drag CD0 <span id="t-cd0"></span></label><input data-tune="cd0" type="range" min="0.025" max="0.07" step="0.001"></div>
-        <div class="row wide"><label>Bar fully in: angle of attack <span id="t-alphaMin"></span></label><input data-tune="alphaMin" type="range" min="-3" max="3" step="0.1" data-deg="1"></div>
+        <div class="row wide"><label>All-up mass (kg) <span id="t-mass"></span></label><input data-tune="mass" type="range" min="75" max="140" step="1"></div>
+        <div class="row wide"><label>Parasite drag CD0 <span id="t-cd0"></span></label><input data-tune="cd0" type="range" min="0.015" max="0.09" step="0.001"></div>
+        <div class="row wide"><label>Bar fully in: angle of attack <span id="t-alphaMin"></span></label><input data-tune="alphaMin" type="range" min="-3" max="7" step="0.1" data-deg="1"></div>
         <div class="row wide"><label>Bar pressure limit (g) <span id="t-loadLimit"></span></label><input data-tune="loadLimit" type="range" min="1.3" max="3" step="0.1"></div>
         <div class="row wide"><label>Roll response (rad/s) <span id="t-rollFrequency"></span></label><input data-tune="rollFrequency" type="range" min="1.2" max="4" step="0.1"></div>
         <div class="row wide"><label>Push-out time at stall (s) <span id="t-barOutSeconds"></span></label><input data-tune="barOutSeconds" type="range" min="0.3" max="2" step="0.1"></div>
@@ -161,7 +173,7 @@
         <div class="row wide"><label>Hands-off pull-out (g) <span id="t-freeLoad"></span></label><input data-tune="freeLoad" type="range" min="1.1" max="2.2" step="0.1"></div>
         <div class="row wide"><label>Scrape up to sink (m/s) <span id="t-scrapeSink"></span></label><input data-tune="scrapeSink" type="range" min="0" max="7" step="0.5"></div>
         <div class="row wide"><label>Max bank <span id="t-maxBank"></span></label><input data-tune="maxBank" type="range" min="40" max="70" step="1" data-deg="1"></div>
-        <div class="buttons"><button id="tuneReset">Reset to defaults</button><button id="tuneCopy">Copy values</button></div>
+        <div class="buttons"><button id="tuneReset">Reset to the preset</button><button id="tuneCopy">Copy values</button></div>
       </section>
       <section>
         <h3>Round</h3>

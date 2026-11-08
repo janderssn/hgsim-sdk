@@ -19,6 +19,8 @@ import { LAUNCH_DEFAULTS, createLaunch, stepLaunch, launchPose, windOnRun, shoul
 import { createTumble } from './tumble.js';
 import { updateSkimPose } from './assists/skim-pose.js';
 import { finite } from './math.js';
+import { getPreset } from './presets.js';
+import { polarOf } from './polar.js';
 
 const MODEL_KEYS = ['name', 'defaults', 'createState', 'step'];
 /** A flat site with no edge: the launch runs on the world's own terrain until the wing flies. */
@@ -28,15 +30,23 @@ const OPEN_GROUND = Object.freeze({ fall: () => 0, edgeAhead: () => Infinity });
  * options:
  * - world: createWorld(...) (default: flat, calm).
  * - model: a flight model (default forceModel).
- * - config: overrides of the model's defaults, such as { mass: 100 }.
+ * - preset: a glider preset (presets.js), by id such as 't2c-144' or as the object: the wing's own numbers (force model).
+ * - config: overrides of the model's defaults (or of the preset), such as { mass: 100 }.
  * - at: the starting flight state, such as { x, y, z, heading, airspeed }.
  * - skim: the terrain-skimming assist: false (default), true, or { clearance: m or (state, world) => m }.
  * - rules: LANDING_RULES overrides for judging and scoring touchdowns.
  */
-export function createGlider({ world = createWorld(), model = forceModel, config = {}, at = {}, skim = false, rules = {} } = {}) {
+export function createGlider({ world = createWorld(), model = forceModel, preset = null, config = {}, at = {}, skim = false, rules = {} } = {}) {
   for (const key of MODEL_KEYS) if (!model || !(key in model)) throw new TypeError(`createGlider: the model has no "${key}"`);
   if (typeof world?.airAt !== 'function') throw new TypeError('createGlider: world must come from createWorld()');
-  let cfg = defineConfig(model.defaults, config, `${model.name} config`), perf = null;
+  const name = `${model.name} config`;
+  const baseOf = p => {
+    if (!p) return model.defaults;
+    if (model !== forceModel) throw new TypeError('createGlider: presets are configs of the force model');
+    return defineConfig(model.defaults, p.config, name);
+  };
+  let current = preset === null ? null : typeof preset === 'string' ? getPreset(preset) : preset;
+  let base = baseOf(current), cfg = defineConfig(base, config, name), perf = null;
   const landingRules = defineConfig(LANDING_RULES, rules, 'rules');
   const skimOptions = !skim ? null : { clearance: typeof skim === 'object' && typeof skim.clearance === 'function'
     ? state => skim.clearance(state, world) : typeof skim === 'object' ? skim.clearance : undefined };
@@ -48,8 +58,10 @@ export function createGlider({ world = createWorld(), model = forceModel, config
     get state() { return state; },
     /** The frozen config the glider flies on. */
     get config() { return cfg; },
-    /** What differs from the model's defaults: enough to reproduce this tuning with createGlider({ config }). */
-    get overrides() { return overridesOf(cfg, model.defaults); },
+    /** The preset flown (null: the model's defaults). */
+    get preset() { return current; },
+    /** What differs from the preset (or the model's defaults): with the preset, enough to reproduce this tuning. */
+    get overrides() { return overridesOf(cfg, base); },
     get rules() { return landingRules; },
     /** Speeds, sink and glide for the current config (stallSpeed, trimSpeed, sink, glideAngle, glideRatio, ...). */
     get performance() { return perf ??= model.performance?.(cfg) ?? null; },
@@ -63,11 +75,19 @@ export function createGlider({ world = createWorld(), model = forceModel, config
       if (skimOptions) updateSkimPose(state, dt, world); else state.visualBank = state.bank;
       return state;
     },
-    /** Changes config values in flight (the rest stay as they are); tune() with no argument restores the defaults. */
+    /** Changes config values in flight (the rest stay as they are); tune() with no argument restores the preset or defaults. */
     tune(patch) {
-      cfg = patch ? defineConfig(cfg, patch, `${model.name} config`) : model.defaults; perf = null;
+      cfg = patch ? defineConfig(cfg, patch, name) : base; perf = null;
       return glider;
     },
+    /** Switches to another preset (by id or object; null for the model's defaults) in flight, dropping any tuning. */
+    usePreset(next) {
+      const p = next === null ? null : typeof next === 'string' ? getPreset(next) : next;
+      base = baseOf(p); current = p; cfg = base; perf = null;
+      return glider;
+    },
+    /** The polar for the current config (polar.js): points, stall, trim, top speed, min sink, best glide, speedToFly(). */
+    polar(options) { return glider.performance ? polarOf(glider.performance, options) : null; },
     /** Starts over with a fresh flight state (as createGlider's at). */
     reset(init = {}) { state = model.createState({ ...init }, cfg); return glider; },
     /** Moves the glider without changing how it flies. */

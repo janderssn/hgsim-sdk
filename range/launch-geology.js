@@ -9,7 +9,9 @@ const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a)); return t * t *
 
 const MIN_X = -176, MAX_X = 184;
 const JOINTS = [-167, -149, -128, -111, -91, -73, -52, -31, -14, 10, 26, 55, 74, 94, 119, 140, 163, 179];
-const BACK_ROWS = [190, 130, 88, 56, 32, 18, 9, 3, 0];
+// More samples around the walking shelf avoid long triangular ramps behind it.
+const BACK_ROWS = [...new Set([190, 166, 142, 130, 118, 106, 94, 88,
+  ...Array.from({ length: 30 }, (_, i) => 87 - i * 3), 56, 32, 18, 9, 3, 0])].sort((a, b) => b - a);
 // Paired rows form broken shelves between steep jointed slabs. Neither the
 // shelves nor the long vertical fractures form regular horizontal rings.
 const FACE_ROWS = [
@@ -20,7 +22,7 @@ const FACE_ROWS = [
 
 function interpolateKnots(knots, x) {
   for (let i = 1; i < knots.length; i++) {
-    if (x <= knots[i][0]) return lerp(knots[i - 1][1], knots[i][1], clamp((x - knots[i - 1][0]) / (knots[i][0] - knots[i - 1][0])));
+    if (x <= knots[i][0]) return lerp(knots[i - 1][1], knots[i][1], smooth(0, 1, (x - knots[i - 1][0]) / (knots[i][0] - knots[i - 1][0])));
   }
   return knots.at(-1)[1];
 }
@@ -92,14 +94,25 @@ export function createLaunchGeology({ terrainHeight, noise, rampTop, deckHeight,
         const lift = interpolateKnots([[32, .9], [56, .47], [88, .1]], back);
         y = lerp(ground - .06, crest.height, lift);
         y += (noise(x / 15 + 9, z / 12 + 2) - .5) * 1.5 * crest.end;
+        y += rampShelf * (1 - smooth(56, 88, back)) * 1.1;
       } else {
-        const rise = back === 18 ? .9 : back === 9 ? .45 : 0;
+        const rise = interpolateKnots([[0, 0], [9, .45], [18, .9], [32, 0]], back);
         y = crest.height + rise * crest.end + edgeChip * (1 - back / 24);
         // The cliff's usable shelf is small and integrated into the irregular
         // crest. The pilot starts on the exact height of the rendered face.
         if (back <= 9) y = lerp(y, cliff.ground, cliffShelf);
       }
       if (back <= 32) y = lerp(y, deckHeight(z) - 1.6, rampShelf);
+      // A used launch preparation shelf is part of the physical rock, with a
+      // broad worn centre and rounded shoulders rather than a pointed summit.
+      const stagingRadius = Math.hypot((x + 30) / 1.13, z + 620);
+      const staging = (1 - smooth(8, 19, stagingRadius)) * smooth(4, 12, back);
+      y = lerp(y, 250.5 + .07 * Math.sin(x * .31) * Math.sin(z * .29), staging);
+      // Long weathered ribs give the apron volume at the scale of real rock.
+      const relief = (noise(x / 7.2 + 9, z / 6.3 + 2) - .5) * 2.4
+        + (noise(x / 2.7 - 3, z / 3.1 + 7) - .5) * .32;
+      y += relief * smooth(2, 15, back) * (1 - smooth(65, 130, back))
+        * (1 - Math.max(rampShelf, cliffShelf, staging)) * crest.end;
       // Side ends disappear into the same terrain, without a vertical endcap.
       y = lerp(ground - .08, y, crest.end);
       const soilPatch = smooth(.43, .7, noise(x / 17 - 4, z / 13 + 9));

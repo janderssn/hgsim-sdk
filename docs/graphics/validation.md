@@ -1,4 +1,6 @@
-# Graphics validation — Golden Range
+# Graphics validation — Golden Range (previous pass)
+
+See [current alpine rebuild validation](alpine-rebuild/validation.md) for the latest scene.
 
 The current art pass is an illustrated alpine direction with an authored colour
 grade, painted terrain, curved botanical cover, varied canopy and four composed

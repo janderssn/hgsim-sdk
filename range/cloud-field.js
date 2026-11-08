@@ -5,10 +5,10 @@
  */
 export const CLOUD_FIELD = Object.freeze({
   period: 12800,
-  shapePeriod: 1600,
+  shapePeriod: 3200,
   bottom: 2300,
-  top: 3550,
-  extinction: .0052,
+  top: 3100,
+  extinction: .0065,
   windX: 4.2,
   windZ: 1.3,
   // Initial authored phase: the flight corridor opens under clear sky while
@@ -60,14 +60,23 @@ export function bakeCloudShape(size = 64) {
     const u = (x + .5) / size, v = (y + .5) / size, w = (z + .5) / size;
     const broad = noise(u * 4, v * 4, w * 4, 4, 719);
     const middle = noise(u * 8, v * 8, w * 8, 8, 911);
+    // Rounded cellular lobes carry the silhouette; lattice noise only
+    // modulates them, avoiding large squared-off cloud banks.
     const cellular = worley(u * 6, v * 6, w * 6, 6);
     const fine = noise(u * 16, v * 16, w * 16, 16, 1237);
     const offset = ((z * size + y) * size + x) * 2;
-    data[offset] = Math.round(clamp(broad * .62 + middle * .18 + cellular * .2) * 255);
+    data[offset] = Math.round(clamp(broad * .30 + middle * .12 + cellular * .58) * 255);
     data[offset + 1] = Math.round(clamp(fine * .55 + middle * .45) * 255);
   }
   return { size, data };
 }
+
+const CLOUD_BANKS = [
+  [.12, .15, .075, .055], [.37, .09, .10, .06], [.68, .19, .075, .045],
+  [.88, .39, .08, .06], [.18, .52, .085, .065], [.49, .45, .07, .05],
+  [.70, .65, .09, .06], [.30, .78, .10, .05], [.93, .85, .085, .055],
+  [.55, .93, .09, .05], [.04, .94, .065, .045],
+];
 
 /** Kilometre-scale cumulus groups with genuine clear corridors between banks. */
 export function bakeCloudWeather(size = 128) {
@@ -75,11 +84,16 @@ export function bakeCloudWeather(size = 128) {
   const data = new Uint8Array(size * size);
   for (let z = 0; z < size; z++) for (let x = 0; x < size; x++) {
     const u = (x + .5) / size, v = (z + .5) / size;
-    const group = noise(u * 5, 2.7, v * 5, 5, 4517);
-    const cell = noise(u * 13, 1.3, v * 13, 13, 9281);
-    // Stronger coverage creates a deeper/higher bank, rather than uniformly
-    // scaling a noisy horizontal slab into a featureless overcast ceiling.
-    data[z * size + x] = Math.round(smooth(.48, .75, group * .8 + cell * .2) * 255);
+    // Separate rounded banks with broad clear corridors. Weather only defines
+    // the envelope; the shared 3D medium supplies the billowed silhouette.
+    let coverage = 0;
+    for (const [cx, cz, rx, rz] of CLOUD_BANKS) {
+      const dx = Math.min(Math.abs(u - cx), 1 - Math.abs(u - cx)) / (rx * 1.5);
+      const dz = Math.min(Math.abs(v - cz), 1 - Math.abs(v - cz)) / (rz * 1.15);
+      const radius = Math.hypot(dx, dz);
+      coverage = Math.max(coverage, 1 - smooth(.30, 1.0, radius));
+    }
+    data[z * size + x] = Math.round(coverage * 255);
   }
   return { size, data };
 }
@@ -110,9 +124,9 @@ export function sampleCloudDensity(shape, weather, x, y, z) {
   if (profile <= 0 || coverage < .08) return 0;
   const base = sample3(shape, x / shapePeriod, y / shapePeriod, z / shapePeriod);
   const erosion = sample3(shape, x / shapePeriod, y / shapePeriod, z / shapePeriod, 1);
-  const threshold = .70 - coverage * .27;
-  const mass = smooth(threshold, threshold + .13, base);
-  return clamp(mass * profile - (1 - erosion) * .13) * (.42 + coverage * .58);
+  const threshold = .58 - coverage * .25;
+  const mass = smooth(threshold, threshold + .15, base);
+  return clamp(mass * profile - (1 - erosion) * .025) * (.42 + coverage * .58);
 }
 
 /** Sun-ray intersection with y=0. The same texture shades every object height. */
@@ -155,8 +169,8 @@ export const CLOUD_DENSITY_GLSL = /* glsl */`
     float profile = smoothstep(0.0, 0.12, h) * (1.0 - smoothstep(bankTop * 0.65, bankTop, h));
     if (profile <= 0.0 || coverage < 0.08) return 0.0;
     vec2 shape = texture(aerialCloudShape, p / ${CLOUD_FIELD.shapePeriod.toFixed(1)}).rg;
-    float threshold = 0.70 - coverage * 0.27;
-    float mass = smoothstep(threshold, threshold + 0.13, shape.r);
-    return clamp(mass * profile - (1.0 - shape.g) * 0.13, 0.0, 1.0) * (0.42 + coverage * 0.58);
+    float threshold = 0.58 - coverage * 0.25;
+    float mass = smoothstep(threshold, threshold + 0.15, shape.r);
+    return clamp(mass * profile - (1.0 - shape.g) * 0.025, 0.0, 1.0) * (0.42 + coverage * 0.58);
   }
 `;

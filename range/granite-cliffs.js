@@ -11,8 +11,11 @@ export function createLaunchEscarpmentGeometry(THREE, source = LAUNCH_GEOLOGY) {
     group.push(source.indices[face * 3], source.indices[face * 3 + 1], source.indices[face * 3 + 2]);
   }
   geometry.setIndex([...ordered[0], ...ordered[1]]);
+  // Area-weighted normals preserve broad rounded shoulders. The positions
+  // still use the same exact contact triangles; hard shading every triangle
+  // had made the apron appear as a row of artificial pyramids.
+  geometry.computeVertexNormals();
   const flat = geometry.toNonIndexed();
-  flat.computeVertexNormals();
   flat.addGroup(0, ordered[0].length, 0);
   flat.addGroup(ordered[0].length, ordered[1].length, 1);
   flat.computeBoundingBox(); flat.computeBoundingSphere();

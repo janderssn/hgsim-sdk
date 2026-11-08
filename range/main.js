@@ -107,7 +107,7 @@ const atmosphere = createAtmosphere(THREE, scene, {
   sunDirection, sky: false, terrain: heightfield, material: surfaces.mountain,
 });
 surfaces.setMountainTerrain?.(atmosphere.terrainNormal, {
-  ...atmosphere.terrainBounds, treeLine: 1050, snowLine: 1700,
+  ...atmosphere.terrainBounds, treeLine: 980, snowLine: 1050,
 });
 // New story props are authored locally; the legacy mesh library is no longer
 // on startup. Procedural conifers remain available if the forest pack fails.
@@ -115,7 +115,7 @@ const models = forestAssets
   ? { source: 'illustrated-kit', treeVariants: [], props: {} }
   : createEnvironmentModels(THREE);
 const { birds, setQuality: setSceneQuality, updateDetail, forestShadowMap, forestBounds,
-  forestCoverage, forestCoverageAt, forestCoverageBounds, forestStats } =
+  forestCoverage, forestCoverageAt, forestCoverageBounds, forestStats, boulderCoverageAt } =
   buildScenery(THREE, scene, { models, materials: surfaces, sunDirection, forestAssets, aerial,
     streamedCover: true, forestExclusionAt: alpineSiteExclusionAt, legacyProps: false });
 surfaces.setForestShadowMap?.(forestShadowMap, forestBounds);
@@ -124,7 +124,7 @@ surfaces.setAtmosphere?.(aerial.shared);
 const renderFinish = createRenderFinish(THREE, renderer, scene, camera);
 function sceneEcologyAt(x, z) {
   const base = sampleTerrainEcology(x, z), site = sampleAlpineSiteGround(x, z);
-  return { ...base, path: Math.max(base.path, site.path, site.occupied || 0, site.clearing * .20) };
+  return { ...base, path: Math.max(base.path, site.path, site.occupied || 0, site.clearing * .20, boulderCoverageAt?.(x, z) || 0) };
 }
 const groundCover = createGroundCover(THREE, scene, { terrainHeight, groundUnder, rockTop,
   forestCoverage: forestCoverageAt, ecologyAt: sceneEcologyAt, materials: { pebbles: surfaces.granite } });

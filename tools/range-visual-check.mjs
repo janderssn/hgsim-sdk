@@ -55,7 +55,7 @@ try {
   await page.send('Fetch.disable');
   await page.send('Fetch.enable',{patterns:[
     {urlPattern:'*assets/forest/*',requestStage:'Request'},
-    {urlPattern:'*yosemite-heightfield.bin*',requestStage:'Request'},
+    {urlPattern:'*sierra-heightfield.bin*',requestStage:'Request'},
     {urlPattern:'*assets/materials/*',requestStage:'Request'},
   ]});
   await open();

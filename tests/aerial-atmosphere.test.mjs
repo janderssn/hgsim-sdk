@@ -32,6 +32,21 @@ test('spectral aerial extinction has correct distance, altitude and reciprocal-p
   atmosphereTransmittance(distance, start, end).forEach((channel, i) => near(channel, Math.exp(-opticalDepth[i]), 1e-9));
 });
 
+test('illustrated aerial depth preserves the near corridor and smoothly separates distant slopes', () => {
+  const style = { style: 'illustrated-alpine' };
+  assert.deepEqual(atmosphereTransmittance(500, 200, 300, style), atmosphereTransmittance(500, 200, 300));
+  const distant = atmosphereTransmittance(3500, 200, 1000, style);
+  const clear = atmosphereTransmittance(3500, 200, 1000);
+  assert.ok(distant.every((channel, i) => channel > 0 && channel < clear[i] * .8));
+  const reverse = atmosphereTransmittance(3500, 1000, 200, style);
+  distant.forEach((channel, i) => near(channel, reverse[i]));
+  for (const distance of [700, 3000]) {
+    const before = atmosphereTransmittance(distance - .01, 200, 500, style);
+    const after = atmosphereTransmittance(distance + .01, 200, 500, style);
+    before.forEach((channel, i) => near(channel, after[i], .00001));
+  }
+});
+
 test('single-scattering sky is finite at the horizon and sun-aligned across sky and IBL', () => {
   for (const elevation of [-1, -.035, -1e-9, 0, .001, .5, 1]) {
     const value = sampleSkyRadiance([Math.sqrt(1 - elevation ** 2), elevation, 0], sun);

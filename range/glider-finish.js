@@ -132,7 +132,7 @@ export function finishGlider(THREE, scene) {
       }
 
       if (name.includes('ivory dacron')) {
-        material.color.set('#eee5cf');
+        material.color.set('#df8b32');
         material.emissive.set('#6a5b3d');
         material.emissiveIntensity = .035;
       } else if (name.includes('under red inner cloth')) {
@@ -143,7 +143,7 @@ export function finishGlider(THREE, scene) {
         material.color.set('#ce672d');
         material.roughness = .73;
       } else if (name.includes('stripe signal red')) {
-        material.color.set('#b94d24');
+        material.color.set('#c86120');
       } else if (name.includes('batten pockets')) {
         material.color.set('#8d846d');
         material.roughness = .87;

@@ -152,7 +152,9 @@ A shared colour grade, painted terrain, curved grass/herb masses and a cheap
 middle-distance vegetation layer carry the style from close ground into flight.
 
 Four composed places add a weathered refuge, awning, picnic/gear yard, wing bags,
-route boards, trail furniture and a working windsock. Pure site masks reserve
+terrain-derived route maps, trail furniture and a working windsock. The refuge
+sits beside the descent on a stone foundation; a real Sierra Nevada elevation
+asset supplies the snowy distant ridge. Pure site masks reserve
 space for props while allowing grass islands around their paths and occupied
 footprints. Forest groves vary by location; authored cutout mipmaps preserve
 colour, normal direction and canopy coverage at flight distances.
@@ -165,7 +167,7 @@ shared rock contacts, force parameters and 19-bone glider rig remain intact.
 Use `?quality=high`, `medium` or `low` to hold a preset; default is `auto`.
 HDR-capable devices share the grade at all levels; low skips AO/glow. Adaptive
 quality changes visual work independently of the fixed 60 Hz flight simulation.
-[Validation and measurements](docs/graphics/validation.md) distinguish functional
+[Current validation](docs/graphics/alpine-rebuild/validation.md) distinguish functional
 checks, software-renderer observations and unverified native-GPU targets.
 
 ## Tests and checks

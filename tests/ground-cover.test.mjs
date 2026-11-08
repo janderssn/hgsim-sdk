@@ -60,12 +60,12 @@ test('a dense meadow uses bounded shared draws for expressive grass fans, herbs 
   const { cover, meshes, nearMeshes, distantMesh } = meadow();
   cover.update(new THREE.Vector3(210, 6, 210), 1);
   assert.equal(cover.stats.draws, 5, 'unused woodland batches add no meadow draws');
-  assert.ok(cover.stats.tufts >= 900 && cover.stats.tufts <= 1500);
+  assert.ok(cover.stats.tufts >= 2500 && cover.stats.tufts <= 3600);
   assert.ok(cover.stats.flowers > 40 && cover.stats.pebbles > 40);
   assert.ok(cover.stats.seeds > 40);
-  assert.ok(cover.stats.triangles < 470000, 'fuller silhouettes and mid-distance strokes retain a bounded triangle budget');
+  assert.ok(cover.stats.triangles < 740000, 'fuller silhouettes and mid-distance strokes retain a bounded triangle budget');
   const grass = meshes[0].geometry;
-  assert.equal(grass.index.count / 3, 198, 'six curved spans avoid the old angular blade silhouette');
+  assert.equal(grass.index.count / 3, 135, 'five curved spans preserve the arch with fewer triangles per clump');
   assert.ok(grass.attributes.color && grass.attributes.normal);
   assert.ok(grass.boundingBox.max.y < .75, 'grass has a plausible meadow scale');
   assert.ok(grass.boundingBox.max.x - grass.boundingBox.min.x > 1.2, 'clumps have visible spreading mass rather than isolated needles');
@@ -134,7 +134,7 @@ test('streaming samples only entering world cells and bounds its cache along lon
   for (let step = 0; step < 12; step++) {
     cover.update(new THREE.Vector3(700 + step * 180, 6, 800 + step * 120));
     assert.ok(cover.stats.cachedCells <= 384, 'memory does not grow with flight distance');
-    assert.ok(cover.stats.farCachedCells <= 256, 'mid-distance cells have a separate bounded cache');
+    assert.ok(cover.stats.farCachedCells <= 512, 'mid-distance cells have a separate bounded cache');
   }
   cover.dispose();
   assert.equal(cover.stats.cachedCells, 0);
@@ -197,7 +197,7 @@ test('altitude suppresses invisible detail, restores cached buffers and allows q
   assert.ok(meshes.every(mesh => !mesh.visible));
   position.y = 5;
   cover.update(position, 7);
-  assert.ok(cover.stats.tufts > 50 && cover.stats.tufts <= 180);
+  assert.ok(cover.stats.tufts > 50 && cover.stats.tufts <= 350);
   assert.equal(cover.stats.radius, 15);
   cover.dispose();
 });
@@ -211,13 +211,13 @@ test('all quality levels reuse fixed capacity, shrink at the edge in the GPU and
     cover.setQuality(quality);
     cover.update(new THREE.Vector3(-220, 7, 180), 12);
     assert.deepEqual(meshes.map(mesh => mesh.instanceMatrix), buffers);
-    const nearLimits = { low: [180, 16, 24, 0, 0, 32, 0, 8], medium: [700, 80, 60, 40, 90, 120, 12, 60],
-      high: [1500, 180, 120, 80, 180, 240, 24, 120] }[quality];
+    const nearLimits = { low: [350, 16, 24, 0, 0, 32, 0, 8], medium: [1500, 80, 60, 40, 90, 120, 12, 60],
+      high: [3600, 180, 120, 80, 180, 240, 24, 120] }[quality];
     assert.equal(nearMeshes.length, nearLimits.length);
     nearMeshes.forEach((mesh, index) => assert.ok(mesh.count >= (index < 3 ? 1 : 0) && mesh.count <= nearLimits[index], mesh.name));
-    const distantLimit = { low: 240, medium: 900, high: 1800 }[quality];
+    const distantLimit = { low: 600, medium: 2800, high: 6000 }[quality];
     assert.ok(distantMesh.count > 0 && distantMesh.count <= distantLimit);
-    assert.equal(distantMesh.userData.capacity, 1800, 'mid-layer quality reuses its fixed maximum allocation');
+    assert.equal(distantMesh.userData.capacity, 6000, 'mid-layer quality reuses its fixed maximum allocation');
     assertStreamBounds(meshes);
   }
   const shader = { uniforms: {}, vertexShader: '#include <begin_vertex>' };
@@ -254,7 +254,7 @@ test('actual tree coverage replaces meadow flora with layered woodland plants an
     assert.ok(woods.cover.stats[kind] > 0, `${kind} ground the woodland`);
     assert.equal(open.cover.stats[kind], 0, `${kind} follow the actual forest rather than appearing in every meadow`);
   }
-  assert.ok(woods.cover.stats.draws <= 9 && woods.cover.stats.triangles < 280000);
+  assert.ok(woods.cover.stats.draws <= 9 && woods.cover.stats.triangles < 350000);
   for (const mesh of woods.meshes) {
     assert.ok(mesh.geometry.attributes.position.array.every(Number.isFinite));
     assert.ok(mesh.geometry.attributes.normal.array.every(Number.isFinite));
@@ -319,7 +319,7 @@ test('coarse meadow strokes bridge the near fade without restreaming at every ne
   assertStreamBounds([far]);
   const shader = { uniforms: {}, vertexShader: '#include <begin_vertex>' };
   far.material.onBeforeCompile(shader);
-  for (const [quality, outer, inner, nearEnd] of [['high', 75, 20, 35], ['medium', 50, 20, 25], ['low', 25, 12, 15]]) {
+  for (const [quality, outer, inner, nearEnd] of [['high', 110, 20, 35], ['medium', 75, 20, 25], ['low', 40, 12, 15]]) {
     cover.setQuality(quality);
     assert.equal(shader.uniforms.coverRadius.value, outer);
     assert.equal(shader.uniforms.coverInnerStart.value, inner);

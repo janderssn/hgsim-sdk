@@ -12,7 +12,7 @@ export function forestCanopyTint({ family = 'pine', edge = 0, moisture = .5, gro
   const teal = [.73, 1.14, 1.08], gold = [2.06, 1.55, .48], copper = [2.12, 1.04, .53];
   let pigment;
   if (family === 'ash') {
-    const warm = smooth(.39, .68, grove) * (.56 + edge * .44) * (1 - moisture * .23);
+    const warm = (.62 + smooth(.30, .72, grove) * .38) * (.72 + edge * .28) * (1 - moisture * .12);
     pigment = mix3(sage, gold, warm);
     pigment = mix3(pigment, copper, smooth(.79, .94, accent) * edge * .32);
   } else {
@@ -96,7 +96,7 @@ export function createForestField({ variants = 4, profiles = [], ecologyAt = () 
     const grove = noise(x / 147 + 19, z / 173 - 11);
     const moisture = ecology.moisture ?? (.3 + noise(x / 180 - 3, z / 210 + 8) * .5);
     const species = hash(seed, 113);
-    const broadleafChance = .09 + edge * .25 + smooth(.49, .72, grove) * .15;
+    const broadleafChance = .18 + edge * .30 + smooth(.38, .68, grove) * .18;
     const variant = Math.min(variants - 1, species < broadleafChance ? 3 : species < broadleafChance + .18 ? 1 : species < broadleafChance + .43 - edge * .12 ? 2 : 0);
     const scale = mature * (variant === 1 ? .86 : 1);
     const tree = { x, y: groundHeight(x, z) - .08, z, size: scale,

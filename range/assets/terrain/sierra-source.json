@@ -1,0 +1,43 @@
+{
+  "name": "Sierra Nevada / Mount Whitney \u2014 USGS-derived geological backdrop",
+  "width": 513,
+  "height": 513,
+  "bounds": {
+    "minX": -7000.0,
+    "minZ": -7000.0,
+    "width": 14000.0,
+    "depth": 14000.0
+  },
+  "minimum": -1222.5642050554616,
+  "maximum": 1741.0830488681395,
+  "spacingMetres": 27.34375,
+  "verticalOffsetMetres": 2670.0,
+  "sourceLatitude": 36.58,
+  "sourceLongitude": -118.23,
+  "southOffsetMetres": 0.0,
+  "worldAlignment": "+X south; +Z west; source absolute elevations minus 2670 m",
+  "heightEncoding": "uint16 little-endian normalized from minimum to maximum",
+  "normalEncoding": "RGBA8; RGB world-space normal * .5 + .5; A macro sky visibility; Y up; row0=zMin",
+  "sourceUrl": "https://raw.githubusercontent.com/jaanga/terrain-usgs-data-1second/gh-pages/images/n36w119.png",
+  "sourceSha256": "9dac84bde8f0f0920a7351c000b33eba827ab395155f493016179bbb73fb000a",
+  "sourceEncoding": "Signed 24-bit little-endian RGB metres; -32767 is nodata",
+  "sourceBounds": {
+    "west": -119,
+    "east": -118,
+    "south": 36,
+    "north": 37
+  },
+  "worldCenterLatitude": 36.58,
+  "worldCenterLongitude": -118.23,
+  "sourceCropPixels": {
+    "left": 2426,
+    "right": 3119,
+    "top": 1221,
+    "bottom": 1804
+  },
+  "sourceDataset": "USGS National Map 1 arc-second elevation; public domain; Jaanga redistribution",
+  "sourceAttributionUrl": "https://github.com/jaanga/terrain-usgs-data-1second/blob/gh-pages/readme.md",
+  "sourceLicenseUrl": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+  "nodataSampleFraction": 0.09560776535230213,
+  "nodataFill": "Harmonic interpolation constrained by valid USGS sample boundaries; not measured elevations in the masked areas"
+}

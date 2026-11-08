@@ -5,7 +5,7 @@ import * as THREE from '../range/vendor/three.module.js';
 import { createAtmosphere, parseAlpineHeightfield, loadAlpineHeightfield, sampleAlpineHeight } from '../range/atmosphere.js';
 import { terrainHeight } from '../range/world.js';
 
-const bytes = readFileSync(new URL('../range/assets/terrain/yosemite-heightfield.bin', import.meta.url));
+const bytes = readFileSync(new URL('../range/assets/terrain/sierra-heightfield.bin', import.meta.url));
 const terrain = parseAlpineHeightfield(bytes);
 
 // Test the drawn triangles, including interpolated points between vertices.
@@ -38,7 +38,7 @@ test('the bundled geological data retain metre scale, valley alignment and sourc
   assert.equal(terrain.width, 513);
   assert.equal(terrain.height, 513);
   assert.equal(terrain.terrainBounds.width, 14000);
-  assert.ok(sampleAlpineHeight(terrain, 0, 0) > -5 && sampleAlpineHeight(terrain, 0, 0) < 20,
+  assert.ok(sampleAlpineHeight(terrain, 0, 0) > -5 && sampleAlpineHeight(terrain, 0, 0) < 60,
     'the recentered origin must lie on the actual valley floor');
   assert.ok(terrain.metadata.maximum > 1400);
   assert.match(terrain.metadata.sourceDataset, /USGS/);
@@ -101,8 +101,8 @@ test('different patch LODs share exactly the same boundary samples', () => {
   try {
     atmosphere.setQuality('low');
     atmosphere.update(new THREE.Vector3(0, 250, 0));
-    const left = scene.getObjectByName('YosemitePatch-4-3').geometry;
-    const right = scene.getObjectByName('YosemitePatch-5-3').geometry;
+    const left = scene.getObjectByName('AlpinePatch-4-3').geometry;
+    const right = scene.getObjectByName('AlpinePatch-5-3').geometry;
     assert.notEqual(left.index.count, right.index.count, 'the regression must compare different LODs');
     const edge = geometry => {
       const map = new Map(), position = geometry.getAttribute('position');

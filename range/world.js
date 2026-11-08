@@ -7,6 +7,7 @@
  */
 
 import { createLaunchGeology } from './launch-geology.js';
+import { ALPINE_SITES } from './alpine-sites.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -70,6 +71,9 @@ export function establishedTerrainHeight(x, z) {
   return ridge + east + south + ridgeSide + rolling * (1 - field) - 1.4 * field;
 }
 
+const REFUGE_SITE = ALPINE_SITES.find(site => site.id === 'landing-refuge');
+const REFUGE_HEIGHT = establishedTerrainHeight(REFUGE_SITE.x, REFUGE_SITE.z);
+
 const LAUNCH_MASSIF_ROOF = establishedTerrainHeight(LAUNCH.x, LAUNCH.z) + 50;
 
 /** Join the launch ledges to their parent ridge using the same physical ground. */
@@ -86,10 +90,37 @@ function launchMassif(x, z, established) {
   return Math.max(0, roof - established) * shoulder * front * rear;
 }
 
-/** The physical terrain and drawing share the original valley, side relief and launch massif. */
+// Terrace displacement is sampled on the same 240-cell grid as scenery. This
+// keeps the new curved banks in agreement with the triangles under the glider.
+const TERRACE_STEP = 3200 / 240;
+const terraceSamples = new Map();
+function terraceSample(ix, iz) {
+  const key = `${ix},${iz}`;
+  if (terraceSamples.has(key)) return terraceSamples.get(key);
+  const x = -1600 + ix * TERRACE_STEP, z = -1600 + iz * TERRACE_STEP;
+  const radius = Math.hypot((x - REFUGE_SITE.x) / 48, (z - REFUGE_SITE.z) / 45);
+  const established = establishedTerrainHeight(x, z);
+  const natural = established + peripheralRelief(x, z) + launchMassif(x, z, established);
+  const weight = 1 - smooth(.62, 1, radius);
+  const delta = (REFUGE_HEIGHT - natural) * weight;
+  terraceSamples.set(key, delta);
+  return delta;
+}
+function terraceDisplacement(x, z) {
+  if (Math.abs(x - REFUGE_SITE.x) > 70 || Math.abs(z - REFUGE_SITE.z) > 72) return 0;
+  const gx = (x + 1600) / TERRACE_STEP, gz = (z + 1600) / TERRACE_STEP;
+  const ix = Math.floor(gx), iz = Math.floor(gz), fx = gx - ix, fz = gz - iz;
+  const a = terraceSample(ix, iz), b = terraceSample(ix, iz + 1);
+  const c = terraceSample(ix + 1, iz + 1), d = terraceSample(ix + 1, iz);
+  return fx + fz <= 1 ? a + fx * (d - a) + fz * (b - a)
+    : c + (1 - fx) * (b - c) + (1 - fz) * (d - c);
+}
+
+/** Shared valley, launch massif and usable refuge terrace. */
 export function terrainHeight(x, z) {
   const established = establishedTerrainHeight(x, z);
-  return established + peripheralRelief(x, z) + launchMassif(x, z, established);
+  return established + peripheralRelief(x, z) + launchMassif(x, z, established)
+    + terraceDisplacement(x, z);
 }
 
 /** The terrain's steepest slope at (x, z), rise over run, measured across d metres. */

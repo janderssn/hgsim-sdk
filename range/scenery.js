@@ -9,6 +9,8 @@ import { createLaunchEscarpmentGeometry } from './granite-cliffs.js';
 import { createForest } from './forest.js';
 import { createForestShadowMap } from './forest-shadows.js';
 import { batchStaticMeshes } from './static-batch.js';
+import { createLichenBoulders } from './lichen-boulders.js';
+import { sampleAlpineSiteGround } from './alpine-sites.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -22,6 +24,8 @@ export function buildScenery(THREE, scene, { models = createEnvironmentModels(TH
   addTerrain(THREE, scene, materials.terrain);
   addMark(THREE, scene);
   addLaunch(THREE, scene, materials);
+  const boulders = createLichenBoulders(THREE, scene, { groundHeight: physicalGroundHeight, siteAt: sampleAlpineSiteGround,
+    sourceMaterial: materials.granite, maps: materials.boulderMaps });
   const trees = forestAssets
     ? createForest(THREE, scene, forestAssets, { sunDirection, ecologyAt: sampleTerrainEcology,
       groundHeight: physicalGroundHeight, atmosphere: aerial?.shared, exclusionAt: forestExclusionAt })
@@ -30,6 +34,7 @@ export function buildScenery(THREE, scene, { models = createEnvironmentModels(TH
   const grass = streamedCover ? { setQuality: () => false, updateDetail() {} } : addGrass(THREE, scene);
   return {
     birds: addBirds(THREE, scene),
+    boulderCoverageAt: boulders.coverageAt,
     forestShadowMap: trees.shadowMap,
     forestBounds: trees.shadowBounds,
     forestCoverage: trees.coverageTexture, forestCoverageAt: trees.coverageAt || (() => 0),

@@ -73,19 +73,19 @@ class BotanicalMesh {
 }
 
 /** A painted meadow fan: three intertwined crowns, with long arching leaves. */
-export function createGrassFanGeometry(THREE, { bladesPerCrown = 6 } = {}) {
+export function createGrassFanGeometry(THREE, { bladesPerCrown = 5, distant = false } = {}) {
   const mesh = new BotanicalMesh(THREE);
-  const stations = [0, .15, .33, .52, .70, .86, 1];
-  const widths = [.12, .65, 1, .93, .66, .32, 0];
+  const stations = distant ? [0, .54, 1] : [0, .20, .41, .63, .83, 1];
+  const widths = distant ? [.18, 1, 0] : [.12, .70, 1, .88, .46, 0];
   const random = n => { const value = Math.sin(n * 127.1 + 311.7) * 43758.5453; return value - Math.floor(value); };
   for (let crown = 0; crown < 3; crown++) {
     const crownAngle = crown * 2.399963;
-    const rootX = Math.cos(crownAngle) * .19, rootZ = Math.sin(crownAngle) * .19;
+    const rootX = Math.cos(crownAngle) * .25, rootZ = Math.sin(crownAngle) * .25;
     for (let blade = 0; blade < bladesPerCrown; blade++) {
       const seed = crown * 8 + blade, angle = blade * 2.399963 + crown * .8 + random(seed + 1) * .45;
-      const height = .28 + random(seed + 3) * .4;
-      const bend = .34 + random(seed + 7) * .34;
-      const width = .015 + random(seed + 11) * .012;
+      const height = .39 + random(seed + 3) * .36;
+      const bend = .38 + random(seed + 7) * .32;
+      const width = .011 + random(seed + 11) * .009;
       const twist = (random(seed + 17) - .5) * .85;
       const arc = 2.35 + random(seed + 19) * .48;
       const first = mesh.positions.length / 3;
@@ -95,7 +95,7 @@ export function createGrassFanGeometry(THREE, { bladesPerCrown = 6 } = {}) {
         const center = [rootX + Math.cos(angle) * radius,
           -.025 + height * Math.sin(t * arc), rootZ + Math.sin(angle) * radius];
         for (const side of row === stations.length - 1 ? [0] : [-1, 1]) {
-          const color = [ .46 + t * .48, .58 + t * .39, .42 + t * .34 ];
+          const color = [ .48 + t * .49, .55 + t * .42, .36 + t * .43 ];
           // A cool folded edge and warm blade face read as intentional brushwork.
           const paintedEdge = side === -1 ? .91 : 1;
           mesh.vertex([center[0] + Math.cos(sideAngle) * width * widths[row] * side,
@@ -111,7 +111,16 @@ export function createGrassFanGeometry(THREE, { bladesPerCrown = 6 } = {}) {
       mesh.triangle(last, last + 1, last + 2);
     }
   }
-  return mesh.finish();
+  const geometry = mesh.finish();
+  // Read the whole clump as a soft, sunlit volume rather than alternating dark
+  // flat strips. The distant sward shares the terrain normal to avoid shimmer.
+  const normals = geometry.attributes.normal, normal = new THREE.Vector3();
+  for (let i = 0; i < normals.count; i++) {
+    normal.fromBufferAttribute(normals, i);
+    normal.y = Math.abs(normal.y) + (distant ? 2.8 : .38);
+    normal.normalize(); normals.setXYZ(i, normal.x, normal.y, normal.z);
+  }
+  return geometry;
 }
 
 export function createFernGeometry(THREE) {

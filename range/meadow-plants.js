@@ -90,7 +90,7 @@ export function createMeadowHerbGeometry(THREE, { flowers = true } = {}) {
     const inner = leaf >= 8, angle = leaf * 2.399963 + Math.sin(leaf * 3.7) * .15;
     const variation = Math.sin(leaf * 5.3 + .4) ** 2;
     const length = inner ? .155 + variation * .06 : .23 + variation * .085;
-    const height = inner ? .27 + variation * .07 : .15 + variation * .1;
+    const height = inner ? .20 + variation * .07 : .10 + variation * .07;
     const petioleLength = .035 + variation * .025, petioleRise = inner ? .1 + variation * .035 : .06 + variation * .025;
     const petiole = t => [Math.cos(angle) * (.012 + petioleLength * t),
       -.016 + petioleRise * Math.sin(t * Math.PI / 2), Math.sin(angle) * (.012 + petioleLength * t)];
@@ -100,22 +100,34 @@ export function createMeadowHerbGeometry(THREE, { flowers = true } = {}) {
     const dry = leaf % 7 === 0;
     const edge = dry ? [.285, .28, .105] : [.235 + variation * .045, .275 + variation * .05, .105 + variation * .025];
     const ridge = dry ? [.37, .35, .15] : [.315 + variation * .045, .35 + variation * .04, .155 + variation * .025];
-    mesh.leaf(root, tip, inner ? .055 + variation * .014 : .065 + variation * .022,
+    mesh.leaf(root, tip, inner ? .036 + variation * .012 : .048 + variation * .016,
       inner ? .06 : .07 + variation * .04, edge, ridge,
       { curl: .02 + variation * .035, twist: Math.sin(leaf * 4.2) * .6, sweep: Math.sin(leaf * 2.7 + .6) * .035 });
   }
   if (flowers) {
-    for (let stem = 0; stem < 3; stem++) {
-      const angle = stem * 2.399963 + .5, radius = .09 + stem * .015, height = .39 + stem * .045;
-      const point = t => [Math.cos(angle) * (radius + .045 * t * t), height * t, Math.sin(angle) * (radius + .025 * t * t)];
-      mesh.stem(point, .003, [.23, .29, .1]);
-      if (stem < 2) mesh.bloom(point(1), stem === 0 ? [.83, .76, .51] : [.58, .48, .67]);
-      else for (let whorl = 0; whorl < 3; whorl++) {
-        const center = point(.72 + whorl * .11);
-        for (let side = 0; side < 2; side++) {
-          const a = whorl * 1.4 + side * Math.PI, end = [center[0] + Math.cos(a) * .026,
-            center[1] + .025, center[2] + Math.sin(a) * .026];
-          mesh.grain(center, end, .012, [.51 + whorl * .035, .40 + whorl * .025, .62 + whorl * .035]);
+    // White yarrow umbels and purple alpine salvia read as flowering drifts,
+    // with visible vertical accents instead of one broad cabbage silhouette.
+    for (let stem = 0; stem < 5; stem++) {
+      const angle = stem * 2.399963 + .5, radius = .11 + stem * .035;
+      const height = stem < 3 ? .32 + stem * .055 : .62 + (stem - 3) * .10;
+      const point = t => [Math.cos(angle) * (radius + .07 * t * t), height * t,
+        Math.sin(angle) * (radius + .04 * t * t)];
+      mesh.stem(point, .004, [.22, .29, .095]);
+      if (stem < 3) {
+        const centre = point(1);
+        for (let flower = 0; flower < 4; flower++) {
+          const a = flower * 2.399963, spread = flower === 0 ? 0 : .065;
+          mesh.bloom([centre[0] + Math.cos(a) * spread, centre[1] - spread * .3,
+            centre[2] + Math.sin(a) * spread], [.85, .80, .62]);
+        }
+      } else for (let whorl = 0; whorl < 7; whorl++) {
+        const centre = point(.49 + whorl * .077), spread = .065 * (1 - whorl * .09);
+        for (let side = 0; side < 3; side++) {
+          const a = whorl * 1.4 + side * Math.PI * 2 / 3;
+          const end = [centre[0] + Math.cos(a) * spread, centre[1] + .025,
+            centre[2] + Math.sin(a) * spread];
+          mesh.grain(centre, end, .020 * (1 - whorl * .055),
+            [.43 + whorl * .022, .24 + whorl * .023, .61 + whorl * .024]);
         }
       }
     }

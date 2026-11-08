@@ -5,7 +5,7 @@ const smooth = (a, b, value) => { const t = clamp((value - a) / (b - a)); return
 export const ALPINE_SITES = Object.freeze([
   Object.freeze({ id: 'launch-staging', x: -30, z: -620, yaw: .87, radiusX: 16, radiusZ: 15,
     footprints: [[0, 0, 3.0, .8], [0, 2.2, 2.2, .9], [-4, -.45, .8, .7], [4.7, 3.7, 1.8, .9]] }),
-  Object.freeze({ id: 'landing-refuge', x: -205, z: 122, yaw: -.92, radiusX: 25, radiusZ: 22,
+  Object.freeze({ id: 'landing-refuge', x: -76, z: -360, yaw: .15, radiusX: 25, radiusZ: 22,
     footprints: [[0, 0, 4.8, 3.3], [-1.5, -8.6, 2.1, 1.5], [5.9, -1.05, .8, 1.2],
       [7.2, 3, 2.2, .8], [-7.6, -3, 1.8, .9], [-5.1, 3.5, 2.3, .8], [-5.5, 1.9, .7, .7]] }),
   Object.freeze({ id: 'meadow-gate', x: 184, z: -42, yaw: .20, radiusX: 12, radiusZ: 9,
@@ -13,9 +13,9 @@ export const ALPINE_SITES = Object.freeze([
   Object.freeze({ id: 'woodland-rest', x: -233, z: -646, yaw: -.40, radiusX: 12, radiusZ: 12,
     footprints: [[-1.8, 1.5, 2.1, .8], [2.8, 2.5, 1.7, .8], [-4.2, 2.2, .5, .5]] }),
 ]);
-const TRAILS = [
+export const ALPINE_TRAILS = [
   [[-8, -665], [-14, -640], [-30, -620], [-10, -604], [-7, -589]],
-  [[-145, 88], [-166, 106], [-188, 115], [-205, 122]],
+  [[-24, -280], [-42, -304], [-65, -327], [-76, -360]],
   [[161, -88], [184, -42], [197, -12]],
   [[-242, -682], [-233, -646], [-219, -620]],
 ];
@@ -39,7 +39,7 @@ export function sampleAlpineSiteGround(x, z) {
       occupied = Math.max(occupied, 1 - smooth(0, .5, outside));
     }
   }
-  for (const trail of TRAILS) for (let i = 1; i < trail.length; i++) {
+  for (const trail of ALPINE_TRAILS) for (let i = 1; i < trail.length; i++) {
     path = Math.max(path, 1 - smooth(1.0, 2.6, segmentDistance(x, z, trail[i - 1], trail[i])));
   }
   // The target and the centre of the final approach remain meadow.

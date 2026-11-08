@@ -13,7 +13,7 @@ function rayHeight(mesh, x, z) {
 
 test('one connected escarpment has finite structural faces and two bounded material draws', () => {
   const source = LAUNCH_GEOLOGY;
-  assert.ok(source.indices.length / 3 > 5000 && source.indices.length / 3 < 12000);
+  assert.ok(source.indices.length / 3 > 5000 && source.indices.length / 3 < 30000);
   const parents = Array.from({ length: source.positions.length / 3 }, (_, i) => i);
   const find = i => { while (parents[i] !== i) { parents[i] = parents[parents[i]]; i = parents[i]; } return i; };
   const edges = new Map();

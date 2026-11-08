@@ -16,13 +16,14 @@ const DEFAULT_SUN = [.5904601, .6817721, .4319070];
 export const AERIAL_STYLES = Object.freeze({
   daylight: Object.freeze({
     rayTint: [1, 1, 1], mieTint: [1, 1, 1], multiple: [.085, .13, .19], ground: [.12, .135, .14],
-    aerialTint: [1, 1, 1], cloudBase: [.18, .215, .25], cloudTop: [.17, .17, .17],
+    aerialTint: [1, 1, 1], cloudBase: [.18, .215, .25], cloudTop: [.17, .17, .17], cloudSunTint: [1, 1, 1], depthStrength: 1,
   }),
   'illustrated-alpine': Object.freeze({
     // A cool molecular spectrum against warm aerosol forward scattering:
     // turquoise windows, apricot banks and violet/slate atmospheric depth.
-    rayTint: [.55, 1.40, 1.65], mieTint: [1.16, .98, .91], multiple: [.055, .17, .27], ground: [.105, .135, .205],
-    aerialTint: [1.16, .87, 1.25], cloudBase: [.20, .235, .35], cloudTop: [.16, .175, .235],
+    rayTint: [.65, 1.20, 1.60], mieTint: [1.09, .95, .88], multiple: [.085, .16, .255], ground: [.14, .145, .17],
+    aerialTint: [.74, .82, 1.15], cloudBase: [.13, .14, .225], cloudTop: [.17, .125, .14],
+    cloudSunTint: [1.18, .90, 1.02], depthStrength: 5.5,
   }),
 });
 const clamp = x => Math.max(0, Math.min(1, x));
@@ -72,7 +73,7 @@ export function sampleSkyRadiance(direction, sunDirection = DEFAULT_SUN,
 }
 
 /** Exact integral of exp(-height/H) along a straight camera-to-surface segment. */
-export function atmosphereTransmittance(distance, startHeight = 0, endHeight = startHeight) {
+export function atmosphereTransmittance(distance, startHeight = 0, endHeight = startHeight, { style = 'daylight' } = {}) {
   const path = Math.max(0, distance);
   const integral = scaleHeight => {
     const start = Math.max(-300, startHeight), end = Math.max(-300, endHeight);
@@ -81,13 +82,15 @@ export function atmosphereTransmittance(distance, startHeight = 0, endHeight = s
       : (1 - Math.exp(-delta)) / delta;
     return path * Math.exp(-start / scaleHeight) * average;
   };
-  const ray = integral(8000), aerosol = integral(1200);
+  const density = 1 + (styleFor(style).depthStrength - 1) * smooth(700, 3000, path);
+  const ray = integral(8000) * density, aerosol = integral(1200) * density;
   return BETA_R.map(beta => Math.exp(-beta * ray - BETA_M * aerosol));
 }
 
 export const AERIAL_SCATTERING_GLSL = /* glsl */`
   uniform vec3 aerialSunDirection, aerialCameraPosition, aerialSunTransmittance, aerialSunColor;
   uniform vec3 aerialRayTint, aerialMieTint, aerialMultipleScatter, aerialGroundRadiance, aerialInscatterTint;
+  uniform float aerialDepthStrength;
   const vec3 AERIAL_BETA_R = vec3(5.8e-6, 13.5e-6, 33.1e-6);
   const float AERIAL_BETA_M = 2.4e-5;
   float aerialColumn(float mu, float scaleHeight) {
@@ -123,7 +126,10 @@ export const AERIAL_SCATTERING_GLSL = /* glsl */`
     vec3 direction = ray / distanceM;
     float rayleigh = aerialPathIntegral(aerialCameraPosition.y, worldPosition.y, distanceM, 8000.0);
     float aerosol = aerialPathIntegral(aerialCameraPosition.y, worldPosition.y, distanceM, 1200.0);
-    transmittance = exp(-AERIAL_BETA_R * rayleigh - AERIAL_BETA_M * aerosol);
+    // Compress distant contrast into broad blue layers while preserving the
+    // immediate flying corridor. Smooth optical scaling avoids a fog wall.
+    float depthDensity = mix(1.0, aerialDepthStrength, smoothstep(700.0, 3000.0, distanceM));
+    transmittance = exp((-AERIAL_BETA_R * rayleigh - AERIAL_BETA_M * aerosol) * depthDensity);
     // The local segment scatters toward the same sky radiance as the backdrop;
     // no second grey fog colour, display-space blend or fixed distance wall.
     inscatter = aerialSkyRadiance(direction, false) * aerialInscatterTint * (1.0 - transmittance);
@@ -199,6 +205,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
     aerialMultipleScatter: { value: new THREE.Vector3(...palette.multiple) },
     aerialGroundRadiance: { value: new THREE.Vector3(...palette.ground) },
     aerialInscatterTint: { value: new THREE.Vector3(...palette.aerialTint) },
+    aerialDepthStrength: { value: palette.depthStrength },
     aerialCameraPosition: { value: new THREE.Vector3() },
     aerialWindOffset: { value: new THREE.Vector2(cloudOffset[0], cloudOffset[1]) },
     aerialCloudShadow: { value: shadowTexture },
@@ -212,12 +219,16 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
     glslVersion: THREE.GLSL3,
     depthWrite: false, depthTest: false, toneMapped: false,
     uniforms: { ...uniforms,
+      // The artistic compression belongs to distant land layers. Cloud banks
+      // retain the base high-altitude medium so peach rims survive the view.
+      aerialDepthStrength: { value: 1 },
       aerialCloudShape: { value: shapeTexture }, aerialCloudWeather: { value: weatherTexture },
       inverseProjection: { value: new THREE.Matrix4() }, inverseView: { value: new THREE.Matrix4() },
       aerialCloudSteps: { value: 48 }, aerialCloudLightSteps: { value: 3 },
       aerialCloudEncodeScale: { value: 1 },
       aerialCloudBaseRadiance: { value: new THREE.Vector3(...palette.cloudBase) },
       aerialCloudTopRadiance: { value: new THREE.Vector3(...palette.cloudTop) },
+      aerialCloudSunTint: { value: new THREE.Vector3(...palette.cloudSunTint) },
     },
     vertexShader: `out vec2 vCloudUv;
       void main() { vCloudUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
@@ -226,7 +237,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
       out vec4 cloudOutput;
       uniform mat4 inverseProjection, inverseView;
       uniform float aerialCloudSteps, aerialCloudLightSteps, aerialCloudEncodeScale;
-      uniform vec3 aerialCloudBaseRadiance, aerialCloudTopRadiance;
+      uniform vec3 aerialCloudBaseRadiance, aerialCloudTopRadiance, aerialCloudSunTint;
       ${AERIAL_SCATTERING_GLSL}
       ${CLOUD_DENSITY_GLSL}
       uniform sampler2D aerialCloudShadow;
@@ -260,7 +271,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
         float mu = dot(direction, aerialSunDirection);
         float phase = 0.82 * (1.0 - 0.62 * 0.62) / pow(1.0 + 0.62 * 0.62 - 1.24 * mu, 1.5)
           + 0.18 * (1.0 - 0.2 * 0.2) / pow(1.0 + 0.2 * 0.2 + 0.4 * mu, 1.5);
-        vec3 skyAmbient = aerialSkyRadiance(vec3(0.0, 1.0, 0.0), false) * 0.55;
+        vec3 skyAmbient = aerialSkyRadiance(vec3(0.0, 1.0, 0.0), false) * 0.30;
         for (int sampleIndex = 0; sampleIndex < 48; sampleIndex++) {
           if (float(sampleIndex) >= aerialCloudSteps || distanceM > exit || transmittance < 0.015) break;
           vec3 p = aerialCameraPosition + direction * distanceM;
@@ -269,7 +280,11 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
             float sunVisibility = cloudSunVisibility(p);
             float heightInCloud = clamp((p.y - ${CLOUD_FIELD.bottom.toFixed(1)}) / ${(CLOUD_FIELD.top - CLOUD_FIELD.bottom).toFixed(1)}, 0.0, 1.0);
             vec3 ambient = mix(aerialCloudBaseRadiance, skyAmbient + aerialCloudTopRadiance, sqrt(heightInCloud));
-            vec3 sunlight = aerialSunColor * (sunVisibility * (1.05 + phase * 0.18) + 0.14);
+            // Keep lit edges in a useful HDR range: over-bright white banks erase
+            // the peach key/slate underside distinction after tone mapping.
+            float powder = 1.0 - exp(-density * 5.0);
+            vec3 sunlight = aerialSunColor * aerialCloudSunTint
+              * (sunVisibility * (0.72 + phase * 0.12) * (0.78 + powder * 0.22) + 0.08);
             float stepTransmittance = exp(-density * stepLength * ${CLOUD_FIELD.extinction});
             float weight = transmittance * (1.0 - stepTransmittance);
             radiance += (ambient + sunlight) * weight;

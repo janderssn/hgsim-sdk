@@ -158,3 +158,13 @@ test('the full 240-grid drawing stays within one metre of physical slopes and th
   for (const resource of resources) resource.dispose();
   scenery.forestShadowMap?.dispose();
 });
+
+
+test('refuge terrace has a level usable yard and leaves the central descent untouched', () => {
+  const centre = terrainHeight(-76, -360);
+  for (const [x,z] of [[-76,-360],[-88,-370],[-64,-350],[-76,-342]]) {
+    assert.ok(Math.abs(terrainHeight(x,z) - centre) < .3);
+  }
+  for (let z=-420;z<=-280;z+=5) assert.equal(terrainHeight(0,z),establishedTerrainHeight(0,z));
+  for (const x of [-147,-5]) assert.equal(terrainHeight(x,-360),establishedTerrainHeight(x,-360));
+});

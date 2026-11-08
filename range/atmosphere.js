@@ -136,7 +136,7 @@ function createSky(THREE, sunDirection) {
   return { sky, clouds };
 }
 
-const HEIGHTFIELD_URL = new URL('./assets/terrain/yosemite-heightfield.bin', import.meta.url);
+const HEIGHTFIELD_URL = new URL('./assets/terrain/sierra-heightfield.bin', import.meta.url);
 
 /** Decode the bundled real elevation field without browser or GIS dependencies. */
 export function parseAlpineHeightfield(input) {
@@ -284,7 +284,7 @@ function createMountains(THREE, terrain, externalMaterial) {
         if (patch.minX >= -1450 && patch.minZ >= -1450
           && patch.minX + patch.width <= 1450 && patch.minZ + patch.depth <= 1450) continue;
         const mesh = new THREE.Mesh(undefined, material);
-        mesh.name = `YosemitePatch-${column}-${row}`;
+        mesh.name = `AlpinePatch-${column}-${row}`;
         mesh.receiveShadow = false;
         mesh.matrixAutoUpdate = false;
         mesh.userData.terrainPatch = true;

@@ -195,9 +195,26 @@ export function installForestCanopyPalette(material) {
         float forestGreen = (diffuseColor.g - max(diffuseColor.r * .96, diffuseColor.b * 1.04)) / max(forestLeafLuma, .015);
         float forestLeafMask = smoothstep(.045, .22, forestGreen);
         vec3 forestPigment = forestLeafLuma * 1.22 * vForestCrownTint;
-        diffuseColor.rgb = mix(diffuseColor.rgb, forestPigment, forestLeafMask * .78);
+        diffuseColor.rgb = mix(diffuseColor.rgb, forestPigment, forestLeafMask * .88);
+      `)
+      .replace('#include <lights_physical_pars_fragment>', `
+        #include <lights_physical_pars_fragment>
+        // A bough is a porous volume of needles. Wrapped diffuse lifts its
+        // side planes using the actual shadowed light rather than emissive fill.
+        void RE_Direct_Forest(const in IncidentLight light, const in vec3 geometryPosition,
+          const in vec3 geometryNormal, const in vec3 geometryViewDir,
+          const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material,
+          inout ReflectedLight reflectedLight) {
+          RE_Direct_Physical(light, geometryPosition, geometryNormal, geometryViewDir,
+            geometryClearcoatNormal, material, reflectedLight);
+          float nDotL = dot(geometryNormal, light.direction);
+          float wrapped = max(0.0, (nDotL + 0.55) / 1.55) - max(0.0, nDotL);
+          reflectedLight.directDiffuse += light.color * material.diffuseColor * RECIPROCAL_PI * wrapped * 0.52;
+        }
+        #undef RE_Direct
+        #define RE_Direct RE_Direct_Forest
       `);
   };
-  material.customProgramCacheKey = () => previousKey() + '/grove-pigment-v1';
+  material.customProgramCacheKey = () => previousKey() + '/grove-pigment-v2';
   return material;
 }

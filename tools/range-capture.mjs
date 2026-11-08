@@ -16,9 +16,9 @@ try {
     height: { type: 'string', default: '800' },
   } });
   const views = values.view.split(',');
-  if (views.some(view => !['flight', 'launch', 'meadow', 'woodland', 'staging', 'refuge'].includes(view))
+  if (views.some(view => !['flight', 'departure', 'approach', 'launch', 'meadow', 'woodland', 'staging', 'refuge'].includes(view))
     || !['high', 'medium', 'low'].includes(values.quality)) {
-    throw new Error('Use --view flight|launch|meadow|woodland|staging|refuge (comma-separated for a gallery).');
+    throw new Error('Use --view flight|departure|approach|launch|meadow|woodland|staging|refuge (comma-separated for a gallery).');
   }
   const width = Number(values.width), height = Number(values.height);
   if (![width, height].every(value => Number.isInteger(value) && value >= 240 && value <= 4096)) {
@@ -60,14 +60,18 @@ try {
   const reports = [];
   for (const view of views) {
     const output = views.length > 1 ? path.join(values.out, view + '.jpg') : values.out;
-    if (view === 'flight') await page.eval('rangeDemo.startAt({x:0,z:-470,agl:75,heading:0,kmh:48,pathDeg:-3});rangeDemo.advance(1/60,null,{render:false});rangeDemo.player.visible=true;1');
+    if (view === 'flight') await page.eval('rangeDemo.startAt({x:0,z:-470,agl:75,heading:0,kmh:48,pathDeg:-3});rangeDemo.advance(.75,null,{render:false});rangeDemo.player.visible=true;1');
+    if (view === 'departure') await page.eval('rangeDemo.startAt({x:0,z:-540,agl:75,heading:0,kmh:48,pathDeg:-3});rangeDemo.advance(.75,null,{render:false});rangeDemo.player.visible=true;1');
+    if (view === 'approach') await page.eval('rangeDemo.startAt({x:-58,z:-430,agl:45,heading:.12,kmh:60,pathDeg:-18});rangeDemo.advance(.75,null,{render:false});rangeDemo.player.visible=true;1');
     // Inspection views share production culling, streaming and finishing.
     const frame = await page.eval(`(() => {
     const d = rangeDemo;
-    d.player.visible = ${JSON.stringify(view)} === 'flight';
+    d.player.visible = ['flight', 'departure', 'approach'].includes(${JSON.stringify(view)});
     document.querySelector('.hud').style.display = 'none';
     document.getElementById('toast').style.display = 'none';
-    if (${JSON.stringify(view)} === 'flight') {
+    if (['departure', 'approach'].includes(${JSON.stringify(view)})) {
+      // Use the live production chase camera established by startAt/advance.
+    } else if (${JSON.stringify(view)} === 'flight') {
       const p = d.player.position;
       d.camera.position.set(p.x, p.y + 6, p.z - 18);
       d.camera.lookAt(p.x, p.y - 1.8, p.z + 18);
@@ -89,10 +93,11 @@ try {
       d.camera.lookAt(x, y + 1.4, z + 1);
       document.querySelector('.hud').style.display = 'none';
     } else if (${JSON.stringify(view)} === 'refuge') {
-      const x = -205, z = 122, y = d.terrainHeight(x, z);
+      const site = d.setDressing.sites.find(site => site.id === 'landing-refuge');
+      const {x, z} = site, y = d.terrainHeight(x, z);
       d.player.visible = false;
-      d.camera.position.set(x + 23, y + 4.5, z - 8);
-      d.camera.lookAt(x, y + 2.5, z);
+      d.camera.position.set(x + 15, d.terrainHeight(x + 15, z - 22) + 4.5, z - 22);
+      d.camera.lookAt(x, y + 4.0, z);
       document.querySelector('.hud').style.display = 'none';
     } else if (${JSON.stringify(view)} === 'woodland') {
       const x = -240, z = -670, y = d.terrainHeight(x, z);

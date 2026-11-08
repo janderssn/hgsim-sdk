@@ -5,7 +5,7 @@
  */
 import { createGrassFanGeometry, createFernGeometry, createLitterGeometry, createDeadwoodGeometry } from './undergrowth-geometry.js';
 import { createMeadowHerbGeometry, createSeedGrassGeometry } from './meadow-plants.js';
-import { sampleGroundStyle, GROUND_PALETTE } from './surface-style.js';
+import { sampleGroundStyle } from './surface-style.js';
 
 const CELL = 6;
 const CELL_MARGIN = CELL / Math.SQRT2;
@@ -13,20 +13,20 @@ const CELL_MARGIN = CELL / Math.SQRT2;
 const TARGET_RINGS = [6, 7.2, 15, 30, 60];
 const MAX_ALTITUDE = 60;
 const MAX_CACHED_CELLS = 384;
-const FAR_CELL = 12, FAR_MARGIN = FAR_CELL / Math.SQRT2, MAX_FAR_CACHED_CELLS = 256;
-const FAR_LEVELS = { high: { radius: 75, inner: 20, capacity: 1800 },
-  medium: { radius: 50, inner: 20, capacity: 900 }, low: { radius: 25, inner: 12, capacity: 240 } };
+const FAR_CELL = 12, FAR_MARGIN = FAR_CELL / Math.SQRT2, MAX_FAR_CACHED_CELLS = 512;
+const FAR_LEVELS = { high: { radius: 110, inner: 20, capacity: 6000 },
+  medium: { radius: 75, inner: 20, capacity: 2800 }, low: { radius: 40, inner: 12, capacity: 600 } };
 const unit = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 const LEVELS = {
-  high: { radius: 35, grass: 1500, flowers: 180, pebbles: 120, ferns: 80, shrubs: 180, litter: 240, deadwood: 24, seeds: 120, density: 1 },
-  medium: { radius: 25, grass: 700, flowers: 80, pebbles: 60, ferns: 40, shrubs: 90, litter: 120, deadwood: 12, seeds: 60, density: .84 },
-  low: { radius: 15, grass: 180, flowers: 16, pebbles: 24, ferns: 0, shrubs: 0, litter: 32, deadwood: 0, seeds: 8, density: .58 },
+  high: { radius: 35, grass: 3600, flowers: 180, pebbles: 120, ferns: 80, shrubs: 180, litter: 240, deadwood: 24, seeds: 120, density: 1 },
+  medium: { radius: 25, grass: 1500, flowers: 80, pebbles: 60, ferns: 40, shrubs: 90, litter: 120, deadwood: 12, seeds: 60, density: .84 },
+  low: { radius: 15, grass: 350, flowers: 16, pebbles: 24, ferns: 0, shrubs: 0, litter: 32, deadwood: 0, seeds: 8, density: .58 },
 };
 const KINDS = ['grass', 'flowers', 'pebbles', 'ferns', 'shrubs', 'litter', 'deadwood', 'seeds'];
 // Layer-specific distance bands keep dense low herbs close without a hard budget
 // boundary. The same radius is used by placement and the smooth GPU growth fade.
 const RANGE_SCALE = [1, .7, 1, .72, .52, .7, 1, 1];
-const CANDIDATES = [12, 5, 1, 2, 8, 8, 1, 2];
+const CANDIDATES = [36, 5, 1, 2, 8, 8, 1, 2];
 
 function hash(x, z, salt = 0) {
   let n = Math.imul(x | 0, 374761393) ^ Math.imul(z | 0, 668265263) ^ Math.imul(salt | 0, 1442695041);
@@ -160,7 +160,7 @@ export function createGroundCover(THREE, scene, {
   const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), yaw = new THREE.Quaternion(), position = new THREE.Vector3();
   const scale = new THREE.Vector3(), color = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
   const normal = new THREE.Vector3();
-  const goldenPigment = new THREE.Color().setRGB(...GROUND_PALETTE.straw);
+  const goldenPigment = new THREE.Color('#c3b778');
   const bounds = meshes.map(() => new THREE.Box3());
   const cellCache = new Map();
   let cellBuilds = 0;
@@ -168,7 +168,7 @@ export function createGroundCover(THREE, scene, {
   let farCellX = null, farCellZ = null, farCellBuilds = 0;
   const farUniforms = { time: uniforms.time, camera: uniforms.camera, radius: { value: FAR_LEVELS[level].radius } };
   const farBlend = { start: { value: FAR_LEVELS[level].inner }, end: { value: LEVELS[level].radius } };
-  const farGeometry = createGrassFanGeometry(THREE, { bladesPerCrown: 2 });
+  const farGeometry = createGrassFanGeometry(THREE, { bladesPerCrown: 2, distant: true });
   const farMaterial = coverMaterial(THREE, materials.grass, .075, farUniforms, 1, farBlend);
   geometries.push(farGeometry); ownedMaterials.push(farMaterial);
   const farMesh = new THREE.InstancedMesh(farGeometry, farMaterial, FAR_LEVELS.high.capacity);
@@ -214,13 +214,13 @@ export function createGroundCover(THREE, scene, {
           : batch === 4 ? 1.45 + hash(seedX, seedZ, salt + 3) * .7 : .8 + hash(seedX, seedZ, salt + 3) * .66;
     const height = batch === 0 ? (1 - site.style.mown * .74) * (.86 + site.style.dryness * .32)
       : batch === 7 ? 1 - site.style.mown * .72 : 1;
-    const spread = batch === 0 ? .9 + site.style.patch * .38 : batch === 1 ? 1.25 : batch === 4 ? 1.15 : 1;
+    const spread = batch === 0 ? 1.05 + site.style.patch * .4 : batch === 1 ? 1.25 : batch === 4 ? 1.15 : 1;
     scale.set(size * spread, size * height * (.86 + hash(seedX, seedZ, salt + 4) * .24), size * spread);
     matrix.compose(position, rotation, scale);
     const shade = .83 + hash(seedX, seedZ, salt + 5) * .32;
     if (batch === 0) {
       // Botanical colour follows the very same warped pigment fields as the soil.
-      color.setRGB(...site.style.color).lerp(goldenPigment, unit((site.style.dryness - .32) * 1.2));
+      color.setRGB(...site.style.color).lerp(goldenPigment, unit((site.style.dryness - .3) * 1.4 - site.canopy * .3));
       color.multiplyScalar(shade);
     } else if (batch === 1) {
       color.setRGB(shade * .97, shade, shade * .94);
@@ -236,8 +236,8 @@ export function createGroundCover(THREE, scene, {
     if (cellCache.has(key)) return cellCache.get(key);
     const groups = KINDS.map(() => []);
     for (let candidate = 0; candidate < CANDIDATES[0]; candidate++) {
-      const x = (cx + (candidate % 4 + .08 + hash(cx, cz, candidate * 7 + 101) * .84) / 4) * CELL;
-      const z = (cz + (Math.floor(candidate / 4) + .08 + hash(cx, cz, candidate * 7 + 102) * .84) / 3) * CELL;
+      const x = (cx + (candidate % 6 + .08 + hash(cx, cz, candidate * 7 + 101) * .84) / 6) * CELL;
+      const z = (cz + (Math.floor(candidate / 6) + .08 + hash(cx, cz, candidate * 7 + 102) * .84) / 6) * CELL;
       const site = suitable(x, z);
       if (site && hash(cx, cz, candidate * 7 + 103) <
         (.72 + site.style.patch * .48) * (1 - (site.style.wear || 0) * .6)
@@ -321,17 +321,17 @@ export function createGroundCover(THREE, scene, {
     const key = `${cx},${cz}`;
     if (farCache.has(key)) return farCache.get(key);
     const records = [];
-    for (let candidate = 0; candidate < 12; candidate++) {
-      const x = (cx + (candidate % 4 + .08 + hash(cx, cz, 1800 + candidate * 7) * .84) / 4) * FAR_CELL;
-      const z = (cz + (Math.floor(candidate / 4) + .08 + hash(cx, cz, 1801 + candidate * 7) * .84) / 3) * FAR_CELL;
+    for (let candidate = 0; candidate < 24; candidate++) {
+      const x = (cx + (candidate % 6 + .08 + hash(cx, cz, 1800 + candidate * 7) * .84) / 6) * FAR_CELL;
+      const z = (cz + (Math.floor(candidate / 6) + .08 + hash(cx, cz, 1801 + candidate * 7) * .84) / 4) * FAR_CELL;
       const site = suitable(x, z);
       if (!site) continue;
       const chance = (.72 + site.style.patch * .48) * (1 - (site.style.wear || 0) * .6)
         * (1 - site.canopy * .82) * (1 - site.talus * .83) * (1 - site.path * .9);
       if (hash(cx, cz, 1802 + candidate * 7) > chance) continue;
       const record = placement(0, x, site, z, cx, cz, 1900 + candidate * 11, hash(cx, cz, 1803 + candidate * 7));
-      // Low, grouped six-leaf fans give the distant meadow volume at 66 triangles.
-      for (const component of [4, 5, 6]) record.matrix[component] *= .68;
+      // Low, grouped six-leaf fans give the distant meadow volume at 18 triangles.
+      for (const component of [4, 5, 6]) record.matrix[component] *= .82;
       records.push(record);
     }
     const cell = { x: cx, z: cz, records };

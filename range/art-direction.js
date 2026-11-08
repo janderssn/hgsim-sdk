@@ -1,19 +1,21 @@
 /** One authored light and finishing palette for the illustrated flying range. */
 export const ALPINE_ART = Object.freeze({
   name: 'Golden Range',
-  sunDirection: Object.freeze([.70, .45, .55]),
-  sunColor: Object.freeze([1, .83, .64]),
-  sunIntensity: 3.2,
-  exposure: 1.05,
+  // The launch and landing approach face +Z. A camera-side afternoon key
+  // reveals timber/rock planes and foliage colours instead of silhouetting them.
+  sunDirection: Object.freeze([.70, .48, -.55]),
+  sunColor: Object.freeze([1, .79, .54]),
+  sunIntensity: 3.8,
+  exposure: .97,
   skyStyle: 'illustrated-alpine',
   grade: Object.freeze({
-    saturation: 1.10,
-    contrast: 1.045,
-    shadows: Object.freeze([.91, 1.025, 1.10]),
-    highlights: Object.freeze([1.055, 1.012, .91]),
+    saturation: 1.08,
+    contrast: 1.035,
+    shadows: Object.freeze([.97, 1.015, 1.075]),
+    highlights: Object.freeze([1.04, 1.005, .94]),
     lift: Object.freeze([.0035, .007, .010]),
     vignette: .10,
-    bloom: .065,
+    bloom: .035,
   }),
 });
 

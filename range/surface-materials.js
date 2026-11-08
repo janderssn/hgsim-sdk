@@ -177,8 +177,8 @@ function localCliffSurface(material, maps, forestUniforms, detailUniforms) {
         stoneAlbedo *= mix(vec3(1.0), vec3(0.82, 0.92, 0.65), lichen);
         if (ledgeFacing > 0.001) {
           vec2 groundDx = surfacePositionDx.xz, groundDy = surfacePositionDy.xz;
-          vec2 botanicalUv = vSurfacePosition.xz / 18.0;
-          vec3 brush = textureGrad(cliffMeadowColor, botanicalUv, groundDx / 18.0, groundDy / 18.0).rgb;
+          vec2 botanicalUv = vSurfacePosition.xz / 6.0;
+          vec3 brush = textureGrad(cliffMeadowColor, botanicalUv, groundDx / 6.0, groundDy / 6.0).rgb;
           vec3 ledgeMeadow = textureGrad(cliffWorldPaint, groundUv, groundDx / 3200.0, groundDy / 3200.0).rgb;
           ledgeMeadow *= mix(vec3(1.0), clamp(brush / vec3(0.379, 0.232, 0.056), vec3(0.35), vec3(1.80)), 0.80);
           float botanicalLuma = dot(ledgeMeadow, vec3(0.2126, 0.7152, 0.0722));
@@ -278,11 +278,11 @@ function terrainSurface(material, maps, forestUniforms, detailUniforms) {
       vec2 floorUv = vSurfacePosition.xz * 0.22;
       // Warp the single botanical tile with fields already in registers. Include
       // that warp in explicit gradients so the stronger brushwork stays stable
-      // under minification rather than revealing an 18-metre repeat grid.
+      // under minification rather than revealing a repeat grid.
       vec2 brushWarp = vec2(landEcology.b, moisture) * vec2(1.7, 1.3);
-      vec2 macroUv = vSurfacePosition.xz / 18.0 + brushWarp;
-      vec2 macroDx = surfacePositionDx.xz / 18.0 + dFdx(brushWarp);
-      vec2 macroDy = surfacePositionDy.xz / 18.0 + dFdy(brushWarp);
+      vec2 macroUv = vSurfacePosition.xz / 6.0 + brushWarp;
+      vec2 macroDx = surfacePositionDx.xz / 6.0 + dFdx(brushWarp);
+      vec2 macroDy = surfacePositionDy.xz / 6.0 + dFdy(brushWarp);
       // One authored world field gives the meadow coherent 20–150 m pigment
       // patches. A single hand-painted botanical sample supplies brush detail;
       // this replaces two repeated-photo phases and a fine colour fetch.
@@ -378,7 +378,7 @@ function terrainSurface(material, maps, forestUniforms, detailUniforms) {
       reflectedLight.directDiffuse *= mix(1.0, forestVisibility, 0.68);
     `);
   };
-  material.customProgramCacheKey = () => 'above-painted-ecological-meadow-v5';
+  material.customProgramCacheKey = () => 'above-painted-ecological-meadow-v6';
 }
 
 function mountainSurface(material, maps, uniforms, detailUniforms) {
@@ -413,8 +413,14 @@ function mountainSurface(material, maps, uniforms, detailUniforms) {
       float mountainVegetation = smoothstep(0.72, 0.97, mountainWorldNormal.y)
         * (1.0 - smoothstep(mountainTreeLine - 200.0, mountainTreeLine + 200.0,
           vSurfacePosition.y));
-      float mountainSnow = smoothstep(mountainSnowLine, mountainSnowLine + 300.0,
-          vSurfacePosition.y) * smoothstep(0.35, 0.82, mountainWorldNormal.y);
+      // Snow collects in sheltered shelves and shaded couloirs. The previous
+      // 1700m threshold exceeded the retained DEM's 1529m summit entirely.
+      float snowDrift = sin(vSurfacePosition.x * .006 + sin(vSurfacePosition.z * .008) * 1.7)
+        * 45.0 + sin(vSurfacePosition.z * .018 + vSurfacePosition.x * .011) * 24.0;
+      float snowShelter = clamp(-mountainWorldNormal.z * .5 + .5, 0.0, 1.0);
+      float mountainSnow = smoothstep(mountainSnowLine + snowDrift - snowShelter * 130.0,
+        mountainSnowLine + 260.0 + snowDrift, vSurfacePosition.y)
+        * smoothstep(0.24, 0.72, mountainWorldNormal.y);
       vec2 aerialUv = vSurfacePosition.xz / 240.0;
       vec2 aerialDx = surfacePositionDx.xz / 240.0, aerialDy = surfacePositionDy.xz / 240.0;
       bool graniteXAxis = abs(mountainWorldNormal.x) > abs(mountainWorldNormal.z);
@@ -465,7 +471,7 @@ function mountainSurface(material, maps, uniforms, detailUniforms) {
       reflectedLight.indirectSpecular *= mountainAmbientOcclusion;
     `);
   };
-  material.customProgramCacheKey = () => 'above-painted-mountain-v4';
+  material.customProgramCacheKey = () => 'above-painted-mountain-v5';
 }
 
 /** Load locally retained, attributed PBR maps before constructing the scene. */
@@ -490,6 +496,7 @@ export async function createSurfaceMaterials(THREE, { anisotropy = 4 } = {}) {
     floorColor: ['scanned/floor-color.webp', true],
     floorNormal: ['scanned/floor-normal.webp', false],
     floorRoughness: ['scanned/floor-roughness.webp', false],
+    rockColor: ['scanned/rock-color.webp', true],
     rockNormal: ['scanned/rock-normal.webp', false],
     rockRoughness: ['scanned/rock-roughness.webp', false],
     woodColor: ['scanned/wood-color.webp', true],
@@ -591,6 +598,7 @@ export async function createSurfaceMaterials(THREE, { anisotropy = 4 } = {}) {
   const atmospheres = new WeakSet();
   return {
     terrain, rock, granite, timber, timberBeam, mountain, metal, rope,
+    boulderMaps: { color: maps.rockColor, normal: maps.rockNormal, roughness: maps.rockRoughness },
     setForestShadowMap(texture, bounds) {
       if (!texture || !bounds) return;
       forestUniforms.forestCanopyMap.value = texture;

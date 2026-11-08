@@ -1,0 +1,438 @@
+{
+  "output": "docs/graphics/alpine-rebuild",
+  "errors": [],
+  "frames": [
+    {
+      "output": "docs/graphics/alpine-rebuild/staging.jpg",
+      "view": "staging",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 63552,
+          "near": 15,
+          "mid": 121,
+          "far": 19985,
+          "testedCells": 355
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 32534
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": true,
+          "cellX": -7,
+          "cellZ": -106,
+          "tufts": 1355,
+          "flowers": 53,
+          "pebbles": 32,
+          "ferns": 6,
+          "shrubs": 10,
+          "litter": 35,
+          "deadwood": 1,
+          "seeds": 49,
+          "distantFans": 2301,
+          "distantRadius": 110,
+          "draws": 9,
+          "triangles": 273894,
+          "cachedCells": 195,
+          "cellBuilds": 314,
+          "farCachedCells": 406,
+          "farCellBuilds": 470
+        }
+      },
+      "camera": [
+        -38,
+        254.29618247119836,
+        -631
+      ],
+      "render": {
+        "frame": 33,
+        "calls": 175,
+        "triangles": 2209013,
+        "points": 0,
+        "lines": 12
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-rebuild/refuge.jpg",
+      "view": "refuge",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 63552,
+          "near": 51,
+          "mid": 246,
+          "far": 16939,
+          "testedCells": 292
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 32534
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": true,
+          "cellX": -11,
+          "cellZ": -64,
+          "tufts": 1209,
+          "flowers": 73,
+          "pebbles": 39,
+          "ferns": 11,
+          "shrubs": 32,
+          "litter": 34,
+          "deadwood": 2,
+          "seeds": 36,
+          "distantFans": 1272,
+          "distantRadius": 110,
+          "draws": 9,
+          "triangles": 255635,
+          "cachedCells": 169,
+          "cellBuilds": 483,
+          "farCachedCells": 373,
+          "farCellBuilds": 812
+        }
+      },
+      "camera": [
+        -61,
+        94.0423309842934,
+        -382
+      ],
+      "render": {
+        "frame": 37,
+        "calls": 135,
+        "triangles": 4075214,
+        "points": 0,
+        "lines": 0
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-rebuild/meadow.jpg",
+      "view": "meadow",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 63552,
+          "near": 18,
+          "mid": 164,
+          "far": 15212,
+          "testedCells": 288
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 32534
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": true,
+          "cellX": 33,
+          "cellZ": -42,
+          "tufts": 3320,
+          "flowers": 171,
+          "pebbles": 88,
+          "ferns": 10,
+          "shrubs": 16,
+          "litter": 28,
+          "deadwood": 1,
+          "seeds": 114,
+          "distantFans": 3530,
+          "distantRadius": 110,
+          "draws": 9,
+          "triangles": 647351,
+          "cachedCells": 169,
+          "cellBuilds": 652,
+          "farCachedCells": 349,
+          "farCellBuilds": 1161
+        }
+      },
+      "camera": [
+        200,
+        35.68865361974663,
+        -250
+      ],
+      "render": {
+        "frame": 41,
+        "calls": 111,
+        "triangles": 2784690,
+        "points": 0,
+        "lines": 10
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-rebuild/departure.jpg",
+      "view": "departure",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 63552,
+          "near": 0,
+          "mid": 52,
+          "far": 25645,
+          "testedCells": 453
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 32534
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": false,
+          "cellX": 33,
+          "cellZ": -42,
+          "tufts": 3320,
+          "flowers": 171,
+          "pebbles": 88,
+          "ferns": 10,
+          "shrubs": 16,
+          "litter": 28,
+          "deadwood": 1,
+          "seeds": 114,
+          "distantFans": 3530,
+          "distantRadius": 110,
+          "draws": 0,
+          "triangles": 647351,
+          "cachedCells": 169,
+          "cellBuilds": 652,
+          "farCachedCells": 349,
+          "farCellBuilds": 1161
+        }
+      },
+      "camera": [
+        -1.0469051170564527,
+        273.0099973108333,
+        -545.0974715192948
+      ],
+      "render": {
+        "frame": 45,
+        "calls": 179,
+        "triangles": 947521,
+        "points": 0,
+        "lines": 12
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-rebuild/launch.jpg",
+      "view": "launch",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 63552,
+          "near": 0,
+          "mid": 17,
+          "far": 10106,
+          "testedCells": 181
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 32534
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": false,
+          "cellX": 33,
+          "cellZ": -42,
+          "tufts": 3320,
+          "flowers": 171,
+          "pebbles": 88,
+          "ferns": 10,
+          "shrubs": 16,
+          "litter": 28,
+          "deadwood": 1,
+          "seeds": 114,
+          "distantFans": 3530,
+          "distantRadius": 110,
+          "draws": 0,
+          "triangles": 647351,
+          "cachedCells": 169,
+          "cellBuilds": 652,
+          "farCachedCells": 349,
+          "farCellBuilds": 1161
+        }
+      },
+      "camera": [
+        78,
+        253.74987226232417,
+        -472
+      ],
+      "render": {
+        "frame": 49,
+        "calls": 129,
+        "triangles": 558380,
+        "points": 0,
+        "lines": 0
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-rebuild/approach.jpg",
+      "view": "approach",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 63552,
+          "near": 49,
+          "mid": 216,
+          "far": 21353,
+          "testedCells": 389
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 32534
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": true,
+          "cellX": -10,
+          "cellZ": -73,
+          "tufts": 809,
+          "flowers": 28,
+          "pebbles": 31,
+          "ferns": 12,
+          "shrubs": 21,
+          "litter": 55,
+          "deadwood": 3,
+          "seeds": 29,
+          "distantFans": 1317,
+          "distantRadius": 110,
+          "draws": 9,
+          "triangles": 174092,
+          "cachedCells": 169,
+          "cellBuilds": 338,
+          "farCachedCells": 401,
+          "farCellBuilds": 582
+        }
+      },
+      "camera": [
+        -58.861970564124505,
+        174.34669656731717,
+        -432.4270005626798
+      ],
+      "render": {
+        "frame": 33,
+        "calls": 195,
+        "triangles": 3747603,
+        "points": 0,
+        "lines": 12
+      }
+    }
+  ]
+}

@@ -17,7 +17,7 @@
  * Three.js presentation (the pilot's body, landing cues) is in hgsim/three. Types: types/index.d.ts (the package's "types").
  */
 /** The SDK's version (semver), as in package.json: the CHANGELOG says what each one changed. */
-export const VERSION = '0.4.0';
+export const VERSION = '0.5.0';
 export { createWorld, AIR_DEFAULTS, MATERIALS } from './world.js';
 export { createGlider } from './glider.js';
 export { PRESETS, getPreset, defineWing, wingConfig, handlingFor, vgConfig, TRAITS } from './presets.js';

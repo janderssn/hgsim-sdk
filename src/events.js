@@ -9,7 +9,7 @@ export function createEmitter(types, owner = 'events') {
     if (typeof type === 'function') [type, f] = [null, type];
     if (typeof f !== 'function') throw new TypeError(`${owner}.on: expected a listener function`);
     if (type !== null && !known.includes(type)) throw new TypeError(`${owner}.on: unknown event "${type}" (known: ${known.join(', ')})`);
-    const l = { type, f: once ? e => { listeners.delete(l); f(e); } : f };
+    const l = { type, f, once };
     listeners.add(l);
     return () => { listeners.delete(l); };
   };
@@ -19,8 +19,13 @@ export function createEmitter(types, owner = 'events') {
     once: (type, f) => listen(type, f, true),
     /** Delivers { type, ...detail } to the listeners; returns the event. */
     emit(type, detail = {}) {
-      const event = { type, ...detail };
-      for (const l of [...listeners]) if (l.type === null || l.type === type) l.f(event);
+      if (!known.includes(type)) throw new TypeError(`${owner}.emit: unknown event "${type}" (known: ${known.join(', ')})`);
+      const event = { ...detail, type };
+      for (const l of [...listeners]) {
+        if (!listeners.has(l) || (l.type !== null && l.type !== type)) continue;
+        if (l.once) listeners.delete(l);
+        l.f(event);
+      }
       return event;
     },
   };

@@ -8,6 +8,7 @@
  * the run. The edge is where the ground stops carrying the pilot: it drops away steeper than the edge slope (a cliff, the lip of a
  * ramp, the side of its deck), or meets water, a solid thing or the map's edge, within look metres; past look the run is open.
  */
+import { defineConfig } from './config.js';
 import { finite } from './math.js';
 
 export const SITE_DEFAULTS = Object.freeze({
@@ -21,16 +22,24 @@ export const SITE_DEFAULTS = Object.freeze({
   span: 2,
 });
 
+const MIN_STEP = 0.01, MAX_SAMPLES = 10000;
+
 export function terrainSite(world, { x = 0, z = 0, heading = 0, ...options } = {}) {
   if (typeof world?.groundAt !== 'function') throw new TypeError('terrainSite: world must come from createWorld()');
-  const cfg = { ...SITE_DEFAULTS, ...options }, ground = (px, pz) => world.groundAt(px, pz);
+  const cfg = defineConfig(SITE_DEFAULTS, options, 'terrainSite');
+  // (a step too fine for the look would sample the ground millions of times on every tick of a launch run)
+  if (!(cfg.step >= MIN_STEP) || !(cfg.span > 0) || !(cfg.look >= 0) || cfg.look / cfg.step > MAX_SAMPLES)
+    throw new RangeError(`terrainSite: step must be at least ${MIN_STEP} m, span positive, and look no more than ${MAX_SAMPLES} steps (got step ${cfg.step}, span ${cfg.span}, look ${cfg.look})`);
+  const ground = (px, pz) => world.groundAt(px, pz);
   const fall = (px, pz, h) => (ground(px, pz) - ground(px + Math.sin(h) * cfg.span, pz + Math.cos(h) * cfg.span)) / cfg.span;
   const edgeAhead = (px, pz, h) => {
     const dx = Math.sin(h), dz = Math.cos(h);
     let prev = ground(px, pz);
     for (let d = cfg.step; d <= cfg.look; d += cfg.step) {
-      const qx = px + dx * d, qz = pz + dz * d, g = ground(qx, qz);
-      if ((prev - g) / cfg.step > cfg.edgeSlope || world.waterAt(qx, qz) !== null || !world.inBounds(qx, qz)
+      const qx = px + dx * d, qz = pz + dz * d;
+      if (!world.inBounds(qx, qz)) return Math.max(0, d - cfg.step);
+      const g = ground(qx, qz), water = world.waterAt(qx, qz);
+      if ((prev - g) / cfg.step > cfg.edgeSlope || (water !== null && water > g)
         || world.solidAt(qx, g + 1, qz)) return Math.max(0, d - cfg.step);
       prev = g;
     }

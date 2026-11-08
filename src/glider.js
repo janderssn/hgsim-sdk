@@ -18,7 +18,7 @@ import { LANDING_RULES, scoreLanding, measureFlareZone } from './landing.js';
 import { LAUNCH_DEFAULTS, createLaunch, stepLaunch, launchPose, windOnRun, shoulderPivot, barForSpeed } from './launch.js';
 import { createTumble } from './tumble.js';
 import { updateSkimPose } from './assists/skim-pose.js';
-import { finite } from './math.js';
+import { finite, tickSeconds } from './math.js';
 import { getPreset, vgConfig } from './presets.js';
 import { polarOf, pitchStabilityOf } from './polar.js';
 
@@ -73,7 +73,7 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
      * stand (sit up for drag), field (low over landable ground). Returns the state.
      */
     step(dt, input = {}) {
-      if (!(dt >= 0) || dt === Infinity) throw new RangeError(`glider.step: dt must be a finite number of seconds >= 0 (got ${dt})`);
+      dt = tickSeconds(dt, 'glider.step');
       model.step(state, input, dt, world, cfg, skimOptions);
       if (skimOptions) updateSkimPose(state, dt, world); else state.visualBank = state.bank;
       return state;

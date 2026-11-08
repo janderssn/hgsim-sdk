@@ -9,23 +9,24 @@ import { sampleGroundStyle, GROUND_PALETTE } from './surface-style.js';
 
 const CELL = 6;
 const CELL_MARGIN = CELL / Math.SQRT2;
-const TARGET_CLEARANCE = 66;
+// Keep the painted scoring rings visible while allowing short grass between them.
+const TARGET_RINGS = [6, 7.2, 15, 30, 60];
 const MAX_ALTITUDE = 60;
 const MAX_CACHED_CELLS = 384;
 const FAR_CELL = 12, FAR_MARGIN = FAR_CELL / Math.SQRT2, MAX_FAR_CACHED_CELLS = 256;
-const FAR_LEVELS = { high: { radius: 75, inner: 20, capacity: 900 },
-  medium: { radius: 50, inner: 20, capacity: 450 }, low: { radius: 25, inner: 12, capacity: 140 } };
+const FAR_LEVELS = { high: { radius: 75, inner: 20, capacity: 1800 },
+  medium: { radius: 50, inner: 20, capacity: 900 }, low: { radius: 25, inner: 12, capacity: 240 } };
 const unit = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 const LEVELS = {
-  high: { radius: 35, grass: 760, flowers: 180, pebbles: 120, ferns: 80, shrubs: 180, litter: 240, deadwood: 24, seeds: 120, density: 1 },
-  medium: { radius: 25, grass: 360, flowers: 80, pebbles: 60, ferns: 40, shrubs: 90, litter: 120, deadwood: 12, seeds: 60, density: .84 },
-  low: { radius: 15, grass: 100, flowers: 16, pebbles: 24, ferns: 0, shrubs: 0, litter: 32, deadwood: 0, seeds: 8, density: .58 },
+  high: { radius: 35, grass: 1500, flowers: 180, pebbles: 120, ferns: 80, shrubs: 180, litter: 240, deadwood: 24, seeds: 120, density: 1 },
+  medium: { radius: 25, grass: 700, flowers: 80, pebbles: 60, ferns: 40, shrubs: 90, litter: 120, deadwood: 12, seeds: 60, density: .84 },
+  low: { radius: 15, grass: 180, flowers: 16, pebbles: 24, ferns: 0, shrubs: 0, litter: 32, deadwood: 0, seeds: 8, density: .58 },
 };
 const KINDS = ['grass', 'flowers', 'pebbles', 'ferns', 'shrubs', 'litter', 'deadwood', 'seeds'];
 // Layer-specific distance bands keep dense low herbs close without a hard budget
 // boundary. The same radius is used by placement and the smooth GPU growth fade.
 const RANGE_SCALE = [1, .7, 1, .72, .52, .7, 1, 1];
-const CANDIDATES = [6, 5, 1, 2, 8, 8, 1, 2];
+const CANDIDATES = [12, 5, 1, 2, 8, 8, 1, 2];
 
 function hash(x, z, salt = 0) {
   let n = Math.imul(x | 0, 374761393) ^ Math.imul(z | 0, 668265263) ^ Math.imul(salt | 0, 1442695041);
@@ -182,7 +183,8 @@ export function createGroundCover(THREE, scene, {
   const allMeshes = [...meshes, farMesh];
 
   function suitable(x, z) {
-    if (x * x + z * z < TARGET_CLEARANCE * TARGET_CLEARANCE) return null;
+    const targetDistance = Math.hypot(x, z);
+    if (targetDistance < 8 || TARGET_RINGS.some(radius => Math.abs(targetDistance - radius) < 1.6)) return null;
     const y = terrainHeight(x, z);
     if (!Number.isFinite(y)) return null;
     const solid = groundUnder(x, z);
@@ -191,7 +193,7 @@ export function createGroundCover(THREE, scene, {
     const dz = terrainHeight(x, z + .75) - terrainHeight(x, z - .75);
     if (!Number.isFinite(dx + dz) || Math.hypot(dx, dz) > .75) return null;
     const ecology = ecologyAt(x, z) || {};
-    const site = { y, dx, dz, canopy: unit(forestCoverage(x, z)), rock: unit(ecology.rock),
+    const site = { targetDistance, y, dx, dz, canopy: unit(forestCoverage(x, z)), rock: unit(ecology.rock),
       talus: unit(ecology.talus), moisture: unit(ecology.moisture), path: unit(ecology.path) };
     if (site.path > .55 || site.rock > .75) return null;
     site.style = sampleGroundStyle(x, z, site);
@@ -234,8 +236,8 @@ export function createGroundCover(THREE, scene, {
     if (cellCache.has(key)) return cellCache.get(key);
     const groups = KINDS.map(() => []);
     for (let candidate = 0; candidate < CANDIDATES[0]; candidate++) {
-      const x = (cx + (candidate % 3 + .08 + hash(cx, cz, candidate * 7 + 101) * .84) / 3) * CELL;
-      const z = (cz + (Math.floor(candidate / 3) + .08 + hash(cx, cz, candidate * 7 + 102) * .84) / 2) * CELL;
+      const x = (cx + (candidate % 4 + .08 + hash(cx, cz, candidate * 7 + 101) * .84) / 4) * CELL;
+      const z = (cz + (Math.floor(candidate / 4) + .08 + hash(cx, cz, candidate * 7 + 102) * .84) / 3) * CELL;
       const site = suitable(x, z);
       if (site && hash(cx, cz, candidate * 7 + 103) <
         (.72 + site.style.patch * .48) * (1 - (site.style.wear || 0) * .6)
@@ -250,7 +252,7 @@ export function createGroundCover(THREE, scene, {
         const x = (cx + hash(cx, cz, 410 + batch + salt)) * CELL;
         const z = (cz + hash(cx, cz, 420 + batch + salt)) * CELL;
         const site = suitable(x, z);
-        if (!site) continue;
+        if (!site || site.targetDistance < 66) continue;
         // Forest floor, meadow and disturbed stony edges grow different forms.
         const probability = batch === 1 ? .52 * (1 - site.canopy * .9) * (1 - site.talus) * (1 - site.style.mown * .5)
           : batch === 2 ? .64 + site.talus * .35
@@ -319,9 +321,9 @@ export function createGroundCover(THREE, scene, {
     const key = `${cx},${cz}`;
     if (farCache.has(key)) return farCache.get(key);
     const records = [];
-    for (let candidate = 0; candidate < 6; candidate++) {
-      const x = (cx + (candidate % 3 + .08 + hash(cx, cz, 1800 + candidate * 7) * .84) / 3) * FAR_CELL;
-      const z = (cz + (Math.floor(candidate / 3) + .08 + hash(cx, cz, 1801 + candidate * 7) * .84) / 2) * FAR_CELL;
+    for (let candidate = 0; candidate < 12; candidate++) {
+      const x = (cx + (candidate % 4 + .08 + hash(cx, cz, 1800 + candidate * 7) * .84) / 4) * FAR_CELL;
+      const z = (cz + (Math.floor(candidate / 4) + .08 + hash(cx, cz, 1801 + candidate * 7) * .84) / 3) * FAR_CELL;
       const site = suitable(x, z);
       if (!site) continue;
       const chance = (.72 + site.style.patch * .48) * (1 - (site.style.wear || 0) * .6)

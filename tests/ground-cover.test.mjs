@@ -60,12 +60,12 @@ test('a dense meadow uses bounded shared draws for expressive grass fans, herbs 
   const { cover, meshes, nearMeshes, distantMesh } = meadow();
   cover.update(new THREE.Vector3(210, 6, 210), 1);
   assert.equal(cover.stats.draws, 5, 'unused woodland batches add no meadow draws');
-  assert.ok(cover.stats.tufts >= 500 && cover.stats.tufts <= 760);
+  assert.ok(cover.stats.tufts >= 900 && cover.stats.tufts <= 1500);
   assert.ok(cover.stats.flowers > 40 && cover.stats.pebbles > 40);
   assert.ok(cover.stats.seeds > 40);
-  assert.ok(cover.stats.triangles < 340000, 'fuller silhouettes and mid-distance strokes retain a bounded triangle budget');
+  assert.ok(cover.stats.triangles < 470000, 'fuller silhouettes and mid-distance strokes retain a bounded triangle budget');
   const grass = meshes[0].geometry;
-  assert.equal(grass.index.count / 3, 264, 'six curved spans avoid the old angular blade silhouette');
+  assert.equal(grass.index.count / 3, 198, 'six curved spans avoid the old angular blade silhouette');
   assert.ok(grass.attributes.color && grass.attributes.normal);
   assert.ok(grass.boundingBox.max.y < .75, 'grass has a plausible meadow scale');
   assert.ok(grass.boundingBox.max.x - grass.boundingBox.min.x > 1.2, 'clumps have visible spreading mass rather than isolated needles');
@@ -154,10 +154,12 @@ test('bullseye, elevated platforms, exposed rocks and steep terrain remain free 
     assert.ok(measuredSlope <= .5 + 1e-5, 'steep faces do not grow upright meadow tufts');
   });
   cover.update(new THREE.Vector3(61, 2, 0));
-  eachPosition(meshes, position => assert.ok(Math.hypot(position.x, position.z) >= 66 - 1e-5));
   cover.update(new THREE.Vector3(0, 2, 0));
-  assert.ok(meshes.filter(mesh => mesh.name !== 'MidMeadowFans').every(mesh => mesh.count === 0), 'the landing target stays entirely clear');
-  eachPosition(meshes, position => assert.ok(Math.hypot(position.x, position.z) >= 66 - 1e-5));
+  assert.ok(meshes[0].count > 0, 'short grass grows between the painted rings');
+  eachPosition(meshes, position => {
+    const radius = Math.hypot(position.x, position.z);
+    assert.ok(radius >= 8 - 1e-5 && [6, 7.2, 15, 30, 60].every(ring => Math.abs(radius - ring) >= 1.6 - 1e-5), 'painted scoring marks stay clear');
+  });
   cover.dispose();
 });
 
@@ -195,7 +197,7 @@ test('altitude suppresses invisible detail, restores cached buffers and allows q
   assert.ok(meshes.every(mesh => !mesh.visible));
   position.y = 5;
   cover.update(position, 7);
-  assert.ok(cover.stats.tufts > 50 && cover.stats.tufts <= 100);
+  assert.ok(cover.stats.tufts > 50 && cover.stats.tufts <= 180);
   assert.equal(cover.stats.radius, 15);
   cover.dispose();
 });
@@ -209,13 +211,13 @@ test('all quality levels reuse fixed capacity, shrink at the edge in the GPU and
     cover.setQuality(quality);
     cover.update(new THREE.Vector3(-220, 7, 180), 12);
     assert.deepEqual(meshes.map(mesh => mesh.instanceMatrix), buffers);
-    const nearLimits = { low: [100, 16, 24, 0, 0, 32, 0, 8], medium: [360, 80, 60, 40, 90, 120, 12, 60],
-      high: [760, 180, 120, 80, 180, 240, 24, 120] }[quality];
+    const nearLimits = { low: [180, 16, 24, 0, 0, 32, 0, 8], medium: [700, 80, 60, 40, 90, 120, 12, 60],
+      high: [1500, 180, 120, 80, 180, 240, 24, 120] }[quality];
     assert.equal(nearMeshes.length, nearLimits.length);
     nearMeshes.forEach((mesh, index) => assert.ok(mesh.count >= (index < 3 ? 1 : 0) && mesh.count <= nearLimits[index], mesh.name));
-    const distantLimit = { low: 140, medium: 450, high: 900 }[quality];
+    const distantLimit = { low: 240, medium: 900, high: 1800 }[quality];
     assert.ok(distantMesh.count > 0 && distantMesh.count <= distantLimit);
-    assert.equal(distantMesh.userData.capacity, 900, 'mid-layer quality reuses its fixed maximum allocation');
+    assert.equal(distantMesh.userData.capacity, 1800, 'mid-layer quality reuses its fixed maximum allocation');
     assertStreamBounds(meshes);
   }
   const shader = { uniforms: {}, vertexShader: '#include <begin_vertex>' };

@@ -73,7 +73,7 @@ class BotanicalMesh {
 }
 
 /** A painted meadow fan: three intertwined crowns, with long arching leaves. */
-export function createGrassFanGeometry(THREE, { bladesPerCrown = 8 } = {}) {
+export function createGrassFanGeometry(THREE, { bladesPerCrown = 6 } = {}) {
   const mesh = new BotanicalMesh(THREE);
   const stations = [0, .15, .33, .52, .70, .86, 1];
   const widths = [.12, .65, 1, .93, .66, .32, 0];
@@ -85,7 +85,7 @@ export function createGrassFanGeometry(THREE, { bladesPerCrown = 8 } = {}) {
       const seed = crown * 8 + blade, angle = blade * 2.399963 + crown * .8 + random(seed + 1) * .45;
       const height = .28 + random(seed + 3) * .4;
       const bend = .34 + random(seed + 7) * .34;
-      const width = .010 + random(seed + 11) * .010;
+      const width = .015 + random(seed + 11) * .012;
       const twist = (random(seed + 17) - .5) * .85;
       const arc = 2.35 + random(seed + 19) * .48;
       const first = mesh.positions.length / 3;

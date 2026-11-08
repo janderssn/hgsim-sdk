@@ -167,7 +167,8 @@ test('the version, the exports and the generated config types agree with the cod
   assert.ok(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8').includes(`## [${VERSION}]`), 'the CHANGELOG has this version');
   assert.deepEqual(Object.keys(pkg.exports), ['.', './three', './ground', './package.json']);
   const { configTypes } = await import('../tools/config-types.mjs');
-  assert.equal(readFileSync(new URL('../types/configs.d.ts', import.meta.url), 'utf8'), configTypes(), 'npm run types:configs');
+  assert.equal(readFileSync(new URL('../types/configs.d.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n'),
+    configTypes(), 'npm run types:configs');
   // every runtime export is declared
   const missingIn = (declared, module) => Object.keys(module).filter(name => !['const', 'function'].some(kind => declared.includes(`export ${kind} ${name}:`) || declared.includes(`export ${kind} ${name}(`) || declared.includes(`export ${kind} ${name}<`)));
   assert.deepEqual(missingIn(readFileSync(new URL('../types/ground.d.ts', import.meta.url), 'utf8'), await import('../src/ground/index.js')), [], 'hgsim/ground exports without declarations');

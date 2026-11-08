@@ -2,9 +2,9 @@
 
 All notable changes to the hgsim SDK. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version follows [Semantic Versioning](https://semver.org/): while it is 0.x, a breaking change to the public API bumps the minor version.
 
-The public API is what `hgsim` and `hgsim/three` export, as declared in `types/`.
+The public API is what `hgsim`, `hgsim/ground` and `hgsim/three` export, as declared in `types/`.
 
-## [0.2.0]
+## [0.4.0]
 
 ### Added
 
@@ -15,6 +15,24 @@ The public API is what `hgsim` and `hgsim/three` export, as declared in `types/`
 - `terrainSite`: a launch site read from the world, its fall and its edge (a drop, water, a solid thing, the map's edge).
 - Poses: `makePose`, `lerpPose`, `createPoseTrack` and `applyPose`, to draw any vehicle between fixed ticks.
 - For games, from migrating Above onto the SDK: `shoulderPivot` (drawing the launch run), a round's `target` as a function chosen at the touchdown (the nearest clearing), the walker's `stopAtDrop` (a careful walker stops at a cliff), and `SKIM_CLEARANCE`.
+
+### Changed
+
+- The round's `liftoff` event is `airborne`, as on every vehicle. `crash` says what happened: `{ kind: 'terrain' | 'solid' | 'water' | 'launch', impact, hit }`, and a failed launch is a crash too.
+- A hang glider flying into the world's water or its solid things crashes into them; a wreck in the water settles on its surface. The wreck stops against solid things (walls, huts, pylons) instead of sliding through them, and the crash is found at the wing's nose as well as the body.
+- A tumble ends when the wreck is still, or after 7 s once it is only creeping, or after 60 s; a wreck still falling, down a cliff or a wall, is no longer stopped in mid-air.
+- A new entry, `hgsim/ground`, for the vehicles on the ground; `hgsim` stays the world, the clock, poses, events and the air vehicles.
+
+## [0.3.0]
+
+- Added swept contact detection for posed feet, bars and tires, and an optional measured clearance for both flight models.
+- Added wheel rollout eligibility, rolling resistance, wheel-only scrape recovery and zero-point wheel rollout scoring.
+- Exposed pilot foot and bar samples and an optional base-bar wheel attachment in `hgsim/three`. Sail flutter composes with existing material shaders.
+
+## [0.2.0]
+
+### Added
+
 - Type declarations for the whole public API (`types/index.d.ts`, `types/three.d.ts`), with the config interfaces generated from the frozen defaults, and `npm run check:types`.
 - `VERSION`.
 - Glider presets from a 1975 Rogallo to a topless competition wing, and `defineWing`, `wingConfig`, `handlingFor` and `vgConfig` to make your own. A preset's launch comes from its build: the wing's mass, span, dihedral and carried angle of attack.
@@ -25,10 +43,7 @@ The public API is what `hgsim` and `hgsim/three` export, as declared in `types/`
 
 ### Changed
 
-- The round's `liftoff` event is `airborne`, as on every vehicle. `crash` says what happened: `{ kind: 'terrain' | 'solid' | 'water' | 'launch', impact, hit }`, and a failed launch is a crash too.
-- A hang glider flying into the world's water or its solid things crashes into them; a wreck in the water settles on its surface. The wreck stops against solid things (walls, huts, pylons) instead of sliding through them, and the crash is found at the wing's nose as well as the body.
-- A tumble ends when the wreck is still, or after 7 s once it is only creeping, or after 60 s; a wreck still falling, down a cliff or a wall, is no longer stopped in mid-air.
-- The package's exports are its entry points, `hgsim`, `hgsim/ground` and `hgsim/three`. The per-module subpaths (`hgsim/launch`, ...) are gone; everything public is exported from the entry points.
+- The package's exports are its two entry points, `hgsim` and `hgsim/three`. The per-module subpaths (`hgsim/launch`, ...) are gone; everything public is exported from the entry points.
 - `round.standAt` takes one of `SITES` as it is, as well as a `{ start, fall, edgeAhead, ground }` site.
 - `glider.step` throws a `RangeError` for a negative or non-finite time step instead of corrupting the flight.
 - `createRound` throws a `TypeError` without a glider from `createGlider`, or with a hook that is not a function.

@@ -12,7 +12,7 @@
  * classicModel are two; your own drops in the same way.
  */
 import { defineConfig, overridesOf } from './config.js';
-import { forceModel } from './flight.js';
+import { forceModel, GLIDER_DEFAULTS } from './flight.js';
 import { createWorld } from './world.js';
 import { LANDING_RULES, scoreLanding, measureFlareZone } from './landing.js';
 import { LAUNCH_DEFAULTS, createLaunch, stepLaunch, launchPose, windOnRun, shoulderPivot, barForSpeed } from './launch.js';
@@ -171,7 +171,7 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
     launch({ site = OPEN_GROUND, manual = false, config: launchConfig = {} } = {}) {
       const launchCfg = defineConfig(glider.launchConfig, launchConfig, 'launch config');
       const groundAt = site.ground ?? world.groundAt;
-      state = model.createState({ x: state.x, y: groundAt(state.x, state.z) + cfg.contactHeight, z: state.z, heading: state.heading }, cfg);
+      state = model.createState({ x: state.x, y: groundAt(state.x, state.z) + finite(cfg.contactHeight, 2.3), z: state.z, heading: state.heading }, cfg);
       return createLaunchHandle({ glider, run: createLaunch(state), site, groundAt, manual, launchCfg });
     },
   };
@@ -182,6 +182,7 @@ const windNow = (world, s) => { const w = world.windAt(s.x, s.y, s.z); return { 
 
 function createLaunchHandle({ glider, run, site, groundAt, manual, launchCfg }) {
   const { world } = glider;
+  const launchAero = () => glider.model.name === 'classic' ? GLIDER_DEFAULTS : glider.config;
   const launch = {
     /** The launch state: phase ('pickup', 'balance', 'run'), distance, groundSpeed, airspeed, lift, roll, yaw, warn, ... */
     state: run,
@@ -208,16 +209,16 @@ function createLaunchHandle({ glider, run, site, groundAt, manual, launchCfg }) 
         headwind: wind.headwind, crosswind: wind.crosswind, airLift: air.lift,
         slope: site.fall(x, z, heading), edgeAhead: site.edgeAhead(x, z, heading), ...conditions,
         x, y: s.y, z, heading, manual, balance: controls.balance, nose: controls.nose, push: controls.push, go: controls.go, jump: controls.jump,
-      }, glider.config, launchCfg);
+      }, launchAero(), launchCfg);
       const side = run.sideMoved || 0;
       s.x = x + Math.sin(heading) * moved - Math.cos(heading) * side;
       s.z = z + Math.cos(heading) * moved + Math.sin(heading) * side;
       s.heading = heading + (run.turnRate || 0) * dt;
-      s.y = groundAt(s.x, s.z) + glider.config.contactHeight;
+      s.y = groundAt(s.x, s.z) + finite(glider.config.contactHeight, 2.3);
       return launch;
     },
     /** Where the wing and the pilot are, for drawing: height, pitch, roll, yaw, lean, lift, carry, grip, shoulders, ... */
-    pose(stride = 0) { return launchPose(run, stride, glider.config, launchCfg); },
+    pose(stride = 0) { return launchPose(run, stride, launchAero(), launchCfg); },
     /**
      * A failed launch as a rigid body (tumble.js), from exactly the state it went wrong in: step it with stepTumble until done.
      * stride: the drawn stride phase (as for pose); ground: what the wreck lands on (default the site's ground).

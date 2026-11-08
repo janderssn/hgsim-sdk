@@ -69,7 +69,8 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
     scrapes: 0, distanceFlown: 0, maxSpeed: 0,
   };
   const reset = () => Object.assign(r, { tumbleGround: null, t: 0, launch: null, takeoff: null, stand: false, tumble: null, wreck: null, result: null, contact: null, scrapes: 0, distanceFlown: 0, maxSpeed: 0 });
-  const defaultPose = s => ({ x: s.x, y: s.y - (glider.config.contactHeight - 0.65), z: s.z, pitch: -s.pitch, heading: s.heading, roll: s.visualBank ?? s.bank });
+  const contactHeight = () => finite(glider.config.contactHeight, 2.3);
+  const defaultPose = s => ({ x: s.x, y: s.y - (contactHeight() - 0.65), z: s.z, pitch: -s.pitch, heading: s.heading, roll: s.visualBank ?? s.bank });
 
   function tumbleFromFlight(crash) {
     const s = glider.state, pose = (bodyPose ?? defaultPose)(s), horizontal = s.airspeed * Math.cos(s.pathAngle || 0);
@@ -152,7 +153,7 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
       if (site?.site && site.start) site = { ...site.site, start: { heading: 0, ...site.start } };
       if (!site?.start || typeof site.fall !== 'function' || typeof site.edgeAhead !== 'function') throw new TypeError('round.standAt: expected a site { start: { x, z, heading }, fall, edgeAhead, ground? } or one of SITES');
       reset(); r.site = site; r.phase = 'ready';
-      const { x, z, heading } = site.start, y = (site.ground ?? groundAt)(x, z) + glider.config.contactHeight;
+      const { x, z, heading } = site.start, y = (site.ground ?? groundAt)(x, z) + contactHeight();
       glider.reset({ x, y, z, heading });
       return round;
     },
@@ -186,7 +187,7 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
         if (l.airborne) {
           // The flight carries on from the launch's own state: the same wing, speed, path and angle, nothing handed over.
           const dropped = l.reason !== 'flying', st = glider.state;
-          glider.place({ x: st.x, y: (r.site.ground ?? groundAt)(st.x, st.z) + glider.config.contactHeight, z: st.z, heading: st.heading });
+          glider.place({ x: st.x, y: (r.site.ground ?? groundAt)(st.x, st.z) + contactHeight(), z: st.z, heading: st.heading });
           r.takeoff = { t: 0, dropped, cliff: !!s.cliff, jumped: !!s.jumped, proneAt: null, ownStance: false,
             bar: createTakeoffBar({ heldPitch: finite(input.pitch), holdBar: dropped ? 0 : l.barHold, dropped, cliff: !!s.cliff, realistic }) };
           r.stand = false; r.phase = 'flight'; r.distanceFlown = 0; r.maxSpeed = 0;
@@ -208,13 +209,14 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
       const s = glider.state, px = s.x, pz = s.z, tk = r.takeoff;
       const field = input.field ?? (s.y - world.groundAt(s.x, s.z) < 14 && landableAt(s.x, s.z));
       const pitch = tk ? takeoffPitch(tk.bar, input.pitch, { age: tk.t, airspeed: s.airspeed }) : finite(input.pitch);
-      glider.step(dt, { stand: r.stand, roll: finite(input.roll), pitch, field, landable: input.landable });
+      glider.step(dt, { stand: r.stand, roll: finite(input.roll), pitch, field, landable: input.landable,
+        contactClearance: input.contactClearance });
       r.distanceFlown += Math.hypot(s.x - px, s.z - pz); r.maxSpeed = Math.max(r.maxSpeed, s.airspeed);
       // Solid things (a deck, a rock), but not in the first moments of the launch off them.
       const early = tk && tk.t < 0.25;
       // (the body, and the nose of the wing 2.5 m ahead of it, which meets a wall first)
       const hit = early ? null : (solid ? solid(s) : null) || world.solidAt(s.x, s.y - 1, s.z) || world.solidAt(s.x + Math.sin(s.heading) * 2.5, s.y, s.z + Math.cos(s.heading) * 2.5);
-      const water = world.waterAt(s.x, s.z), wet = !hit && water !== null && water > world.heightAt(s.x, s.z) && s.y < water + glider.config.contactHeight;
+      const water = world.waterAt(s.x, s.z), wet = !hit && water !== null && water > world.heightAt(s.x, s.z) && s.y < water + contactHeight();
       if (hit || wet) {
         // Into a solid thing (a building, a deck, a rock) or the water: a crash at the speed it was going, the wreck on the water's top.
         if (wet) r.tumbleGround = (x, z) => Math.max(groundAt(x, z), world.waterAt(x, z) ?? -Infinity);

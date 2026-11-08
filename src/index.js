@@ -17,7 +17,7 @@
  * Three.js presentation (the pilot's body, landing cues) is in hgsim/three. Types: types/index.d.ts (the package's "types").
  */
 /** The SDK's version (semver), as in package.json: the CHANGELOG says what each one changed. */
-export const VERSION = '0.2.0';
+export const VERSION = '0.4.0';
 export { createWorld, AIR_DEFAULTS, MATERIALS } from './world.js';
 export { createGlider } from './glider.js';
 export { PRESETS, getPreset, defineWing, wingConfig, handlingFor, vgConfig, TRAITS } from './presets.js';
@@ -27,6 +27,7 @@ export { forceModel, GLIDER_DEFAULTS, performance, createFlightState, stepFlight
 export { classicModel, CLASSIC_DEFAULTS } from './models/classic.js';
 export { LAUNCH_DEFAULTS, windOnRun, runProfile, shoulderPivot } from './launch.js';
 export { LANDING_RULES, judgeTouchdown, scoreLanding, measureFlareZone, ZONE_LOW, ZONE_HIGH, pullOutHeights, dropToImpact } from './landing.js';
+export { sweepFlightContact, canRollOnWheels, advanceWheelRoll } from './contact.js';
 export { createTumble, stepTumble } from './tumble.js';
 export { createWind, describeWind, compassName, directionFromBearing, bearingFromDirection } from './wind.js';
 export { createFlightRecorder, FLIGHT_FIELDS, SAMPLE_PERIOD } from './recorder.js';

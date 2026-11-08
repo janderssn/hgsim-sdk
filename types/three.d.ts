@@ -3,6 +3,7 @@
  * namespace as its first argument, so hgsim never imports three itself.
  */
 type Three = any;   // (the three namespace: hgsim does not depend on its types)
+type Point3 = { x: number; y: number; z: number };
 
 export interface PilotRigInput {
   /** -1..1, + pulled in (the opposite of the flight state's bar). */
@@ -15,13 +16,19 @@ export interface PilotRigInput {
 }
 export interface PilotRig {
   update(dt: number, input: PilotRigInput, snap?: boolean): void;
-  feetPoint(...args: unknown[]): unknown;
+  readonly feetPoint: Point3;
+  readonly footContacts: readonly Point3[];
+  readonly barContacts: readonly Point3[];
   readonly lowest: number; readonly step: number; readonly upright: number; readonly hands: [number, number, number];
 }
 /** Poses the skinned pilot of hang-glider.glb every frame. */
-export function createPilotRig(THREE: Three, pilot: object): PilotRig;
+export function createPilotRig(THREE: Three, pilot: object): PilotRig | null;
 /** Sail flutter with speed and at the stall, on the wing's material. */
 export function addSailFlutter(wing: object): { update(dt: number, state?: { speed?: number; stall?: number }): void } | null;
+/** Adds clip-on tires to the pilot frame using the rig's base-bar points. */
+export function attachBasebarWheels(THREE: Three, pilot: object, barContacts: PilotRig['barContacts']): {
+  centers: Point3[]; radius: number; halfWidth: number; treads: { rotateX(angle: number): unknown }[];
+};
 
 export interface LandingCuesFrame {
   flying: boolean; x: number; z: number; ground: number; feet: number; speedRatio: number; bar: number; sink: number; landable: boolean;

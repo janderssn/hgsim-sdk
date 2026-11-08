@@ -81,7 +81,8 @@ function launchFromRamp(dt) {
     const error = launch.roll * 3 + launch.rollV * .6;
     const balance = error > .05 ? -1 : error < -.05 ? 1 : 0;
     const degrees = Math.PI / 180;
-    nose = launch.phase !== 'run' ? 0 : launch.lift >= .85
+    // (S held as the wing takes the whole weight, through the lift-off frame: the input the regression releases)
+    nose = launch.phase !== 'run' ? 0 : launch.lift >= .95 ? 1 : launch.lift >= .85
       ? (launch.noseCmd < .8 * degrees ? 1 : 0)
       : (launch.noseCmd > -1.5 * degrees ? -1 : 0);
     const side = Math.sin(heading);

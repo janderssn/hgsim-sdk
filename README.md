@@ -146,7 +146,7 @@ Rendering starts at full detail. After sustained slow frames it reduces resoluti
 
 ## Tests and checks
 
-- **`npm test`:** the unit tests in `tests/`. They cover the flight model, the launch (both modes, the nose and the cliff), landing cues, terrain skimming, the recorder, audio, the range's world, fixed-step timing, takeoff controls, interpolation, rendering quality and HUD updates.
+- **`npm test`:** the unit tests in `tests/`. They cover the flight model, the launch (both modes, the run length against the wind, the nose, a wing off level and the cliff), landing cues, terrain skimming, the recorder, audio, the range's world, fixed-step timing, takeoff controls, interpolation, rendering quality and HUD updates.
 - **`npm run check:range`:** starts its own server and flies the range in a headless browser. It runs an Easy ramp launch, an Easy cliff launch, an Easy slope launch in calm air, a Realistic launch flown by a simple scripted pilot, sitting up and lying prone in flight, and a landing from overhead. It also checks for page errors. Browser tools require Node 22+ and Chrome/Chromium or Edge; set `CHROME_PATH` if the browser is not discovered automatically.
 
 To measure rendering, start `npm start` and run:

@@ -1,136 +1,141 @@
-# Above: an alpine flying range
+# Above: an alpine flight corridor
 
-The generated concept sheet established the palette before the environment models
-were built: warm daylight, granite, spruce, weathered timber, ivory/orange sailcloth
-and a teal harness.
+The [twenty-project research](research/threejs-2026.md) raised the target from the
+initial graphics baseline. This implementation concentrates on the launch,
+woodland and landing route. The new concept was generated **before** replacing
+the forms and remains separate from the in-engine captures below.
 
-![Generated concept art](concept/alpine-direction.png)
+![Original flight-corridor concept](concept/flight-corridor-target.png)
 
-## Raised quality target — 8 November 2026
+## Actual game captures
 
-The current captures are a graphics baseline. The [twenty-project Three.js
-research](research/threejs-2026.md) sets a higher acceptance bar: natural geology,
-dense canopy, runtime-lit aerial impostors, coherent atmosphere, stable moving
-imagery and measured native-GPU performance. The next milestone is one convincing
-launch-to-landing corridor before further world expansion. The research includes
-primary-source evidence, attributed reference images and a filterable comparison
-board; its proposed performance target is not an achieved result.
+Fixed high quality, 1280×800, using the production renderer. These are browser
+canvas captures, not concept paintings or offline beauty renders.
 
-## In the game
+![Flight into the landing field](graphics/flight-corridor.jpg)
+![Connected launch escarpment](graphics/launch-corridor.jpg)
+![Woodland floor](graphics/woodland-corridor.jpg)
+![Meadow](graphics/meadow-corridor.jpg)
 
-These are Chromium canvas captures of the actual Three.js scene at fixed high
-detail; the HUD is omitted. The launch, glider rig,
-flight model and HUD remain playable; the images are not offline beauty renders.
-
-| Before | Updated range |
-| --- | --- |
-| ![Previous range](graphics/flight-before.jpg) | ![Updated valley in flight](graphics/flight-after.jpg) |
-
-![Launch and equipment](graphics/launch-after.jpg)
-
-![Close meadow detail](graphics/meadow-after.jpg)
-
-The goal is a substantial step toward a convincing outdoor game environment.
-These captures demonstrate the implementation; they do not establish parity with
-a particular commercial game's production art or performance on a discrete GPU.
-
-To reproduce the views, start `npm start`, then run (Chrome/Chromium required):
+Start `npm start`, then reproduce the views with:
 
 ```sh
 node tools/range-capture.mjs --view flight --out work/flight.jpg
 node tools/range-capture.mjs --view launch --out work/launch.jpg
+node tools/range-capture.mjs --view woodland --out work/woodland.jpg
 node tools/range-capture.mjs --view meadow --out work/meadow.jpg
 ```
 
-The flight view uses the chase camera; launch and meadow are inspection cameras.
-They share the game's culling, detail streaming and final rendering path.
+Flight uses an inspection chase framing of the actual aircraft. Other views move
+only the camera. All update the same forest culling, terrain LOD, streamed cover,
+cloud prepass and final rendering as gameplay. The capture tools disable source
+refresh so a frame cannot change revisions while assets are being authored.
 
-## Landscape and surfaces
+## Shared world and natural forms
 
-The backdrop uses a 14 km crop of public-domain USGS Yosemite elevation data.
-Its 513² height samples preserve real drainage and escarpments. The original
-source has missing samples: 9.1% of the crop is harmonically interpolated, with
-the uncertainty mask retained beside the data. Forty-eight patches use stitched
-64/32/16 grids for culling and geometry LOD. The decorative skirt stays below the
-playable world, including triangle interiors at its square corners.
+`world.js` owns the physical world. `launch-geology.js` produces one connected
+Float32 triangle pack: broken crest, asymmetric slabs, interrupted joints,
+weathered apron and angular toe. Rendering consumes those exact triangles;
+`rockSurfaceAt` queries them through a spatial index. Physical ground, launch
+clearance, chase-camera avoidance and landing cues include the actual rock. Ridge
+airflow samples the broad hillside; the existing separate surface callback supplies
+exact local clearance, preventing slab edges from changing launch airflow.
+The deck and cliff standing heights remain authored constants. A narrow natural
+spur supports the deck, leaving a short braced overhang rather than long stilts.
+The surrounding terrain retains its full **240×240** grid at every quality.
 
-Within the playable world, asymmetric peripheral shoulders and drainage cuts
-provide relief around the approach. A shared physical shoulder joins the launch
-outcrops back into the ridge, leaving approximately 15 m and 23 m exposed ledges.
-**This changes flyable terrain at the valley margins and beneath the launch.**
-The deck and cliff-cap elevations, landing field, forward approach and thermal's
-protected area retain their previous heights. Both rendering and simulation use
-`world.js`; the terrain keeps its full 240×240 grid at every quality.
+The backdrop retains the 14 km public-domain USGS Yosemite crop with 48 stitched
+LOD patches. Its 9.1% source voids remain explicitly marked as interpolated.
+Peripheral relief and the launch shoulder change the physical landscape. The
+landing field, launch starts and protected thermal retain their established
+heights; exposed new rock faces and their toe are intentionally solid.
 
-Photographic grass, soil, granite, timber and aerial rock PBR maps supply colour,
-normal and roughness detail. World projection keeps rock scale consistent on
-UV-less cliff meshes; slope and broad cover masks blend grass, earth and stone.
-An image-generated granite macro map adds larger fracture structure, explicitly
-credited as synthesized. Source licenses, immutable revisions and checksums live
-beside the assets. Babylon assets are CC BY 4.0; CC0Textures and Poly Haven assets
-are CC0. All runtime files are local, with no asset-service requests.
+`sampleTerrainEcology` supplies rock, talus, moisture and path masks to both
+surface authoring and runtime placement. The control baker calls this canonical
+module and records source hashes. Tests reject stale masks after world edits.
+Photographic meadow, soil, needle-floor, timber and mineral PBR maps blend with
+larger botanical artwork and geological structure. Cliff surfaces keep their
+geometry normals; upward soil/lichen pockets soften the bare crest. Generated
+artwork and captured scans are identified separately in the asset manifests.
 
-## Forest, ground cover and launch
+## Forest and ground cover
 
-Approximately 12,500 seeded spruces form connected forest belts. Three original
-Blender variants have individual needle and woody branch geometry nearby; more
-distant trees use alpha-tested two-triangle cards selecting four baked views.
-Nine shared instance batches, per-tree frustum tests and distance LOD bound the
-forest's submissions. A static canopy/contact visibility map grounds the actual
-planted trees and follows the sun azimuth. The approach and field remain open.
+`forest-field.js` plants roughly **63,600** deterministic trees across 3 km of
+valley while keeping the run, flight corridor and landing meadow clear. Warped
+woodland margins, four species/age forms and varied scales break regular rows.
+Actual crown footprints produce one coverage texture and matching CPU sampler;
+forest-floor shading, ferns, shrubs and litter therefore follow the real stand.
 
-The near meadow streams deterministic six-metre cells into three fixed instance
-buffers: curved grass ribbons, small wildflowers and pebbles. Quality controls
-35/25/15 m radii and 5,000/2,400/750 tuft budgets. Shader wind and edge shrinking
-avoid reshuffling the world; detail suspends above 60 m terrain clearance.
+The new tree pack derives from pinned MIT EZ-Tree source and attributed package
+textures. Each tree has full and reduced meshes from the same branch skeleton,
+plus **32 albedo/normal views**: eight azimuths at 0°, 30°, 60° and true overhead.
+Impostors remain physically lit, reconstruct tree-local normals with original
+yaw, and choose views from the actual perspective or shadow camera. Explicit
+texture gradients prevent atlas-frame changes from selecting incorrect mips.
 
-Launch rocks have broken ledges, long vertical joints and chipped rims. Their
-visible shells enclose the existing rock collision inset, while the usable tops
-remain level. Original boulders, cairns, signage, equipment and refuge models
-provide scale. Timber planks, beams and metal fittings use separate finishes; static timber is
-batched by material to reduce colour and shadow submissions.
+`forest.js` culls spatial cells before individual crowns and uses three levels
+with screen dither transitions. High near/mid boundaries are 55/125 m; medium
+35/85 m; low 18/45 m. Original transforms stay fixed; billboard orientation is
+computed on the GPU. Only populated instance-buffer prefixes are uploaded.
+Near/mid meshes cast real shadows; distant canopy grounding uses an approximate
+static sun-aligned map from the same trees.
 
-The glider keeps its existing model, positions, skin weights, attachment metadata
-and 19 bones. Projected UVs add fabric weave, seams, roughness and metal finishes.
-The rig and sail flutter retain their existing animation hooks.
+Ground detail streams repeatable six-metre world cells into bounded buffers:
+bowed grass, small flowers, stones, fern rosettes, woody shrubs, litter and
+fallen branches. A 384-cell cache reuses samples at cell boundaries. Detail
+suspends above 60 m ground clearance. Small launch hardware, rope and trail
+furniture are merged by material and stay outside the run and wing envelope.
 
-## Light and rendering
+The props-only startup GLB is **267,728 bytes**, 95.35% smaller than its original
+5,756,672-byte library; obsolete trees and their atlas are no longer loaded.
+The glider retains its model, skin weights, attachment metadata, 19-bone rig,
+flight forces and animation hooks.
 
-A genuine 4K CC0 photographic HDR panorama supplies both the sky and lighting.
-The lighting copy is reduced in linear radiance to 1K. A nine-coefficient
-spherical-harmonic probe supplies diffuse sky light to rough world surfaces; a
-bounded 256 PMREM supplies aircraft and metal reflections. This avoids expensive
-reflection lookups across the landscape. Sun direction and colour are measured
-from that same source. Concentrated
-shadow bounds improve contact precision around the aircraft and launch.
+## Daylight and frame budgets
 
-High and medium quality render HDR colour and depth together, then apply restrained
-half-resolution contact occlusion and output tone mapping. Reusing the beauty
-pass depth preserves the actual foliage alpha cutouts. Low quality uses direct
-rendering. Adaptive quality controls resolution, shadows, vegetation and effect
-budgets and texture anisotropy. Fine normal/roughness detail fades with distance;
-large geological structure and the original surface maps remain present. `?quality=high`, `medium` or
-`low` holds a detail level; the default is `auto`.
+`aerial-atmosphere.js` shares one fixed sun across the scattering sky, spectral
+height-dependent aerial perspective, cloud volume and direct-light shadows.
+Surface transmission and inscattering interpolate from vertices to reduce repeated
+work on overlapping foliage; cloud shadows remain per fragment. A small linear
+radiance bake from that same sky supplies diffuse SH and selective
+PMREM metal reflections. The directional sun is excluded from the probe to avoid
+double-counting it. The former 21 MB HDR is no longer on the startup path.
 
-Optional asset failures leave a flyable procedural fallback. Tests cover the rig,
-full-detail terrain alignment, protected flight-space heights, LOD seams, actual
-triangle clearance, atlas/culling budgets, grounded instances and render-state
-restoration. Browser checks exercise both launches, realistic takeoff, posture
-changes and landing judgment. [Validation and rendering measurements](graphics/validation.md)
-record the checks and current performance limitations.
+Clouds use one deterministic 3D density field and matching sun-column shadow
+volume. High marches at one-third resolution, capped 640×360/48 steps; medium
+one-quarter, 480×270/32; low one-sixth, 256×144/16. They share world-space wind
+and an authored initial offset. This is a bounded approximation, without temporal
+cloud reconstruction or measured physical radiometric calibration.
 
-## Rebuilding assets
+High/medium retain HDR colour and alpha-aware beauty depth with contact AO and
+one output tone-map. High AO uses 12 half-resolution samples/9-tap resolve;
+medium uses 8 at one-third resolution/5-tap resolve. Low renders directly.
+Adaptive quality changes render work, never the physical terrain or flight clock.
+Use `?quality=high`, `medium` or `low` to hold a preset; default is `auto`.
 
-The game needs only Node and a browser. Rebuilding authoring assets additionally
-requires Blender, ImageMagick, or Python with NumPy, Pillow and SciPy:
+[Validation and measurements](graphics/validation.md) separate implemented work,
+software-renderer observations and the still-unverified native GPU target. The
+research's commercial-art and 1080p/60 targets remain review criteria, not claims
+that this draft has reached production parity.
+
+## Rebuild and provenance
+
+All runtime assets are local. Exact sources, immutable checksums and license
+notices live beside the assets. Babylon surfaces are CC BY 4.0; the scanned CC0
+materials, Poly Haven inputs and public-domain DEM retain their own notices.
+EZ-Tree code/leaves/package bark are attributed under its MIT package license;
+unknown bark is not relabelled as ambientCG CC0. Both generated concept and
+meadow originals are retained in `docs/concept/`.
 
 ```sh
-blender --background --python-exit-code 1 --python tools/build-alpine-assets.py
-python3 tools/build-alpine-terrain.py
-python3 tools/build-surface-textures.py
+node tools/build-forest-assets.mjs --fetch-textures --geometry --bake
+node tools/build-forest-assets.mjs --verify
+node tools/extract-environment-props.mjs
 python3 tools/fetch-scanned-materials.py
-bash tools/build-granite-macro.sh
+python3 tools/build-surface-textures.py
+python3 tools/build-alpine-terrain.py
+blender --background --python-exit-code 1 --python tools/build-alpine-assets.py
 ```
 
-See each asset directory's README and credits for exact inputs, licenses and
-regeneration commands. The concept original is retained in `docs/concept/`.
+Node and a browser run the game. Chromium, Blender or Python/NumPy/Pillow/SciPy
+are authoring-only dependencies; see each builder's documented options.

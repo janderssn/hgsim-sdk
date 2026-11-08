@@ -6,7 +6,8 @@
     "url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/README.md",
     "sha256": "d00b1be883049c10d05f6477ae5566f4390a882248f93d1daf0214283b40573b",
     "declaration": "The source README identifies the materials as CC0-Textures.",
-    "qualification": "No standalone LICENSE or per-material author metadata is included upstream."
+    "qualification": "No standalone LICENSE or per-material author metadata is included upstream.",
+    "retained_notice_transform": "Trailing whitespace normalized; notice wording retained."
   },
   "normal_convention": "The source Blender package supplies *_nrm maps. They are used as OpenGL tangent-space normals without a green-channel flip; no format label is supplied upstream.",
   "encoding": {
@@ -157,6 +158,81 @@
       ],
       "output_bytes": 50684,
       "output_sha256": "418f87da17171c5083428614380a0994ca142cf90a0de0673fcc853eb590de94",
+      "transforms": [
+        "JPEG decoded",
+        "Lanczos resize to 1024",
+        "grayscale replicated into RGB",
+        "WebP quality 92"
+      ]
+    },
+    {
+      "file": "floor-color.webp",
+      "semantic": "albedo",
+      "source_url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Ground36_col.jpg",
+      "source_path": "textures/Ground36_col.jpg",
+      "source_bytes": 7184441,
+      "source_sha256": "141622b863580fc2a95472a3f8e7294fa4a04604c0f1962e3d9ac576b1902185",
+      "source_git_blob_sha1": "59d5605bd62c40c74119cb8c855a0fd6b3f5e566",
+      "source_dimensions": [
+        2048,
+        2048
+      ],
+      "output_dimensions": [
+        2048,
+        2048
+      ],
+      "output_bytes": 2183778,
+      "output_sha256": "f88f3cb188ca936c5b0005d08cc57742152e69b0b8f18d68e09435a598bf7ae8",
+      "transforms": [
+        "JPEG decoded",
+        "original 2048-pixel resolution retained",
+        "RGB channels retained",
+        "WebP quality 90"
+      ]
+    },
+    {
+      "file": "floor-normal.webp",
+      "semantic": "normal",
+      "source_url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Ground36_nrm.jpg",
+      "source_path": "textures/Ground36_nrm.jpg",
+      "source_bytes": 9463151,
+      "source_sha256": "9daa174f8f26bc1f7e7d5bdc76cbeffe4ce0347b98b1000cc835fb88bb3563ad",
+      "source_git_blob_sha1": "ae7bc9e528f143b723ea704be2fd70694771be3e",
+      "source_dimensions": [
+        2048,
+        2048
+      ],
+      "output_dimensions": [
+        1024,
+        1024
+      ],
+      "output_bytes": 2491108,
+      "output_sha256": "2f5654035f3f5520d0285c48ba491062ccee09f407b84b963581cb3dd56a9ef8",
+      "transforms": [
+        "JPEG decoded",
+        "Lanczos resize to 1024",
+        "RGB channels retained",
+        "lossless WebP"
+      ]
+    },
+    {
+      "file": "floor-roughness.webp",
+      "semantic": "roughness",
+      "source_url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Ground36_rgh.jpg",
+      "source_path": "textures/Ground36_rgh.jpg",
+      "source_bytes": 3569086,
+      "source_sha256": "cefc42e18b1fdec7e4ada702bb8146ef134d825a1cf664c78bbc2dac82b9cbe0",
+      "source_git_blob_sha1": "6c95025591fca96fda427ebd0a9c18b04c2a6b0d",
+      "source_dimensions": [
+        2048,
+        2048
+      ],
+      "output_dimensions": [
+        1024,
+        1024
+      ],
+      "output_bytes": 495574,
+      "output_sha256": "ea31b742d9c711e7b071f7d897fbb0025ade92329e0c5a3b95df86273bb9aea2",
       "transforms": [
         "JPEG decoded",
         "Lanczos resize to 1024",

@@ -15,9 +15,9 @@ try {
     width: { type: 'string', default: '1280' },
     height: { type: 'string', default: '800' },
   } });
-  if (!['flight', 'launch', 'meadow'].includes(values.view)
+  if (!['flight', 'launch', 'meadow', 'woodland'].includes(values.view)
     || !['high', 'medium', 'low'].includes(values.quality)) {
-    throw new Error('Use --view flight|launch|meadow and --quality high|medium|low.');
+    throw new Error('Use --view flight|launch|meadow|woodland and --quality high|medium|low.');
   }
   const width = Number(values.width), height = Number(values.height);
   if (![width, height].every(value => Number.isInteger(value) && value >= 240 && value <= 4096)) {
@@ -29,6 +29,13 @@ try {
   browser = await launchChrome({ port, width, height });
   page = await connect({ port });
   await page.viewport(width, height);
+  // A capture must remain on one loaded revision while artists edit source.
+  await page.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    const captureFetch = window.fetch;
+    window.fetch = function(input, options) {
+      if (String(input).endsWith('/__version')) return Promise.resolve(new Response('', {status:404}));
+      return captureFetch.call(this, input, options);
+    };` });
   const errors = [];
   page.on(message => {
     if (message.method === 'Runtime.exceptionThrown') {
@@ -60,7 +67,11 @@ try {
   const frame = await page.eval(`(() => {
     const d = rangeDemo;
     document.getElementById('toast').style.display = 'none';
-    if (${JSON.stringify(values.view)} === 'launch') {
+    if (${JSON.stringify(values.view)} === 'flight') {
+      const p = d.player.position;
+      d.camera.position.set(p.x, p.y + 6, p.z - 18);
+      d.camera.lookAt(p.x, p.y - 1.8, p.z + 18);
+    } else if (${JSON.stringify(values.view)} === 'launch') {
       const z = d.LAUNCH.z, y = d.deckY(z);
       d.camera.position.set(78, y + 13, z + 88);
       d.camera.lookAt(13, y - 22, z - 15);
@@ -70,21 +81,30 @@ try {
       d.camera.position.set(x, y + 1.25, z);
       d.camera.lookAt(x - 3, y + .7, z + 35);
       document.querySelector('.hud').style.display = 'none';
+    } else if (${JSON.stringify(values.view)} === 'woodland') {
+      const x = -240, z = -670, y = d.terrainHeight(x, z);
+      d.player.visible = false;
+      d.camera.position.set(x, y + 1.7, z);
+      d.camera.lookAt(x + 8, d.terrainHeight(x + 8, z + 35) + 3, z + 35);
+      document.querySelector('.hud').style.display = 'none';
+    }
+    const sun = d.scene.children.find(object => object.isDirectionalLight && object.castShadow);
+    if (sun && ${JSON.stringify(values.view)} !== 'flight') {
+      const delta = sun.position.clone().sub(sun.target.position);
+      sun.target.position.copy(d.camera.position);
+      sun.position.copy(d.camera.position).add(delta);
     }
     d.camera.updateMatrixWorld(true);
     d.render ? d.render() : d.renderer.render(d.scene, d.camera);
     // Read the same draw before the WebGL drawing buffer is discarded. This
     // avoids a stale compositor frame when rendering on a slow software GPU.
-    return { camera: d.camera.position.toArray(), render: { ...d.renderer.info.render }, image: d.renderer.domElement.toDataURL(${JSON.stringify(values.out.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg')}, .95) };
+    return { camera: d.camera.position.toArray(), render: { ...d.renderer.info.render }, scene: {quality:d.quality,visuals:d.scene.userData.visuals,forest:d.forestStats}, image: d.renderer.domElement.toDataURL(${JSON.stringify(values.out.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg')}, .95) };
   })()`);
   await mkdir(path.dirname(values.out), { recursive: true });
   await writeFile(values.out, Buffer.from(frame.image.slice(frame.image.indexOf(',') + 1), 'base64'));
   console.log(JSON.stringify({
     output: values.out, view: values.view, errors,
-    scene: JSON.parse(await page.eval(`JSON.stringify({
-      quality: rangeDemo.quality, visuals: rangeDemo.scene.userData.visuals,
-
-    })`)),
+    scene: frame.scene,
     camera: frame.camera, render: frame.render,
   }, null, 2));
   if (errors.length) process.exitCode = 1;

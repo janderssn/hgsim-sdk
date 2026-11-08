@@ -146,24 +146,31 @@ Rendering starts at full detail. After sustained slow frames it reduces resoluti
 
 ## Alpine visuals and asset authoring
 
-The range combines a real USGS Yosemite backdrop, a photographic HDR sky,
-scanned PBR surfaces, original detailed spruce trees and modelled launch props.
-The concept art was generated before modelling. [Art direction, screenshots and
-asset provenance](docs/art-direction.md) document the implementation.
+The range combines a real USGS Yosemite backdrop, a shared daylight/cloud model,
+scanned PBR surfaces, four full-crown tree variants and a connected granite launch
+face. [Art direction, in-engine screenshots and architecture](docs/art-direction.md)
+document the concept-first implementation and its remaining review criteria.
 
-All runtime assets are local. Blender and Python are needed only to rebuild the
-committed mesh and texture libraries. Licenses and pinned source checksums live
-beside the assets. Peripheral relief and a launch hillside change the surrounding terrain; the
-field, forward approach, launch deck and cliff caps keep their elevations.
-Drawing and collision continue to share the same full-detail terrain.
+Rendering and collision consume the same launch triangles; the terrain keeps its
+full 240×240 grid at every quality. Actual canopy footprints drive both floor
+shading and streamed undergrowth. Three vegetation LODs include runtime-lit
+albedo/normal impostors with overhead views. The existing 19-bone glider rig and
+flight forces are preserved; newly authored rock surfaces are solid.
 
-Rendering adapts automatically. Use `?quality=high`, `medium` or `low` for a fixed
-level. High/medium include contact occlusion and HDR output; low uses direct
-rendering. The glider's existing 19-bone rig and flight model are preserved.
+All runtime assets are local with retained licenses and pinned checksums.
+Authoring tools reproduce the forest, compact props, scanned surfaces and ecology
+masks. The new sky supplies the diffuse probe and metal reflections too, removing
+the old 21 MB HDR from startup. A bounded cell cache and partial instance uploads
+reduce movement work.
+
+Use `?quality=high`, `medium` or `low` to hold a preset; default is `auto`.
+High/medium include HDR/contact occlusion; low uses direct rendering. Adaptive
+quality changes visual work independently of the fixed 60 Hz flight simulation.
+[Validation and measurements](docs/graphics/validation.md) record observed limits.
 
 [Twenty source-verified Three.js benchmarks](docs/research/threejs-2026.md) define
-the next visual target and an evidence-backed implementation order. The current
-alpine pass remains a draft baseline against that higher bar.
+the higher visual and native-GPU target; production-art parity and 1080p/60 remain
+unverified review criteria.
 
 ## Tests and checks
 

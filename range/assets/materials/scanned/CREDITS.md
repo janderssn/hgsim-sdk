@@ -1,11 +1,12 @@
-# Photographic rock and timber PBR maps
+# Photographic rock, timber and forest-floor PBR maps
 
-The **Planks21** and **Rock26** color, normal and roughness maps come from
+The **Planks21**, **Rock26** and **Ground36** color, normal and roughness maps come from
 [RubenCUR's ArmorPaint / Blender CC0-Textures package](https://github.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/tree/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b),
 pinned to commit `1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b`.
 
 The source README identifies the package as **“ArmorPaint Materials CC0-Textures”**.
-Its unmodified notice is retained in [SOURCE-NOTICE.md](SOURCE-NOTICE.md). The
+Its notice wording is retained in [SOURCE-NOTICE.md](SOURCE-NOTICE.md), with
+trailing whitespace normalized. The
 source does not include a separate LICENSE file, per-material author metadata,
 or a verified mapping to current ambientCG asset identifiers; none is invented
 here. The photographic color maps and their supplied normal/roughness companions

@@ -1,0 +1,156 @@
+{
+  "renderer": "ANGLE / Chromium156 / SwiftShader Vulkan CPU renderer",
+  "viewport": {
+    "width": 960,
+    "height": 600
+  },
+  "quality": "medium",
+  "protocol": "One static warm draw; three alternating GPU elapsed queries per component. Sequential browsers, no concurrent render jobs. Fragment version compared with interpolated vertex scattering; same geometry/textures/camera. Small diagnostic, not a native-GPU frame-rate benchmark.",
+  "reproduce": "node tools/range-pass-costs.mjs --view flight|woodland --samples 3",
+  "flight": {
+    "fragment": {
+      "results": [
+        {
+          "label": "cloud",
+          "milliseconds": 1.313391
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 2572.54039
+        },
+        {
+          "label": "cloud",
+          "milliseconds": 3.617317
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 2494.524886
+        },
+        {
+          "label": "cloud",
+          "milliseconds": 1.305639
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 2388.367056
+        }
+      ],
+      "render": {
+        "frame": 41,
+        "calls": 154,
+        "triangles": 440859,
+        "points": 0,
+        "lines": 6
+      }
+    },
+    "vertex": {
+      "results": [
+        {
+          "label": "cloud",
+          "milliseconds": 1.579769
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 2462.463702
+        },
+        {
+          "label": "cloud",
+          "milliseconds": 3.038207
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 2230.313521
+        },
+        {
+          "label": "cloud",
+          "milliseconds": 1.184346
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 2124.656574
+        }
+      ],
+      "render": {
+        "frame": 41,
+        "calls": 154,
+        "triangles": 440859,
+        "points": 0,
+        "lines": 6
+      }
+    }
+  },
+  "woodland": {
+    "fragment": {
+      "results": [
+        {
+          "label": "cloud",
+          "milliseconds": 9.607172
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 7552.776742
+        },
+        {
+          "label": "cloud",
+          "milliseconds": 5.800687
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 7696.256013
+        },
+        {
+          "label": "cloud",
+          "milliseconds": 4.758635
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 7657.055595
+        }
+      ],
+      "render": {
+        "frame": 41,
+        "calls": 182,
+        "triangles": 4864543,
+        "points": 0,
+        "lines": 12
+      },
+      "shaderErrors": 0
+    },
+    "vertex": {
+      "results": [
+        {
+          "label": "cloud",
+          "milliseconds": 7.812505
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 7269.331071
+        },
+        {
+          "label": "cloud",
+          "milliseconds": 7.204664
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 6873.717844
+        },
+        {
+          "label": "cloud",
+          "milliseconds": 4.78105
+        },
+        {
+          "label": "beauty+AO",
+          "milliseconds": 7054.615113
+        }
+      ],
+      "render": {
+        "frame": 41,
+        "calls": 182,
+        "triangles": 4864543,
+        "points": 0,
+        "lines": 12
+      },
+      "shaderErrors": 0
+    }
+  }
+}

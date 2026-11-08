@@ -33,10 +33,11 @@ export function createForestShadowMap(THREE, trees, {
     const scale = tree.size || 1;
     // A broad soft crown shadow follows the actual sun azimuth. A tighter
     // contact lobe anchors the trunk even under diffuse/cloudy illumination.
-    const crownHeight = scale * 9.5;
+    const crownHeight = tree.height ? tree.height * .62 : scale * 9.5;
     const shadowLength = Math.min(35, crownHeight * directionLength / sunHeight);
     stamp(tree.x + alongX * shadowLength * .63, tree.z + alongZ * shadowLength * .63,
-      4 + scale * 3.3 + shadowLength * .14, 2.4 + scale * 2, .19);
+      (tree.crownRadius ? tree.crownRadius * .9 : 4 + scale * 3.3) + shadowLength * .14,
+      tree.crownRadius ? Math.max(2, tree.crownRadius * .65) : 2.4 + scale * 2, .19);
     stamp(tree.x, tree.z, 1.6 + scale * .5, 1.6 + scale * .5, .2);
   }
   const data = new Uint8Array(resolution * resolution * 4);

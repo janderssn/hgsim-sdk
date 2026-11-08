@@ -1,0 +1,142 @@
+{
+  "flight": {
+    "output": "docs/graphics/flight-corridor.jpg",
+    "view": "flight",
+    "errors": [],
+    "scene": {
+      "quality": "high",
+      "visuals": {
+        "direction": "alpine",
+        "models": "blender",
+        "surfaces": true,
+        "terrain": true,
+        "sky": "single-scattering",
+        "forest": "forest"
+      },
+      "forest": {
+        "total": 63610,
+        "near": 2,
+        "mid": 83,
+        "far": 24292,
+        "testedCells": 427
+      }
+    },
+    "camera": [
+      -0.00018245940674179004,
+      224.64501900329168,
+      -487.99892634592305
+    ],
+    "render": {
+      "frame": 37,
+      "calls": 180,
+      "triangles": 964485,
+      "points": 0,
+      "lines": 12
+    }
+  },
+  "launch": {
+    "output": "docs/graphics/launch-corridor.jpg",
+    "view": "launch",
+    "errors": [],
+    "scene": {
+      "quality": "high",
+      "visuals": {
+        "direction": "alpine",
+        "models": "blender",
+        "surfaces": true,
+        "terrain": true,
+        "sky": "single-scattering",
+        "forest": "forest"
+      },
+      "forest": {
+        "total": 63610,
+        "near": 0,
+        "mid": 17,
+        "far": 7016,
+        "testedCells": 133
+      }
+    },
+    "camera": [
+      78,
+      253.74987226232417,
+      -472
+    ],
+    "render": {
+      "frame": 37,
+      "calls": 178,
+      "triangles": 385788,
+      "points": 0,
+      "lines": 0
+    }
+  },
+  "woodland": {
+    "output": "docs/graphics/woodland-corridor.jpg",
+    "view": "woodland",
+    "errors": [],
+    "scene": {
+      "quality": "high",
+      "visuals": {
+        "direction": "alpine",
+        "models": "blender",
+        "surfaces": true,
+        "terrain": true,
+        "sky": "single-scattering",
+        "forest": "forest"
+      },
+      "forest": {
+        "total": 63610,
+        "near": 159,
+        "mid": 432,
+        "far": 24005,
+        "testedCells": 424
+      }
+    },
+    "camera": [
+      -240,
+      204.35586336026168,
+      -670
+    ],
+    "render": {
+      "frame": 37,
+      "calls": 128,
+      "triangles": 8305031,
+      "points": 0,
+      "lines": 12
+    }
+  },
+  "meadow": {
+    "output": "docs/graphics/meadow-corridor.jpg",
+    "view": "meadow",
+    "errors": [],
+    "scene": {
+      "quality": "high",
+      "visuals": {
+        "direction": "alpine",
+        "models": "blender",
+        "surfaces": true,
+        "terrain": true,
+        "sky": "single-scattering",
+        "forest": "forest"
+      },
+      "forest": {
+        "total": 63610,
+        "near": 17,
+        "mid": 164,
+        "far": 19426,
+        "testedCells": 352
+      }
+    },
+    "camera": [
+      200,
+      35.68865361974663,
+      -250
+    ],
+    "render": {
+      "frame": 37,
+      "calls": 111,
+      "triangles": 2236081,
+      "points": 0,
+      "lines": 12
+    }
+  }
+}

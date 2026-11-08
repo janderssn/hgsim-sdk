@@ -65,12 +65,14 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
       projection: { value: camera.projectionMatrix },
       fullResolution: { value: size },
       samples: { value: kernel },
+      sampleCount: { value: 12 },
     },
     vertexShader,
     fragmentShader: `
       varying vec2 vUv;
       uniform mat4 projection;
       uniform vec3 samples[12];
+      uniform int sampleCount;
       ${reconstruct}
       void main() {
         float depth = texture2D(sceneDepth, vUv).x;
@@ -97,7 +99,11 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
         float obscurance = 0.0;
         const float radius = 1.6;
         for (int i = 0; i < 12; i++) {
-          vec3 candidate = p + basis * samples[i] * radius;
+          if (i >= sampleCount) break;
+          // Spread the reduced medium kernel over the complete hemisphere,
+          // rather than retaining only the smallest, most horizontal samples.
+          int index = min(11, int(floor((float(i) + 0.5) * 12.0 / float(sampleCount))));
+          vec3 candidate = p + basis * samples[index] * radius;
           vec4 clip = projection * vec4(candidate, 1.0);
           vec2 uv = clip.xy / clip.w * 0.5 + 0.5;
           if (any(lessThan(uv, vec2(0.0))) || any(greaterThan(uv, vec2(1.0)))) continue;
@@ -106,7 +112,7 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
           obscurance += step(candidate.z + 0.045, surface.z) * rangeWeight;
         }
         float distanceFade = 1.0 - smoothstep(60.0, 180.0, -p.z);
-        float ao = 1.0 - obscurance / 12.0 * 0.58 * distanceFade;
+        float ao = 1.0 - obscurance / float(sampleCount) * 0.58 * distanceFade;
         gl_FragColor = vec4(vec3(ao), 1.0);
       }
     `,
@@ -124,32 +130,40 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
       inverseProjection: { value: camera.projectionMatrixInverse },
       aoResolution: { value: new THREE.Vector2() },
       fullResolution: { value: size },
+      crossResolve: { value: false },
     },
     vertexShader,
     fragmentShader: `
       varying vec2 vUv;
       uniform sampler2D sceneColor, contactOcclusion;
       uniform vec2 aoResolution;
+      uniform bool crossResolve;
       ${reconstruct}
       #include <common>
       #include <dithering_pars_fragment>
       void main() {
         vec3 color = texture2D(sceneColor, vUv).rgb;
         float centerZ = viewPosition(vUv).z;
-        float weightSum = 0.0, aoSum = 0.0;
-        // Bilateral reconstruction removes half-resolution noise while keeping
-        // the sail, wires and cutout tree silhouettes free of dark fringes.
-        for (int y = -1; y <= 1; y++) {
-          for (int x = -1; x <= 1; x++) {
-            vec2 uv = vUv + vec2(float(x), float(y)) / aoResolution;
-            float difference = abs(viewPosition(uv).z - centerZ);
-            float spatial = (x == 0 ? 2.0 : 1.0) * (y == 0 ? 2.0 : 1.0);
-            float weight = spatial * exp(-difference * 3.0);
-            aoSum += texture2D(contactOcclusion, uv).r * weight;
-            weightSum += weight;
+        float ao = 1.0;
+        // AO is identically one past its 180 m fade. Aerial views and sky need
+        // no bilateral texture fetches across most of the output framebuffer.
+        if (-centerZ < 180.0) {
+          float weightSum = 0.0, aoSum = 0.0;
+          // Bilateral reconstruction removes half-resolution noise while
+          // keeping sail wires and cutout tree silhouettes free of fringes.
+          for (int y = -1; y <= 1; y++) {
+            for (int x = -1; x <= 1; x++) {
+              if (crossResolve && x != 0 && y != 0) continue;
+              vec2 uv = vUv + vec2(float(x), float(y)) / aoResolution;
+              float difference = abs(viewPosition(uv).z - centerZ);
+              float spatial = (x == 0 ? 2.0 : 1.0) * (y == 0 ? 2.0 : 1.0);
+              float weight = spatial * exp(-difference * 3.0);
+              aoSum += texture2D(contactOcclusion, uv).r * weight;
+              weightSum += weight;
+            }
           }
+          ao = aoSum / max(weightSum, 0.0001);
         }
-        float ao = aoSum / max(weightSum, 0.0001);
         gl_FragColor = vec4(color * ao, 1.0);
         #include <tonemapping_fragment>
         #include <colorspace_fragment>
@@ -162,21 +176,23 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), aoMaterial);
   quad.frustumCulled = false;
   quadScene.add(quad);
-  let level = 'high', disposed = false, width = 0, height = 0;
+  let level = 'high', disposed = false, width = 0, height = 0, aoScale = 0;
 
   function resize() {
     renderer.getDrawingBufferSize(size);
     const w = Math.max(1, Math.floor(size.x)), h = Math.max(1, Math.floor(size.y));
-    if (width === w && height === h) return;
+    const scale = level === 'high' ? .5 : 1 / 3;
+    if (width === w && height === h && aoScale === scale) return;
     width = w; height = h;
+    aoScale = scale;
     beauty.setSize(w, h);
-    const aoWidth = Math.ceil(w / 2), aoHeight = Math.ceil(h / 2);
+    const aoWidth = Math.ceil(w * scale), aoHeight = Math.ceil(h * scale);
     occlusion.setSize(aoWidth, aoHeight);
     outputMaterial.uniforms.aoResolution.value.set(aoWidth, aoHeight);
   }
 
   return {
-    render() {
+    render({ resetInfo = true } = {}) {
       if (disposed) return;
       if (!hdrAvailable || level === 'low') {
         renderer.render(scene, camera);
@@ -187,7 +203,7 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
       const autoReset = renderer.info.autoReset;
       const xrEnabled = renderer.xr.enabled;
       renderer.info.autoReset = false;
-      renderer.info.reset();
+      if (resetInfo) renderer.info.reset();
       renderer.xr.enabled = false;
       try {
         renderer.setRenderTarget(beauty);
@@ -207,6 +223,8 @@ export function createRenderFinish(THREE, renderer, scene, camera) {
     setQuality(next) {
       if (!['high', 'medium', 'low'].includes(next)) return;
       level = next;
+      aoMaterial.uniforms.sampleCount.value = next === 'high' ? 12 : 8;
+      outputMaterial.uniforms.crossResolve.value = next !== 'high';
       const samples = Math.min(next === 'high' ? 4 : 2, renderer.capabilities.maxSamples || 0);
       if (next === 'low' || beauty.samples !== samples) beauty.dispose();
       if (next === 'low') occlusion.dispose();

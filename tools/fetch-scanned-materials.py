@@ -9,7 +9,6 @@ Rebuild offline once the source cache is populated:
 import argparse
 import hashlib
 import json
-import shutil
 import urllib.request
 from pathlib import Path
 from PIL import Image, __version__ as PILLOW_VERSION, features
@@ -51,7 +50,22 @@ SOURCES = [{'path': 'README.md',
   'url': 'https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Rock26_rgh.jpg',
   'size': 1626704,
   'git_blob_sha1': '09e0883bfd985e962c674fb97b2b5bbd23c35b5e',
-  'sha256': '27d6ec1ba209360729ce36f49689631cb671a9742aa7e5f28e1d0c3772536bf2'}]
+  'sha256': '27d6ec1ba209360729ce36f49689631cb671a9742aa7e5f28e1d0c3772536bf2'},
+ {'path': 'textures/Ground36_col.jpg',
+  'url': 'https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Ground36_col.jpg',
+  'size': 7184441,
+  'git_blob_sha1': '59d5605bd62c40c74119cb8c855a0fd6b3f5e566',
+  'sha256': '141622b863580fc2a95472a3f8e7294fa4a04604c0f1962e3d9ac576b1902185'},
+ {'path': 'textures/Ground36_nrm.jpg',
+  'url': 'https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Ground36_nrm.jpg',
+  'size': 9463151,
+  'git_blob_sha1': 'ae7bc9e528f143b723ea704be2fd70694771be3e',
+  'sha256': '9daa174f8f26bc1f7e7d5bdc76cbeffe4ce0347b98b1000cc835fb88bb3563ad'},
+ {'path': 'textures/Ground36_rgh.jpg',
+  'url': 'https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Ground36_rgh.jpg',
+  'size': 3569086,
+  'git_blob_sha1': '6c95025591fca96fda427ebd0a9c18b04c2a6b0d',
+  'sha256': 'cefc42e18b1fdec7e4ada702bb8146ef134d825a1cf664c78bbc2dac82b9cbe0'}]
 
 
 RUNTIME = {
@@ -61,6 +75,9 @@ RUNTIME = {
     'Rock26_col.jpg': ('rock-color.webp', 2048, 'albedo', 90),
     'Rock26_nrm.jpg': ('rock-normal.webp', 1024, 'normal', None),
     'Rock26_rgh.jpg': ('rock-roughness.webp', 1024, 'roughness', 92),
+    'Ground36_col.jpg': ('floor-color.webp', 2048, 'albedo', 90),
+    'Ground36_nrm.jpg': ('floor-normal.webp', 1024, 'normal', None),
+    'Ground36_rgh.jpg': ('floor-roughness.webp', 1024, 'roughness', 92),
 }
 
 
@@ -106,6 +123,7 @@ def main():
             'sha256': SOURCES[0]['sha256'],
             'declaration': 'The source README identifies the materials as CC0-Textures.',
             'qualification': 'No standalone LICENSE or per-material author metadata is included upstream.',
+            'retained_notice_transform': 'Trailing whitespace normalized; notice wording retained.',
         },
         'normal_convention': 'The source Blender package supplies *_nrm maps. They are used as OpenGL tangent-space normals without a green-channel flip; no format label is supplied upstream.',
         'encoding': {'Pillow': PILLOW_VERSION, 'libwebp': features.version('webp')},
@@ -114,7 +132,8 @@ def main():
     for source in SOURCES:
         original = obtain(source, args.cache_dir, args.offline)
         if original.name == 'README.md':
-            shutil.copyfile(original, OUTPUT / 'SOURCE-NOTICE.md')
+            notice = '\n'.join(line.rstrip() for line in original.read_text().splitlines()).rstrip() + '\n'
+            (OUTPUT / 'SOURCE-NOTICE.md').write_text(notice)
             continue
         name, target_size, semantic, quality = RUNTIME[original.name]
         with Image.open(original) as image:

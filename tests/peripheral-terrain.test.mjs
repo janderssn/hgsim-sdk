@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as THREE from '../range/vendor/three.module.js';
-import { terrainHeight, establishedTerrainHeight, slopeAt, FLIGHT_Y, ROCK_TOP, CLIFF, LAUNCH, DECK_BACK, DECK_LIP, deckY } from '../range/world.js';
+import { terrainHeight, establishedTerrainHeight, slopeAt, FLIGHT_Y, ROCK_TOP, CLIFF, LAUNCH, DECK_BACK, DECK_LIP, deckY, rockTop, physicalGroundHeight } from '../range/world.js';
 import { buildScenery } from '../range/scenery.js';
 
 // Frozen before the peripheral-relief change: approach corners, launch/field,
@@ -85,11 +85,11 @@ test('the launch ledges join the ridge without moving their authored structures'
   assert.equal(CLIFF.y, 246.75841241828536);
   assert.equal(deckY(LAUNCH.z + DECK_BACK), 245.58987226232418);
   assert.equal(deckY(LAUNCH.z + DECK_LIP), 239.42987226232418);
-  const rampShoulder = terrainHeight(0, -595), cliffShoulder = terrainHeight(CLIFF.x, CLIFF.cz);
-  assert.ok(rampShoulder - establishedTerrainHeight(0, -595) > 30);
-  assert.ok(cliffShoulder - establishedTerrainHeight(CLIFF.x, CLIFF.cz) > 30);
-  assert.ok(ROCK_TOP - .5 - rampShoulder > 10 && ROCK_TOP - .5 - rampShoulder < 20);
-  assert.ok(CLIFF.top - .5 - cliffShoulder > 20 && CLIFF.top - .5 - cliffShoulder < 30);
+  const rampShoulder = physicalGroundHeight(0, -595), cliffShoulder = physicalGroundHeight(CLIFF.x, CLIFF.cz);
+  assert.ok(rampShoulder - establishedTerrainHeight(0, -595) > 40);
+  assert.ok(cliffShoulder - establishedTerrainHeight(CLIFF.x, CLIFF.cz) > 40);
+  assert.ok(rockTop(0, -578) - terrainHeight(0, -578) > 50, 'the coarse fill does not bury the exact granite face');
+  assert.ok(rockTop(CLIFF.x, CLIFF.z) - terrainHeight(CLIFF.x, CLIFF.z) > 50);
   assert.ok(terrainHeight(0, -700) > 225, 'the ledges must connect to a substantial rear shoulder');
   const lip = LAUNCH.z + DECK_LIP - .1;
   assert.ok(deckY(lip) - terrainHeight(0, lip) > 30, 'the launch lip still clears the slope');

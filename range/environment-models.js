@@ -3,8 +3,8 @@
  * baked into shared Y-up geometries once; placing an instance never alters them.
  * A small procedural fallback keeps the range usable while an asset is missing.
  */
-export function createEnvironmentModels(THREE, library = null) {
-  if (!library) return createFallback(THREE);
+export function createEnvironmentModels(THREE, library = null, { trees = true } = {}) {
+  if (!library) return createFallback(THREE, { trees });
   library.updateMatrixWorld(true);
   const geometry = name => {
     const object = library.getObjectByName(name);
@@ -20,7 +20,9 @@ export function createEnvironmentModels(THREE, library = null) {
   }
   return {
     source: 'blender', props,
-    treeVariants: ['SpruceA', 'SpruceB', 'SpruceC'].map((name, index) => {
+    // The current forest has its own assets. A props-only library must not look
+    // up, clone or allocate the obsolete spruce geometries and atlas materials.
+    treeVariants: trees ? ['SpruceA', 'SpruceB', 'SpruceC'].map((name, index) => {
       const far = geometry(name + '_Far');
       const atlas = material(name + '_Far').map;
       if (atlas) {
@@ -40,22 +42,25 @@ export function createEnvironmentModels(THREE, library = null) {
         impostorMaterial: atlas ? createImpostorMaterial(THREE, atlas, index) : null,
         atlasRow: index, height: atlas ? 23 : 15,
       };
-    }),
+    }) : [],
   };
 }
 
-function createFallback(THREE) {
-  const needles = new THREE.MeshStandardMaterial({ color: '#355143', roughness: .95, vertexColors: true });
-  const bark = new THREE.MeshStandardMaterial({ color: '#66503a', roughness: .98 });
+function createFallback(THREE, { trees = true } = {}) {
   const granite = new THREE.MeshStandardMaterial({ color: '#85877d', roughness: .92, flatShading: true });
   const wood = new THREE.MeshStandardMaterial({ color: '#796348', roughness: .92 });
   const dark = new THREE.MeshStandardMaterial({ color: '#35413e', roughness: .85 });
-  const treeVariants = [0, 1, 2].map(seed => ({
-    near: spruceGeometry(THREE, seed, 5, 7, false),
-    far: spruceGeometry(THREE, seed, 4, 6, true),
-    trunk: new THREE.CylinderGeometry(.11, .24, 11.5 + seed * .35, 6).translate(0, (11.5 + seed * .35) / 2, 0),
-    foliageMaterial: needles, trunkMaterial: bark,
-  }));
+  const treeVariants = [];
+  if (trees) {
+    const needles = new THREE.MeshStandardMaterial({ color: '#355143', roughness: .95, vertexColors: true });
+    const bark = new THREE.MeshStandardMaterial({ color: '#66503a', roughness: .98 });
+    for (let seed = 0; seed < 3; seed++) treeVariants.push({
+      near: spruceGeometry(THREE, seed, 5, 7, false),
+      far: spruceGeometry(THREE, seed, 4, 6, true),
+      trunk: new THREE.CylinderGeometry(.11, .24, 11.5 + seed * .35, 6).translate(0, (11.5 + seed * .35) / 2, 0),
+      foliageMaterial: needles, trunkMaterial: bark,
+    });
+  }
   const props = {};
   const stone = (scale, offsetY = .5) => {
     const mesh = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), granite);

@@ -1,0 +1,5 @@
+PASS model=original assets, rig and launch
+PASS assist=on assets, rig and launch
+PASS portrait resize and shader programs
+PASS intentionally missing props/forest/elevation/surfaces still launch
+PASS no runtime or shader errors

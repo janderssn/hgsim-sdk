@@ -1,17 +1,22 @@
 /**
  * Camera-near meadow detail. All placements are hashed in world-space cells;
- * crossing a cell streams new detail into the existing three instance buffers.
+ * crossing a cell streams new detail into fixed meadow/woodland instance buffers.
  * Nothing here participates in collisions or changes the terrain height source.
  */
+import { createFernGeometry, createShrubGeometry, createLitterGeometry, createDeadwoodGeometry } from './undergrowth-geometry.js';
+
 const CELL = 6;
 const CELL_MARGIN = CELL / Math.SQRT2;
 const TARGET_CLEARANCE = 66;
 const MAX_ALTITUDE = 60;
+const MAX_CACHED_CELLS = 384;
+const unit = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 const LEVELS = {
-  high: { radius: 35, grass: 5000, flowers: 150, pebbles: 150, density: 1 },
-  medium: { radius: 25, grass: 2400, flowers: 80, pebbles: 80, density: .84 },
-  low: { radius: 15, grass: 750, flowers: 24, pebbles: 30, density: .58 },
+  high: { radius: 35, grass: 5000, flowers: 150, pebbles: 150, ferns: 100, shrubs: 70, litter: 200, deadwood: 28, density: 1 },
+  medium: { radius: 25, grass: 2400, flowers: 80, pebbles: 80, ferns: 60, shrubs: 35, litter: 100, deadwood: 14, density: .84 },
+  low: { radius: 15, grass: 750, flowers: 24, pebbles: 30, ferns: 0, shrubs: 0, litter: 45, deadwood: 0, density: .58 },
 };
+const KINDS = ['grass', 'flowers', 'pebbles', 'ferns', 'shrubs', 'litter', 'deadwood'];
 
 function hash(x, z, salt = 0) {
   let n = Math.imul(x | 0, 374761393) ^ Math.imul(z | 0, 668265263) ^ Math.imul(salt | 0, 1442695041);
@@ -31,18 +36,18 @@ function geometryFrom(THREE, positions, colors, indices, uvs) {
   return geometry;
 }
 
-// Nine individually curved, twisted ribbons. Their pointed tips and open gaps
+// Seven individually bowed, twisted ribbons. Their pointed tips and open gaps
 // keep the silhouette fine enough to read as grass rather than solid shrubs.
 function grassGeometry(THREE) {
   const positions = [], colors = [], indices = [], uvs = [];
   const stations = [0, .36, .72, 1];
-  const widths = [1, .86, .48, 0];
-  for (let blade = 0; blade < 9; blade++) {
+  const widths = [.4, 1, .48, 0];
+  for (let blade = 0; blade < 7; blade++) {
     const angle = blade * 2.3999632297 + hash(blade, 7) * .8;
-    const height = .29 + hash(blade, 3) * .35;
-    const width = .011 + hash(blade, 2) * .009;
-    const bend = .11 + hash(blade, 4) * .21;
-    const spread = .035 + hash(blade, 9) * .12;
+    const height = .22 + hash(blade, 3) * .3;
+    const width = .008 + hash(blade, 2) * .006;
+    const bend = .17 + hash(blade, 4) * .24;
+    const spread = .025 + hash(blade, 9) * .15;
     const twist = (hash(blade, 6) - .5) * .9;
     const gold = hash(blade, 12) > .76;
     const base = positions.length / 3;
@@ -135,6 +140,7 @@ function coverMaterial(THREE, supplied, wind, uniforms) {
   material.transparent = false;
   material.depthWrite = true;
   const originalCompile = supplied?.onBeforeCompile;
+  const originalCacheKey = supplied?.customProgramCacheKey?.bind(supplied);
   material.onBeforeCompile = (shader, renderer) => {
     originalCompile?.call(material, shader, renderer);
     shader.uniforms.coverTime = uniforms.time;
@@ -146,24 +152,55 @@ function coverMaterial(THREE, supplied, wind, uniforms) {
       vec2 coverOrigin = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
       float coverFade = 1.0 - smoothstep(coverRadius - 5.0, coverRadius, distance(coverOrigin, coverCamera));
       float coverTip = pow(clamp(position.y / 0.65, 0.0, 1.0), 2.0);
-      float coverBreeze = sin(coverTime * 1.35 + coverOrigin.x * 0.43 + coverOrigin.y * 0.31)
-        + 0.35 * sin(coverTime * 2.1 + coverOrigin.x * 1.7);
-      transformed.x += coverBreeze * coverTip * ${wind.toFixed(3)};
-      transformed.z += coverBreeze * coverTip * ${(wind * .42).toFixed(3)};
+      // A broad travelling gust is shared by all cells. Convert the prevailing
+      // world wind to each instance's frame, so rotated plants still lean together.
+      float coverGust = 0.65 + 0.35 * sin(coverTime * 0.7 - coverOrigin.x * 0.035 - coverOrigin.y * 0.028);
+      float coverBreeze = coverGust * sin(coverTime * 1.6 - coverOrigin.x * 0.13 - coverOrigin.y * 0.09)
+        + 0.18 * sin(coverTime * 3.4 + coverOrigin.x * 1.7 + coverOrigin.y * 0.8);
+      vec3 coverWindAxis = vec3(0.92, 0.0, 0.38);
+      vec3 coverLocalWind = normalize(vec3(dot(instanceMatrix[0].xyz, coverWindAxis), 0.0,
+        dot(instanceMatrix[2].xyz, coverWindAxis)));
+      transformed += coverLocalWind * coverBreeze * coverTip * ${wind.toFixed(3)};
       transformed *= coverFade;
     `);
+    if (wind && shader.fragmentShader) shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <lights_physical_pars_fragment>', `
+      #include <lights_physical_pars_fragment>
+      // Thin leaves transmit a little incident sunlight. This runs inside the
+      // ordinary direct-light loop, after its real shadow attenuation, and never
+      // adds an unshadowed emissive term in the woodland shade.
+      void RE_Direct_Cover(const in IncidentLight light, const in vec3 geometryPosition,
+        const in vec3 geometryNormal, const in vec3 geometryViewDir,
+        const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material,
+        inout ReflectedLight reflectedLight) {
+        RE_Direct_Physical(light, geometryPosition, geometryNormal, geometryViewDir,
+          geometryClearcoatNormal, material, reflectedLight);
+        float nDotL = dot(geometryNormal, light.direction);
+        float wrapped = max(0.0, (nDotL + 0.45) / 1.45) - max(0.0, nDotL);
+        float transmission = pow(max(0.0, dot(geometryViewDir, -light.direction)), 3.0);
+        reflectedLight.directDiffuse += light.color * material.diffuseColor * RECIPROCAL_PI
+          * (wrapped * 0.42 + transmission * 0.22);
+      }
+      #undef RE_Direct
+      #define RE_Direct RE_Direct_Cover
+    `);
   };
-  material.customProgramCacheKey = () => `near-meadow-v1-${wind}`;
+  material.customProgramCacheKey = () => `${originalCacheKey?.() || 'standard'}|near-meadow-v2-${wind}`;
   return material;
 }
 
 /**
  * options: terrainHeight (required), groundUnder, rockTop, quality, and optional
- * materials {grass, flowers, pebbles}. Supplied materials are cloned, not owned.
+ * materials may supply grass/flowers/pebbles/ferns/shrubs/litter/deadwood finishes.
+ * Supplied materials are cloned; their shared textures remain caller-owned.
+ * Optional forestCoverage(x,z) returns actual canopy density in [0,1].
+ * ecologyAt(x,z) shares the terrain's [0,1] rock/talus/moisture/path masks.
+ * World/biome callbacks describe static placements, cached only near the camera.
  * update expects a world-space camera position and elapsed seconds.
  */
 export function createGroundCover(THREE, scene, {
   terrainHeight, groundUnder = terrainHeight, rockTop, materials = {}, quality = 'high',
+  forestCoverage = () => 0, ecologyAt = () => ({}),
 } = {}) {
   if (typeof terrainHeight !== 'function') throw new TypeError('Ground cover needs the world terrainHeight function');
   let level = LEVELS[quality] ? quality : 'high';
@@ -171,11 +208,15 @@ export function createGroundCover(THREE, scene, {
   let lastTime = 0;
   const lastCamera = new THREE.Vector3();
   const uniforms = { time: { value: 0 }, camera: { value: new THREE.Vector2() }, radius: { value: LEVELS[level].radius } };
-  const geometries = [grassGeometry(THREE), flowerGeometry(THREE), pebbleGeometry(THREE)];
+  const geometries = [grassGeometry(THREE), flowerGeometry(THREE), pebbleGeometry(THREE),
+    createFernGeometry(THREE), createShrubGeometry(THREE), createLitterGeometry(THREE), createDeadwoodGeometry(THREE)];
   const ownedMaterials = [coverMaterial(THREE, materials.grass, .075, uniforms),
-    coverMaterial(THREE, materials.flowers, .045, uniforms), coverMaterial(THREE, materials.pebbles, 0, uniforms)];
-  const names = ['NearMeadowGrass', 'NearMeadowFlowers', 'NearMeadowPebbles'];
-  const capacities = [LEVELS.high.grass, LEVELS.high.flowers, LEVELS.high.pebbles];
+    coverMaterial(THREE, materials.flowers, .045, uniforms), coverMaterial(THREE, materials.pebbles, 0, uniforms),
+    coverMaterial(THREE, materials.ferns, .028, uniforms), coverMaterial(THREE, materials.shrubs, .023, uniforms),
+    coverMaterial(THREE, materials.litter, 0, uniforms), coverMaterial(THREE, materials.deadwood, 0, uniforms)];
+  const names = ['NearMeadowGrass', 'NearMeadowFlowers', 'NearMeadowPebbles', 'NearWoodlandFerns',
+    'NearWoodlandShrubs', 'NearWoodlandLitter', 'NearWoodlandDeadwood'];
+  const capacities = KINDS.map(kind => LEVELS.high[kind]);
   const meshes = geometries.map((geometry, index) => {
     const mesh = new THREE.InstancedMesh(geometry, ownedMaterials[index], capacities[index]);
     mesh.name = names[index];
@@ -191,9 +232,12 @@ export function createGroundCover(THREE, scene, {
     scene.add(mesh);
     return mesh;
   });
-  const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), position = new THREE.Vector3();
+  const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), yaw = new THREE.Quaternion(), position = new THREE.Vector3();
   const scale = new THREE.Vector3(), color = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
+  const normal = new THREE.Vector3();
   const bounds = meshes.map(() => new THREE.Box3());
+  const cellCache = new Map();
+  let cellBuilds = 0;
 
   function suitable(x, z) {
     if (x * x + z * z < TARGET_CLEARANCE * TARGET_CLEARANCE) return null;
@@ -204,18 +248,26 @@ export function createGroundCover(THREE, scene, {
     const dx = terrainHeight(x + .75, z) - terrainHeight(x - .75, z);
     const dz = terrainHeight(x, z + .75) - terrainHeight(x, z - .75);
     if (!Number.isFinite(dx + dz) || Math.hypot(dx, dz) > .75) return null;
-    return y;
+    const ecology = ecologyAt(x, z) || {};
+    const site = { y, dx, dz, canopy: unit(forestCoverage(x, z)), rock: unit(ecology.rock),
+      talus: unit(ecology.talus), moisture: unit(ecology.moisture), path: unit(ecology.path) };
+    if (site.path > .55 || site.rock > .75) return null;
+    return site;
   }
 
-  function place(batch, x, y, z, seedX, seedZ, salt) {
-    const mesh = meshes[batch], index = mesh.count;
-    position.set(x, y, z);
+  function placement(batch, x, site, z, seedX, seedZ, salt, density = 0) {
+    position.set(x, site.y, z);
     rotation.setFromAxisAngle(up, hash(seedX, seedZ, salt + 2) * Math.PI * 2);
+    if (batch === 2 || batch >= 5) {
+      yaw.copy(rotation);
+      normal.set(-site.dx, 1.5, -site.dz).normalize();
+      rotation.setFromUnitVectors(up, normal).multiply(yaw);
+    }
     const size = batch === 0 ? .77 + hash(seedX, seedZ, salt + 3) * .43
-      : batch === 1 ? .72 + hash(seedX, seedZ, salt + 3) * .42 : .5 + hash(seedX, seedZ, salt + 3) * 1.1;
+      : batch === 1 ? .72 + hash(seedX, seedZ, salt + 3) * .42
+        : batch === 2 ? .5 + hash(seedX, seedZ, salt + 3) * 1.1 : .72 + hash(seedX, seedZ, salt + 3) * .62;
     scale.set(size, size * (.86 + hash(seedX, seedZ, salt + 4) * .24), size);
     matrix.compose(position, rotation, scale);
-    mesh.setMatrixAt(index, matrix);
     const shade = .83 + hash(seedX, seedZ, salt + 5) * .32;
     if (batch === 0) {
       // Most tufts stay green; irregular warmer patches catch the afternoon sun.
@@ -224,10 +276,47 @@ export function createGroundCover(THREE, scene, {
     } else if (batch === 1) {
       const lilac = hash(seedX, seedZ, salt + 6) > .77;
       color.setRGB(lilac ? .72 : shade, lilac ? .51 : shade, lilac ? .92 : shade * .94);
-    } else color.setRGB(shade, shade, shade);
-    mesh.setColorAt(index, color);
-    bounds[batch].expandByPoint(position);
-    mesh.count++;
+    } else if (batch === 3 || batch === 4) color.setRGB(shade * .91, shade, shade * .88);
+    else color.setRGB(shade, shade, shade);
+    return { x, y: site.y, z, density, matrix: matrix.toArray(new Float32Array(16)),
+      color: new Float32Array([color.r, color.g, color.b]) };
+  }
+
+  function worldCell(cx, cz) {
+    const key = `${cx},${cz}`;
+    if (cellCache.has(key)) return cellCache.get(key);
+    const groups = KINDS.map(() => []);
+    for (let candidate = 0; candidate < 42; candidate++) {
+      const x = (cx + (candidate % 7 + .12 + hash(cx, cz, candidate * 7 + 101) * .76) / 7) * CELL;
+      const z = (cz + (Math.floor(candidate / 7) + .12 + hash(cx, cz, candidate * 7 + 102) * .76) / 6) * CELL;
+      const site = suitable(x, z);
+      if (site && hash(cx, cz, candidate * 7 + 103) <
+        (1 - site.canopy * .8) * (1 - site.talus * .83) * (1 - site.path * .9)) {
+        groups[0].push(placement(0, x, site, z, cx, cz, candidate * 11 + 800, hash(cx, cz, candidate * 7 + 100)));
+      }
+    }
+    for (let batch = 1; batch < groups.length; batch++) {
+      const candidates = batch === 3 || batch === 5 ? 3 : 1;
+      for (let candidate = 0; candidate < candidates; candidate++) {
+        const salt = candidate * 111;
+        const x = (cx + hash(cx, cz, 410 + batch + salt)) * CELL;
+        const z = (cz + hash(cx, cz, 420 + batch + salt)) * CELL;
+        const site = suitable(x, z);
+        if (!site) continue;
+        // Forest floor, meadow and disturbed stony edges grow different forms.
+        const probability = batch === 1 ? .78 * (1 - site.canopy) * (1 - site.talus)
+          : batch === 2 ? .64 + site.talus * .35
+            : batch === 3 ? (site.canopy * .67 + site.moisture * .24) * (1 - site.talus)
+              : batch === 4 ? site.canopy * .7 * (1 - site.talus * .7)
+                : batch === 5 ? site.canopy * .91 : site.canopy * .22;
+        if (hash(cx, cz, 401 + batch + salt) <= probability) {
+          groups[batch].push(placement(batch, x, site, z, cx, cz, 500 + batch * 50 + salt));
+        }
+      }
+    }
+    const cell = { x: cx, z: cz, groups };
+    cellCache.set(key, cell); cellBuilds++;
+    return cell;
   }
 
   function rebuild(cx, cz) {
@@ -242,24 +331,24 @@ export function createGroundCover(THREE, scene, {
     cells.sort((a, b) => a.distance - b.distance || a.z - b.z || a.x - b.x);
     meshes.forEach((mesh, index) => { mesh.count = 0; bounds[index].makeEmpty(); });
     for (const cell of cells) {
-      for (let candidate = 0; candidate < 42 && meshes[0].count < settings.grass; candidate++) {
-        if (hash(cell.x, cell.z, candidate * 7 + 100) > settings.density) continue;
-        const x = (cell.x + (candidate % 7 + .12 + hash(cell.x, cell.z, candidate * 7 + 101) * .76) / 7) * CELL;
-        const z = (cell.z + (Math.floor(candidate / 7) + .12 + hash(cell.x, cell.z, candidate * 7 + 102) * .76) / 6) * CELL;
-        if ((x - centerX) ** 2 + (z - centerZ) ** 2 > radius * radius) continue;
-        const y = suitable(x, z);
-        if (y !== null) place(0, x, y, z, cell.x, cell.z, candidate * 11 + 800);
-      }
-      for (let batch = 1; batch <= 2; batch++) {
-        const limit = batch === 1 ? settings.flowers : settings.pebbles;
-        if (meshes[batch].count >= limit || hash(cell.x, cell.z, 401 + batch) > (batch === 1 ? .78 : .73)) continue;
-        const x = (cell.x + hash(cell.x, cell.z, 410 + batch)) * CELL;
-        const z = (cell.z + hash(cell.x, cell.z, 420 + batch)) * CELL;
-        if ((x - centerX) ** 2 + (z - centerZ) ** 2 > radius * radius) continue;
-        const y = suitable(x, z);
-        if (y !== null) place(batch, x, y, z, cell.x, cell.z, 500 + batch * 50);
+      if (cell.distance * CELL * CELL > (radius + CELL_MARGIN) ** 2) continue;
+      const records = worldCell(cell.x, cell.z).groups;
+      for (let batch = 0; batch < meshes.length; batch++) {
+        const mesh = meshes[batch], limit = settings[KINDS[batch]];
+        for (const record of records[batch]) {
+          if (mesh.count >= limit) break;
+          if (record.density > settings.density || (record.x - centerX) ** 2 + (record.z - centerZ) ** 2 > radius * radius) continue;
+          mesh.instanceMatrix.array.set(record.matrix, mesh.count * 16);
+          mesh.instanceColor.array.set(record.color, mesh.count * 3);
+          position.set(record.x, record.y, record.z);
+          bounds[batch].expandByPoint(position);
+          mesh.count++;
+        }
       }
     }
+    // Keep a small apron for backtracking, and never grow memory along a flight.
+    for (const [key, cell] of cellCache) if (Math.abs(cell.x - cx) > extent + 1 || Math.abs(cell.z - cz) > extent + 1) cellCache.delete(key);
+    while (cellCache.size > MAX_CACHED_CELLS) cellCache.delete(cellCache.keys().next().value);
     for (let index = 0; index < meshes.length; index++) {
       const mesh = meshes[index];
       mesh.visible = mesh.count > 0;
@@ -293,6 +382,7 @@ export function createGroundCover(THREE, scene, {
   }
 
   return {
+    materials: ownedMaterials,
     update,
     setQuality(nextLevel) {
       if (disposed || !LEVELS[nextLevel] || nextLevel === level) return;
@@ -302,11 +392,14 @@ export function createGroundCover(THREE, scene, {
     },
     get stats() {
       return { quality: level, radius: LEVELS[level].radius, active, cellX, cellZ,
-        tufts: meshes[0].count, flowers: meshes[1].count, pebbles: meshes[2].count };
+        tufts: meshes[0].count, flowers: meshes[1].count, pebbles: meshes[2].count,
+        ferns: meshes[3].count, shrubs: meshes[4].count, litter: meshes[5].count, deadwood: meshes[6].count,
+        draws: meshes.filter(mesh => mesh.visible).length, cachedCells: cellCache.size, cellBuilds };
     },
     dispose() {
       if (disposed) return;
       disposed = true;
+      cellCache.clear();
       for (const mesh of meshes) scene.remove(mesh);
       for (const geometry of geometries) geometry.dispose();
       for (const material of ownedMaterials) material.dispose();

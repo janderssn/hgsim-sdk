@@ -1,0 +1,46 @@
+{
+  "description": "Original ecological control data, not photographic albedo or height data",
+  "seed": 84321,
+  "dimensions": [
+    1024,
+    1024
+  ],
+  "world_bounds_metres": {
+    "minX": -1600,
+    "minZ": -1600,
+    "width": 3200,
+    "depth": 3200
+  },
+  "linear": true,
+  "format": "opaque RGB8 (no alpha data)",
+  "flipY": false,
+  "row_zero": "minZ",
+  "channels": {
+    "terrain-control.png": {
+      "R": "worn path",
+      "G": "soil moisture including 115m variation",
+      "B": "protected landing meadow"
+    },
+    "terrain-ecology.png": {
+      "R": "exposed bedrock",
+      "G": "talus/debris",
+      "B": "23m patch variation"
+    }
+  },
+  "canonical_source": "range/world.js:sampleTerrainEcology(x,z)",
+  "world_source_sha256": "399dc1ce4cf4f748df880997f71f4bf1d399e94b1cce232dff63f471b77b9039",
+  "geology_source_sha256": "f632f50ea8d220c2608e1d1310a5733062cb0efe261bc1f8f76f3daee44bb3b3",
+  "builder_sha256": "c15c6db3e36aafde63c90a18c368dcc8e4fae138d4b659acff8b68927ec8f16f",
+  "files": [
+    {
+      "file": "terrain-control.png",
+      "sha256": "eb999b0985518c570fbc81a060de83d359fd6704d091b44f5d09f33f5185b40b",
+      "bytes": 299835
+    },
+    {
+      "file": "terrain-ecology.png",
+      "sha256": "fffb5462bdec4ed724b0541266028b747058c0aa6a0c3321b4bdf0a79408576a",
+      "bytes": 678047
+    }
+  ]
+}

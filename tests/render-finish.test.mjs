@@ -57,6 +57,28 @@ test('low quality and devices without HDR buffers render directly', () => {
   }
 });
 
+test('medium reduces AO sampling and resolution and restores high without resizing the viewport', () => {
+  const { finish, calls } = fixture();
+  try {
+    finish.render();
+    finish.setQuality('medium');
+    calls.length = 0;
+    finish.render();
+    assert.equal(calls[0].target.samples, 2);
+    assert.equal(calls[1].target.width, 427);
+    assert.equal(calls[1].target.height, 241);
+    const output = calls[2].scene.children[0].material;
+    assert.equal(output.uniforms.crossResolve.value, true);
+    finish.setQuality('high');
+    calls.length = 0;
+    finish.render();
+    assert.equal(calls[0].target.samples, 4);
+    assert.equal(calls[1].target.width, 640);
+    assert.equal(calls[1].target.height, 361);
+    assert.equal(output.uniforms.crossResolve.value, false);
+  } finally { finish.dispose(); }
+});
+
 test('a failed render restores the caller target, statistics mode, and XR state', () => {
   const { finish, renderer } = fixture();
   const target = new THREE.WebGLRenderTarget();

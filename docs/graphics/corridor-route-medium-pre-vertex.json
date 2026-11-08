@@ -1,0 +1,600 @@
+{
+  "url": "http://127.0.0.1:4281/range/?quality=medium",
+  "timestamp": "2026-11-08T10:36:57.086Z",
+  "metadata": {
+    "renderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "vendor": "Google Inc. (Google)",
+    "userAgent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "gpuTimer": {
+      "available": true,
+      "reason": null
+    },
+    "quality": "medium",
+    "canvas": {
+      "width": 960,
+      "height": 600
+    },
+    "route": [
+      {
+        "name": "launch",
+        "position": [
+          14,
+          246.74987226232417,
+          -595
+        ],
+        "target": [
+          0,
+          228.74987226232417,
+          -380
+        ]
+      },
+      {
+        "name": "escarpment",
+        "position": [
+          100,
+          252.74987226232417,
+          -460
+        ],
+        "target": [
+          0,
+          208.74987226232417,
+          -588
+        ]
+      },
+      {
+        "name": "departure",
+        "position": [
+          0,
+          218.55766661528378,
+          -440
+        ],
+        "target": [
+          0,
+          -1.4,
+          0
+        ]
+      },
+      {
+        "name": "woodland",
+        "position": [
+          -240,
+          204.6558633602617,
+          -670
+        ],
+        "target": [
+          -232,
+          203.27559060530967,
+          -635
+        ]
+      },
+      {
+        "name": "approach",
+        "position": [
+          0,
+          38.93584326000059,
+          -145
+        ],
+        "target": [
+          0,
+          -1.4,
+          25
+        ]
+      },
+      {
+        "name": "valley",
+        "position": [
+          -230,
+          262.36283976320016,
+          180
+        ],
+        "target": [
+          0,
+          195.74987226232417,
+          -560
+        ]
+      }
+    ],
+    "visuals": {
+      "direction": "alpine",
+      "models": "blender",
+      "surfaces": true,
+      "terrain": true,
+      "sky": "single-scattering",
+      "forest": "forest"
+    }
+  },
+  "protocol": {
+    "framesPerSegment": 6,
+    "warmupFramesPerWaypoint": 2,
+    "note": "Fixed quality, six moving-camera segments, simulation paused; production shadow volume is centred on the inspected ground. CPU submission includes driver work; frame intervals include asynchronous queue stalls. GPU timings are elapsed queries when supported. Screenshot readback is outside measured frames. This is a rendering route, not a flight physics benchmark."
+  },
+  "frameTiming": {
+    "count": 30,
+    "meanMs": 641.55,
+    "p95Ms": 39.9
+  },
+  "cpuSubmission": {
+    "count": 36,
+    "meanMs": 534.794,
+    "p95Ms": 33.3
+  },
+  "gpuTiming": {
+    "count": 36,
+    "meanMs": 3780.931,
+    "p95Ms": 10176.32
+  },
+  "gpuQueryStats": {
+    "pending": 0,
+    "active": false,
+    "dropped": 0,
+    "invalidated": 0
+  },
+  "segments": [
+    {
+      "name": "launch",
+      "frameMs": [
+        25.200000000186265,
+        1.3999999994412065,
+        1.2000000001862645,
+        1,
+        0.7999999998137355
+      ],
+      "gpu": [],
+      "calls": [
+        157,
+        157,
+        157,
+        157,
+        157,
+        157
+      ],
+      "triangles": [
+        751101,
+        751101,
+        751101,
+        751101,
+        751101,
+        751101
+      ],
+      "screenshot": "01-launch.jpg"
+    },
+    {
+      "name": "escarpment",
+      "frameMs": [
+        10,
+        15.399999999441206,
+        18.200000000186265,
+        5.400000000372529,
+        1.8999999994412065
+      ],
+      "gpu": [
+        {
+          "label": "launch",
+          "milliseconds": 3381.211318
+        },
+        {
+          "label": "launch",
+          "milliseconds": 3416.28959
+        },
+        {
+          "label": "launch",
+          "milliseconds": 3363.07816
+        },
+        {
+          "label": "launch",
+          "milliseconds": 3379.377506
+        },
+        {
+          "label": "launch",
+          "milliseconds": 3442.421966
+        },
+        {
+          "label": "launch",
+          "milliseconds": 3513.565941
+        }
+      ],
+      "calls": [
+        157,
+        143,
+        127,
+        93,
+        86,
+        84
+      ],
+      "triangles": [
+        751101,
+        637109,
+        353488,
+        231822,
+        232869,
+        226209
+      ],
+      "screenshot": "02-escarpment.jpg"
+    },
+    {
+      "name": "departure",
+      "frameMs": [
+        4.599999999627471,
+        1.6000000005587935,
+        2.3999999994412065,
+        1.5,
+        2.300000000745058
+      ],
+      "gpu": [
+        {
+          "label": "escarpment",
+          "milliseconds": 3478.435965
+        },
+        {
+          "label": "escarpment",
+          "milliseconds": 2697.81393
+        },
+        {
+          "label": "escarpment",
+          "milliseconds": 2665.66874
+        },
+        {
+          "label": "escarpment",
+          "milliseconds": 2415.658571
+        },
+        {
+          "label": "escarpment",
+          "milliseconds": 2532.768163
+        },
+        {
+          "label": "escarpment",
+          "milliseconds": 2493.0252
+        }
+      ],
+      "calls": [
+        84,
+        56,
+        48,
+        81,
+        96,
+        97
+      ],
+      "triangles": [
+        226209,
+        211149,
+        155936,
+        202321,
+        261257,
+        314171
+      ],
+      "screenshot": "03-departure.jpg"
+    },
+    {
+      "name": "woodland",
+      "frameMs": [
+        4.2000000001862645,
+        3,
+        18.90000000037253,
+        18,
+        13.899999999441206
+      ],
+      "gpu": [
+        {
+          "label": "departure",
+          "milliseconds": 2889.848381
+        },
+        {
+          "label": "departure",
+          "milliseconds": 1534.253633
+        },
+        {
+          "label": "departure",
+          "milliseconds": 1150.454375
+        },
+        {
+          "label": "departure",
+          "milliseconds": 1792.127142
+        },
+        {
+          "label": "departure",
+          "milliseconds": 2097.2321
+        },
+        {
+          "label": "departure",
+          "milliseconds": 2263.972033
+        }
+      ],
+      "calls": [
+        97,
+        111,
+        142,
+        147,
+        138,
+        121
+      ],
+      "triangles": [
+        314171,
+        608673,
+        2153254,
+        3375077,
+        4732970,
+        4829679
+      ],
+      "screenshot": "04-woodland.jpg"
+    },
+    {
+      "name": "approach",
+      "frameMs": [
+        7.2000000001862645,
+        27,
+        18993.200000000186,
+        10.5,
+        39.90000000037253
+      ],
+      "gpu": [
+        {
+          "label": "woodland",
+          "milliseconds": 2835.129699
+        },
+        {
+          "label": "woodland",
+          "milliseconds": 2531.845782
+        },
+        {
+          "label": "woodland",
+          "milliseconds": 3912.756691
+        },
+        {
+          "label": "woodland",
+          "milliseconds": 10176.319654
+        },
+        {
+          "label": "woodland",
+          "milliseconds": 9660.495638
+        },
+        {
+          "label": "woodland",
+          "milliseconds": 9033.352595
+        },
+        {
+          "label": "approach",
+          "milliseconds": 11177.184336
+        },
+        {
+          "label": "approach",
+          "milliseconds": 7144.792087
+        }
+      ],
+      "calls": [
+        121,
+        147,
+        114,
+        105,
+        103,
+        93
+      ],
+      "triangles": [
+        4829679,
+        4563460,
+        4403699,
+        3260790,
+        1326479,
+        875132
+      ],
+      "screenshot": "05-approach.jpg"
+    },
+    {
+      "name": "valley",
+      "frameMs": [
+        4.5,
+        1.400000000372529,
+        7.8999999994412065,
+        2.300000000745058,
+        1.699999999254942
+      ],
+      "gpu": [
+        {
+          "label": "approach",
+          "milliseconds": 9681.04858
+        },
+        {
+          "label": "approach",
+          "milliseconds": 5045.340452
+        },
+        {
+          "label": "approach",
+          "milliseconds": 2443.064862
+        },
+        {
+          "label": "approach",
+          "milliseconds": 2193.903624
+        }
+      ],
+      "calls": [
+        93,
+        75,
+        59,
+        92,
+        91,
+        91
+      ],
+      "triangles": [
+        875132,
+        466838,
+        211310,
+        230075,
+        232657,
+        227985
+      ],
+      "screenshot": "06-valley.jpg"
+    }
+  ],
+  "finalGPUQueries": [
+    {
+      "label": "valley",
+      "milliseconds": 2558.217789
+    },
+    {
+      "label": "valley",
+      "milliseconds": 969.341163
+    },
+    {
+      "label": "valley",
+      "milliseconds": 1739.025147
+    },
+    {
+      "label": "valley",
+      "milliseconds": 2202.764704
+    },
+    {
+      "label": "valley",
+      "milliseconds": 2170.475185
+    },
+    {
+      "label": "valley",
+      "milliseconds": 2131.248102
+    }
+  ],
+  "cpuSamples": [
+    {
+      "segment": "launch",
+      "cpuSubmitMs": 24.59999999962747
+    },
+    {
+      "segment": "launch",
+      "cpuSubmitMs": 0.7000000001862645
+    },
+    {
+      "segment": "launch",
+      "cpuSubmitMs": 0.7000000001862645
+    },
+    {
+      "segment": "launch",
+      "cpuSubmitMs": 0.599999999627471
+    },
+    {
+      "segment": "launch",
+      "cpuSubmitMs": 0.7000000001862645
+    },
+    {
+      "segment": "launch",
+      "cpuSubmitMs": 0.6999999992549419
+    },
+    {
+      "segment": "escarpment",
+      "cpuSubmitMs": 3.300000000745058
+    },
+    {
+      "segment": "escarpment",
+      "cpuSubmitMs": 14.5
+    },
+    {
+      "segment": "escarpment",
+      "cpuSubmitMs": 15.299999999813735
+    },
+    {
+      "segment": "escarpment",
+      "cpuSubmitMs": 2.300000000745058
+    },
+    {
+      "segment": "escarpment",
+      "cpuSubmitMs": 1.2999999998137355
+    },
+    {
+      "segment": "escarpment",
+      "cpuSubmitMs": 1.5
+    },
+    {
+      "segment": "departure",
+      "cpuSubmitMs": 1.1000000005587935
+    },
+    {
+      "segment": "departure",
+      "cpuSubmitMs": 1
+    },
+    {
+      "segment": "departure",
+      "cpuSubmitMs": 0.6000000005587935
+    },
+    {
+      "segment": "departure",
+      "cpuSubmitMs": 1.400000000372529
+    },
+    {
+      "segment": "departure",
+      "cpuSubmitMs": 2.1000000005587935
+    },
+    {
+      "segment": "departure",
+      "cpuSubmitMs": 1.8999999994412065
+    },
+    {
+      "segment": "woodland",
+      "cpuSubmitMs": 1.2999999998137355
+    },
+    {
+      "segment": "woodland",
+      "cpuSubmitMs": 2.5
+    },
+    {
+      "segment": "woodland",
+      "cpuSubmitMs": 18.700000000186265
+    },
+    {
+      "segment": "woodland",
+      "cpuSubmitMs": 17.699999999254942
+    },
+    {
+      "segment": "woodland",
+      "cpuSubmitMs": 13.599999999627471
+    },
+    {
+      "segment": "woodland",
+      "cpuSubmitMs": 20.59999999962747
+    },
+    {
+      "segment": "approach",
+      "cpuSubmitMs": 4.7999999998137355
+    },
+    {
+      "segment": "approach",
+      "cpuSubmitMs": 26
+    },
+    {
+      "segment": "approach",
+      "cpuSubmitMs": 18991.700000000186
+    },
+    {
+      "segment": "approach",
+      "cpuSubmitMs": 9.599999999627471
+    },
+    {
+      "segment": "approach",
+      "cpuSubmitMs": 33.299999999813735
+    },
+    {
+      "segment": "approach",
+      "cpuSubmitMs": 30.100000000558794
+    },
+    {
+      "segment": "valley",
+      "cpuSubmitMs": 1.599999999627471
+    },
+    {
+      "segment": "valley",
+      "cpuSubmitMs": 1.1000000005587935
+    },
+    {
+      "segment": "valley",
+      "cpuSubmitMs": 1.2999999998137355
+    },
+    {
+      "segment": "valley",
+      "cpuSubmitMs": 1.7000000001862645
+    },
+    {
+      "segment": "valley",
+      "cpuSubmitMs": 1.2999999998137355
+    },
+    {
+      "segment": "valley",
+      "cpuSubmitMs": 1.400000000372529
+    }
+  ],
+  "errors": []
+}

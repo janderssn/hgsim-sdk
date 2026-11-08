@@ -63,6 +63,30 @@ test('asset adapter bakes node transforms once without changing source geometry'
   assert.notEqual(models.treeVariants[0].near, source);
 });
 
+test('props-only adapter retains original props without touching legacy tree geometry', () => {
+  const library = new THREE.Group();
+  const expected = {};
+  for (const [index, name] of propNames.entries()) {
+    const prop = new THREE.Group(); prop.name = name; prop.position.set(index, 2, -3);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(1 + index, 2, 3), new THREE.MeshStandardMaterial());
+    mesh.rotation.y = .3; prop.add(mesh); library.add(prop); expected[name] = prop;
+  }
+  const obsolete = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial());
+  obsolete.name = 'SpruceA_Far';
+  obsolete.geometry.clone = () => { throw new Error('obsolete tree geometry was cloned'); };
+  library.add(obsolete);
+  const before = Object.fromEntries(propNames.map(name => [name, new THREE.Box3().setFromObject(expected[name]).clone()]));
+  const models = createEnvironmentModels(THREE, library, { trees: false });
+  assert.deepEqual(models.treeVariants, []);
+  assert.deepEqual(models.props, expected, 'prop objects retain their geometry, transforms and shared materials');
+  for (const name of propNames) assert.deepEqual(new THREE.Box3().setFromObject(models.props[name]), before[name]);
+  library.remove(obsolete);
+  assert.doesNotThrow(() => createEnvironmentModels(THREE, library, { trees: false }), 'trimmed library needs no tree nodes');
+  assert.throws(() => createEnvironmentModels(THREE, library), /missing mesh SpruceA_Far/, 'legacy default remains strict');
+  assert.equal(createEnvironmentModels(THREE, null, { trees: false }).treeVariants.length, 0);
+  assert.equal(createEnvironmentModels(THREE).treeVariants.length, 3, 'procedural forest fallback remains available');
+});
+
 test('tree detail uses a bounded number of shared draws and culls behind the camera', () => {
   const scene = new THREE.Scene();
   const scenery = buildScenery(THREE, scene);

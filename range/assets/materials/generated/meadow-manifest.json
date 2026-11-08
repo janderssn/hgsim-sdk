@@ -1,0 +1,26 @@
+{
+  "description": "Original AI-generated botanical albedo artwork, not a photograph or captured PBR scan",
+  "generator": "OpenAI image_gen",
+  "created": "2026-11-08",
+  "purpose": "Medium-scale alpine meadow clusters between fine photographed grass and world ecology controls",
+  "prompt_summary": "Square overhead alpine meadow material under neutral diffuse lighting, late-summer olive/sage/straw grass tussocks, small herbs, humus interruptions, no paths, trees, directional light or labels",
+  "source": {
+    "file": "docs/concept/meadow-surface-source.png",
+    "sha256": "0a3b6f620d7ad372aff5add744d73b306cdcda8a9d383e0235dd654cd8650b07",
+    "dimensions": [
+      1254,
+      1254
+    ]
+  },
+  "runtime": {
+    "file": "meadow-macro-color.webp",
+    "sha256": "c77057f25b022d5592064c14351770f606d8dc0f4cb62a1560b4493045b5be5a",
+    "bytes": 853790,
+    "dimensions": [
+      1254,
+      1254
+    ],
+    "encoding": "ImageMagick WebP quality 91, original dimensions retained; sample as sRGB colour"
+  },
+  "sampling": "14 metres per repeat, two offset phases blended with a nonrepeating 23-metre control field; no invented macro normal or displacement"
+}

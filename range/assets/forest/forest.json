@@ -1,0 +1,243 @@
+{
+  "version": 1,
+  "geometry": "forest.glb",
+  "authoring": {
+    "source": "https://github.com/dgreenheck/ez-tree",
+    "revision": "dcf309bd86bd521083d9c70f01f2de45fdc7c457",
+    "nearDetail": {},
+    "midDetail": {
+      "sectionStride": 3,
+      "segmentFactor": 0.6,
+      "leafStride": 2,
+      "leafScale": 1.28,
+      "billboard": "single"
+    },
+    "barkNormal": "OpenGL tangent space",
+    "impostorNormal": "tree-local Y-up; linear RGB",
+    "albedo": "sRGB diffuse × direction-independent canopy cavity; no studio light"
+  },
+  "textures": {
+    "pine-leaf.png": {
+      "sha256": "88be36a2387554ac4b7c7d1549eae454a37ad896e8e33a7d6ae5956bd169ab08"
+    },
+    "ash-leaf.png": {
+      "sha256": "5ec987db3829a839856c32c79b18a33a78f209e911cad55c65abfb77f30e2d29"
+    },
+    "pine-bark-color.jpg": {
+      "sha256": "01389d2297e901a583d3d3f824c829689fce8afcffcb0eaabcb666688a781e70"
+    },
+    "pine-bark-normal.jpg": {
+      "sha256": "f60be6b239e2a8aeb63dfb78d62a88c6ee05b241d78b69c197ff429eefb080d3"
+    },
+    "pine-bark-roughness.jpg": {
+      "sha256": "85b9fa99b700bbb629c90cee5deeebec78fef7cd40443aa361f5edb090fd3341"
+    },
+    "birch-bark-color.jpg": {
+      "sha256": "aba7bb86f3d85abffe564c04990c8cfe3d341eea51739e7d48210cc3f550dc2a"
+    },
+    "birch-bark-normal.jpg": {
+      "sha256": "83376d62dca7b7f02880146f40d42d185314627a394058f440c3292aba48241e"
+    },
+    "birch-bark-roughness.jpg": {
+      "sha256": "ea0d121fff979fee3c8417fca89dedac2c5c1f52aa09426ef3666467a35f0a3e"
+    }
+  },
+  "variants": [
+    {
+      "id": "PineMature",
+      "name": "Mature alpine pine",
+      "family": "pine",
+      "age": "mature",
+      "seed": 31337,
+      "height": 25,
+      "radius": 6.9741058349609375,
+      "bounds": {
+        "min": [
+          -5.973443984985352,
+          0,
+          -6.637486934661865
+        ],
+        "max": [
+          6.820803165435791,
+          25,
+          6.9741058349609375
+        ]
+      },
+      "triangles": {
+        "near": {
+          "leaves": 7776,
+          "bark": 4800
+        },
+        "mid": {
+          "leaves": 1944,
+          "bark": 1336
+        }
+      },
+      "impostor": {
+        "albedo": "PineMature-albedo.png",
+        "normals": "PineMature-normal.png",
+        "center": [
+          0.4236795902252197,
+          12.5,
+          0.16830945014953613
+        ],
+        "diameter": 33.706,
+        "azimuths": 8,
+        "elevations": [
+          0,
+          30,
+          60,
+          90
+        ],
+        "cellSize": 256
+      }
+    },
+    {
+      "id": "PineYoung",
+      "name": "Young alpine pine",
+      "family": "pine",
+      "age": "young",
+      "seed": 8911,
+      "height": 14,
+      "radius": 2.95381498336792,
+      "bounds": {
+        "min": [
+          -2.621002197265625,
+          0,
+          -2.906497001647949
+        ],
+        "max": [
+          2.95381498336792,
+          14,
+          2.8871026039123535
+        ]
+      },
+      "triangles": {
+        "near": {
+          "leaves": 4488,
+          "bark": 3456
+        },
+        "mid": {
+          "leaves": 1122,
+          "bark": 958
+        }
+      },
+      "impostor": {
+        "albedo": "PineYoung-albedo.png",
+        "normals": "PineYoung-normal.png",
+        "center": [
+          0.16640639305114746,
+          7,
+          -0.009697198867797852
+        ],
+        "diameter": 17.437,
+        "azimuths": 8,
+        "elevations": [
+          0,
+          30,
+          60,
+          90
+        ],
+        "cellSize": 256
+      }
+    },
+    {
+      "id": "FirMature",
+      "name": "Mature silver fir",
+      "family": "fir",
+      "age": "mature",
+      "seed": 24517,
+      "height": 27,
+      "radius": 7.388482093811035,
+      "bounds": {
+        "min": [
+          -7.388482093811035,
+          0,
+          -6.37402868270874
+        ],
+        "max": [
+          6.633774757385254,
+          27,
+          6.973552227020264
+        ]
+      },
+      "triangles": {
+        "near": {
+          "leaves": 10260,
+          "bark": 6272
+        },
+        "mid": {
+          "leaves": 2566,
+          "bark": 1750
+        }
+      },
+      "impostor": {
+        "albedo": "FirMature-albedo.png",
+        "normals": "FirMature-normal.png",
+        "center": [
+          -0.3773536682128906,
+          13.5,
+          0.2997617721557617
+        ],
+        "diameter": 35.882,
+        "azimuths": 8,
+        "elevations": [
+          0,
+          30,
+          60,
+          90
+        ],
+        "cellSize": 256
+      }
+    },
+    {
+      "id": "AshMature",
+      "name": "Green mountain ash",
+      "family": "ash",
+      "age": "mature",
+      "seed": 9001,
+      "height": 20,
+      "radius": 8.571964263916016,
+      "bounds": {
+        "min": [
+          -8.571964263916016,
+          0,
+          -6.48023796081543
+        ],
+        "max": [
+          7.806466579437256,
+          20,
+          8.146059036254883
+        ]
+      },
+      "triangles": {
+        "near": {
+          "leaves": 10880,
+          "bark": 8496
+        },
+        "mid": {
+          "leaves": 2720,
+          "bark": 2746
+        }
+      },
+      "impostor": {
+        "albedo": "AshMature-albedo.png",
+        "normals": "AshMature-normal.png",
+        "center": [
+          -0.3827488422393799,
+          10,
+          0.8329105377197266
+        ],
+        "diameter": 32.078,
+        "azimuths": 8,
+        "elevations": [
+          0,
+          30,
+          60,
+          90
+        ],
+        "cellSize": 256
+      }
+    }
+  ]
+}

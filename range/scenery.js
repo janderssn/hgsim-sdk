@@ -3,9 +3,10 @@
  * field, the rocks with the ramp's deck and its timbers, trees, close grass for a sense of speed low down, and the birds
  * that mark the thermal. Nothing here is solid: the ground the flight and the launch feel is world.js.
  */
-import { hash, noise, terrainHeight, slopeAt, LAUNCH, MARK, ROCKS, rockRing, DECK_BACK, DECK_LIP, DECK_FALL, CLIFF_EDGE, ROCK_TOP, RAMP_POSTS, deckY, groundUnder } from './world.js';
+import { hash, noise, terrainHeight, slopeAt, LAUNCH, MARK, rockTop, physicalGroundHeight, sampleTerrainEcology, DECK_BACK, DECK_LIP, DECK_FALL, RAMP_POSTS, deckY, groundUnder } from './world.js';
 import { createEnvironmentModels } from './environment-models.js';
-import { createGraniteCliffGeometry } from './granite-cliffs.js';
+import { createLaunchEscarpmentGeometry } from './granite-cliffs.js';
+import { createForest } from './forest.js';
 import { createForestShadowMap } from './forest-shadows.js';
 import { batchStaticMeshes } from './static-batch.js';
 
@@ -16,17 +17,21 @@ const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t
  * Adds scenery and returns birds, drawing quality, and camera-detail updates.
  * Quality changes affect drawing only; world.js remains the physics source.
  */
-export function buildScenery(THREE, scene, { models = createEnvironmentModels(THREE), materials = {}, sunDirection } = {}) {
+export function buildScenery(THREE, scene, { models = createEnvironmentModels(THREE), materials = {}, sunDirection, forestAssets = null, aerial = null, streamedCover = false } = {}) {
   addTerrain(THREE, scene, materials.terrain);
   addMark(THREE, scene);
   addLaunch(THREE, scene, materials);
-  const trees = addTrees(THREE, scene, models, sunDirection);
+  const trees = forestAssets
+    ? createForest(THREE, scene, forestAssets, { sunDirection, ecologyAt: sampleTerrainEcology, groundHeight: physicalGroundHeight, atmosphere: aerial?.shared })
+    : addTrees(THREE, scene, models, sunDirection);
   addAlpineProps(THREE, scene, models, materials);
-  const grass = addGrass(THREE, scene);
+  const grass = streamedCover ? { setQuality: () => false, updateDetail() {} } : addGrass(THREE, scene);
   return {
     birds: addBirds(THREE, scene),
     forestShadowMap: trees.shadowMap,
     forestBounds: trees.shadowBounds,
+    forestCoverage: trees.coverageTexture, forestCoverageAt: trees.coverageAt || (() => 0),
+    forestCoverageBounds: trees.bounds, forestStats: trees.stats,
     setQuality(level) {
       const grassChanged = grass.setQuality(level);
       const treesChanged = trees.setQuality(level);
@@ -76,7 +81,7 @@ function addMark(THREE, scene) {
   for (const [x, z] of [[-70, -70], [70, -70], [-70, 70], [70, 70]]) { const cone = new THREE.Mesh(new THREE.ConeGeometry(.9, 2.4, 10), new THREE.MeshStandardMaterial({ color: '#f6f1e6', roughness: .8 })); cone.position.set(x, terrainHeight(x, z) + 1.2, z); cone.castShadow = true; scene.add(cone); }
 }
 
-/** The two rocks (their rings, with a wobble), and the ramp's deck on the first: planks, stringers and struts to the rock face. */
+/** One shared physical escarpment, and the timber launch resting on its crest. */
 function addLaunch(THREE, scene, materials) {
   const rockMaterial = materials.rock || new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95, flatShading: true });
   const fractureMaterial = rockMaterial.clone();
@@ -84,28 +89,30 @@ function addLaunch(THREE, scene, materials) {
   fractureMaterial.color.multiplyScalar(.62);
   fractureMaterial.onBeforeCompile = rockMaterial.onBeforeCompile;
   fractureMaterial.customProgramCacheKey = rockMaterial.customProgramCacheKey.bind(rockMaterial);
-  for (const [index, rock] of ROCKS.entries()) {
-    const geometry = createGraniteCliffGeometry(THREE, rock, index);
-    const cliff = new THREE.Mesh(geometry, [rockMaterial, fractureMaterial]);
-    cliff.name = 'FracturedGraniteCliff';
-    cliff.castShadow = cliff.receiveShadow = true;
-    scene.add(cliff);
-  }
+  const geometry = createLaunchEscarpmentGeometry(THREE);
+  const cliff = new THREE.Mesh(geometry, [rockMaterial, fractureMaterial]);
+  cliff.name = 'ConnectedGraniteEscarpment';
+  cliff.castShadow = cliff.receiveShadow = true;
+  scene.add(cliff);
   const timber = materials.timber || new THREE.MeshStandardMaterial({ color: '#776954', roughness: .85 });
   const timberBeam = materials.timberBeam || timber;
   const woodParts = [];
   for (let z = DECK_BACK; z < DECK_LIP; z += 1.5) { const plank = new THREE.Mesh(new THREE.BoxGeometry(7, .14, 1.38 * Math.hypot(1, DECK_FALL)), timber); plank.position.set(LAUNCH.x, deckY(LAUNCH.z + z + .75) - .07, LAUNCH.z + z + .75); plank.rotation.x = Math.atan(DECK_FALL); plank.castShadow = plank.receiveShadow = true; woodParts.push(plank); }
   // A timber between two points, for the stringers under the deck and the struts down to the rock face.
   const beam = (x, y0, z0, y1, z1, r) => { const a = new THREE.Vector3(x, y0, z0), b = new THREE.Vector3(x, y1, z1), d = b.clone().sub(a), t = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.2, d.length(), 6), timberBeam); t.position.copy(a).addScaledVector(d, .5); t.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); t.castShadow = true; woodParts.push(t); };
-  // Height of the ramp rock's face at z: its front widens as it falls.
-  const under = ROCKS[0], faceY = z => { let lo = 0, hi = 1; for (let i = 0; i < 16; i++) { const k = (lo + hi) / 2; if (rockRing(under, k).rz < z - under.cz) lo = k; else hi = k; } return rockRing(under, lo).y; };
   // Arms out from the deck's edges to the streamer poles beside it (the poles are the streamers' own sticks).
   for (const p of RAMP_POSTS) { const arm = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(p.x - LAUNCH.x) - 3.4, .12, .14), timber); arm.position.set((p.x + LAUNCH.x + p.side * 3.4) / 2, p.y - .06, p.z); arm.castShadow = true; woodParts.push(arm); }
   const at = z => LAUNCH.z + z;
   for (const x of [-3.1, 3.1]) {
     beam(LAUNCH.x + x, deckY(at(DECK_BACK)) - .25, at(DECK_BACK), deckY(at(DECK_LIP)) - .25, at(DECK_LIP), .13);
-    for (const z of [DECK_BACK + 1, CLIFF_EDGE + 1]) beam(LAUNCH.x + x, deckY(at(z)) - .2, at(z), ROCK_TOP - 1, at(z), .14);
-    for (const [z, foot] of [[-9, -15], [-2, -10], [DECK_LIP - .6, -6]]) beam(LAUNCH.x + x, deckY(at(z)) - .25, at(z), faceY(at(foot)) - 1, at(foot) - 1, .14);
+    for (const z of [DECK_BACK + 1, -13, -5, 1]) {
+      const top = deckY(at(z)) - .2, foot = physicalGroundHeight(LAUNCH.x + x, at(z)) - .12;
+      if (top > foot && top - foot < 8) beam(LAUNCH.x + x, top, at(z), foot, at(z), .14);
+    }
+    for (const [z, footZ] of [[-9, -15], [-2, -8], [DECK_LIP - .6, 0]]) {
+      const top = deckY(at(z)) - .25, foot = physicalGroundHeight(LAUNCH.x + x, at(footZ)) - .18;
+      if (top > foot && top - foot < 8) beam(LAUNCH.x + x, top, at(z), foot, at(footZ), .14);
+    }
   }
   // Static world-space batches preserve each board's UVs while sharing the
   // timber/beam draws, including their shadow submissions.

@@ -137,6 +137,18 @@ export function integrateIrradiance(THREE, texture) {
   return new THREE.LightProbe(sh);
 }
 
+/** The visible scattering sky supplies diffuse and specular lighting too. */
+export function createSkyLighting(THREE, renderer, aerial) {
+  const radiance = aerial.generateRadiance(THREE, 256, 128, { sunDisk: false });
+  const lightProbe = integrateIrradiance(THREE, radiance);
+  const generator = new THREE.PMREMGenerator(renderer);
+  let target;
+  try { target = generator.fromEquirectangular(radiance); }
+  finally { generator.dispose(); radiance.dispose(); }
+  return { lightProbe, environment: target.texture,
+    dispose() { target.dispose(); } };
+}
+
 /**
  * Coherent photographic lighting and sky from one CC0 HDR panorama. The 4k
  * background is reduced in linear radiance to at most 1k for a bounded 256-pixel

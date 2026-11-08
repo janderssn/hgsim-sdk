@@ -6,7 +6,7 @@
  *
  * This file is the app: the game loop, the launch run-up, the flight and its landing, the camera and the HUD. The world
  * it flies over is world.js (where the ground is) and scenery.js (how it is drawn); the simulation is the hgsim SDK in src/ (one createWorld, one createGlider).
- * Open http://127.0.0.1:4180/range/ (npm start). URL options: wind (m/s), from (bearing, degrees), launch=real,
+ * Open http://127.0.0.1:4180/range/ (npm start). URL options: wind (m/s), from (bearing, degrees), launch=easy (the launch flies itself),
  * model=original (the older flight model), assist=on (the game's terrain-skimming assist), glider (a preset id, such as t2c-144).
  */
 import * as THREE from './vendor/three.module.js';
@@ -120,7 +120,8 @@ player.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = tr
 // The range flies without the game's terrain-skimming assist, so all height control is the pilot's; ?assist=on brings it back to compare.
 const SKIM_ASSIST = MODEL === 'original' || new URLSearchParams(location.search).get('assist') === 'on';
 // Easy launches run themselves; realistic ones are the pilot's: balance the wing (A/D), hold its nose (W/S), push (Shift), start and jump (Space).
-const REAL_LAUNCH = new URLSearchParams(location.search).get('launch') === 'real';
+// Realistic launches by default: the pilot balances, holds the nose, runs and jumps, so each wing's launch is felt. ?launch=easy flies it for you.
+const REAL_LAUNCH = new URLSearchParams(location.search).get('launch') !== 'easy';
 // The SDK's world and glider (src/): the range's terrain, its live wind and its thermal, and the one glider flown over them.
 const world = createWorld({ terrain: terrainHeight, wind, thermals: [THERMAL], air: { thermalCeiling: 1500, thermalFadeStart: 1150 } });
 // ?glider picks the wing (src/presets.js); the force model's own defaults are the 'intermediate' preset.
@@ -590,7 +591,7 @@ standAtSite('ramp'); syncWindPanel(); syncTunePanel(); drawPolar(true); updateBe
   $('feelSection').hidden = MODEL === 'original'; $('preset').disabled = MODEL === 'original'; }
 { const other = new URLSearchParams(location.search); if (SKIM_ASSIST) other.delete('assist'); else other.set('assist', 'on'); const q = other.toString();
   $('assistName').textContent = SKIM_ASSIST ? 'Skim assist on' : 'Skim assist off'; $('assistSwitch').textContent = SKIM_ASSIST ? 'Turn skim assist off' : 'Turn skim assist on'; $('assistSwitch').href = location.pathname + (q ? '?' + q : ''); $('assistSwitch').parentElement.hidden = MODEL === 'original'; }
-{ const other = new URLSearchParams(location.search); if (REAL_LAUNCH) other.delete('launch'); else other.set('launch', 'real'); const q = other.toString();
+{ const other = new URLSearchParams(location.search); if (REAL_LAUNCH) other.set('launch', 'easy'); else other.delete('launch'); const q = other.toString();
   $('launchName').textContent = REAL_LAUNCH ? 'Realistic launch: you balance, run and jump' : 'Easy launch: it runs itself'; $('launchSwitch').textContent = REAL_LAUNCH ? 'Switch to easy launches' : 'Switch to realistic launches'; $('launchSwitch').href = location.pathname + (q ? '?' + q : ''); }
 $('loading').hidden = true; $('world').focus();
 window.rangeDemo = window.microDemo = { get quality() { return quality.level; }, pad: gamepad.state, model: MODEL, audio, get rig() { return rig; }, camera, player, scene, renderer, deckY, get soaring() { return soaring; }, get launchSite() { return launchSite; }, get takeoff() { return takeoff; }, get runUp() { return runUp; }, get tumble() { return tumble; }, get wreck() { return wreck; }, standAtSite, standAtCliff: () => standAtSite('cliff'), standAtSlope: () => standAtSite('slope'), CLIFF, SLOPE, measure() { player.updateMatrixWorld(true); const g = terrainHeight(pos.x, pos.z), pb = new THREE.Box3().setFromObject(pilot), wb = new THREE.Box3().setFromObject(wing); return { mode, bodyAboveGround: +(pos.y - g).toFixed(2), pilotLowAboveGround: +(pb.min.y - g).toFixed(2), wingLowAboveGround: +(wb.min.y - g).toFixed(2), pilotLowBelowBody: +(pos.y - pb.min.y).toFixed(2), wingLowBelowBody: +(pos.y - wb.min.y).toFixed(2), upright: +pilotUpright.toFixed(2) }; }, startAt({ x, z, agl = 12, heading: h = 0, kmh = 0, pathDeg = 0 }) { tumble = wreck = null; pilotStand = false; runOut = null; takeoff = null; rigSnap = true; pos.set(x, terrainHeight(x, z) + agl, z); heading = h; soaring = glider.reset({ x, y: pos.y, z, heading: h }).state; if (kmh) { soaring.airspeed = kmh / 3.6; soaring.pathAngle = pathDeg * Math.PI / 180; soaring.verticalSpeed = soaring.airspeed * Math.sin(soaring.pathAngle); soaring.alpha = -1.5 * Math.PI / 180; } speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0; mode = 'gliding'; result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; beginRound('final'); resetMotion(); snapCamera(); }, recorder, getState: () => ({ mode, position: pos.toArray(), speed, heading, bank, verticalSpeed, airspeed: soaring.airspeed, pathAngle: soaring.pathAngle, clearance: pos.y - terrainHeight(pos.x, pos.z), wind: { x: wind.x, z: wind.z, speed: wind.speed }, result, rounds, best }), setKey: (code, down) => down ? keys.add(code) : keys.delete(code), launch, overhead, wind, tune: patch => glider.tune(patch), glider, world, terrainHeight, MARK, LAUNCH };

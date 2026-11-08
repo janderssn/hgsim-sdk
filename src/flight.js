@@ -129,6 +129,15 @@ export const GLIDER_DEFAULTS = Object.freeze({
   airRoughness: 0,
   // Stall warning this many degrees below the stall.
   stallWarnMargin: 2.5 * DEG,
+  // The wing as a thing to carry and run with (the launch reads these): its own mass and span (its roll inertia on the shoulders),
+  // its dihedral (a sail whose tips sit higher than its root rights itself in the air on the run; anhedral, negative, helps it
+  // over), and carryAlpha, the angle of attack its sail meets the air at with the keel carried level on the run (a billowy
+  // trainer meets it high and lifts near its stall; a tight, flat topless wing meets it low and must be run up to speed, or its
+  // nose lifted, which is where a sharp stall bites).
+  wingMass: 30.8,
+  wingSpan: 10,
+  dihedral: 0,
+  carryAlpha: 13.15 * DEG,
   // Geometry: the body reference sits footHeight above the feet for the flare and ground effect, and a body reference lower than
   // contactHeight over the ground is on it (a touchdown; see Glider.contact).
   footHeight: 2.4,

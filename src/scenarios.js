@@ -157,9 +157,9 @@ export const SCENARIOS = Object.freeze([
     ['slope-calm', 'Slope, no wind', 'slope', 0, 'A long run down a 20-degree hill to flying speed: the nose held level the whole way.'],
     ['slope-breeze', 'Slope, 3 m/s', 'slope', 3, 'A short run into the breeze.'],
   ].map(([id, name, site, wind, look]) => ({ id, kind: 'launch', name, look, site, wind, manual: true, seconds: 25, pilot: {} })),
-  { id: 'ramp-sloppy', kind: 'launch', name: 'Ramp, sloppy balance', look: 'Nine seconds on the shoulders with slow, weak balancing, then the run: the Alpha, Falcon and Sport 2 forgive it, a U2 or a T2C goes over.', site: 'ramp', wind: { head: 4, gusts: 1.2 }, manual: true, seconds: 25, pilot: { skill: 0.15, goAt: 9 } },
+  { id: 'ramp-sloppy', kind: 'launch', name: 'Ramp, sloppy balance', look: 'Nine seconds on the shoulders with slow, weak balancing, then the run: how far each wing goes over, and whether it gets off.', site: 'ramp', wind: { head: 4, gusts: 1.2 }, manual: true, seconds: 25, pilot: { skill: 0.15, goAt: 9 } },
   { id: 'ramp-hands-off', kind: 'launch', name: 'Ramp, no balancing', look: 'Nobody balancing: how long the wing stays level on the shoulders by itself (a trainer stays up; the harder the wing, the sooner it goes).', site: 'ramp', wind: 4, manual: true, seconds: 40, pilot: { skill: 0, goAt: 99 } },
-  { id: 'ramp-nose-high', kind: 'launch', name: 'Ramp, nose held high', look: 'The nose held 6 degrees up: the sail stalls on the run and the speed never comes.', site: 'ramp', wind: 2, manual: true, seconds: 25, pilot: { noseAt: 6, runNose: 6 } },
+  { id: 'ramp-nose-high', kind: 'launch', name: 'Ramp, nose held high', look: 'The nose held 8 degrees up, past the stall on every wing: the sail stalls on the run and the speed never comes.', site: 'ramp', wind: 2, manual: true, seconds: 25, pilot: { noseAt: 8, runNose: 8 } },
   { id: 'slope-nose-low', kind: 'launch', name: 'Slope, nose held low', look: 'The nose held 5 degrees down: fast, but it will not lift until let up.', site: 'slope', wind: 1, manual: true, seconds: 25, pilot: { noseAt: -5, runNose: -5 } },
 
   // Flight: pitch, speed, roll, stall.

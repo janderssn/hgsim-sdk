@@ -137,7 +137,8 @@ const wing = defineWing({
   id: 'mine', name: 'My wing',
   mass: 110, stall: 27, trim: 36, top: 100, glide: 11, aspectRatio: 6.5,   // kg, km/h, glide ratio
   difficulty: 0.5,                          // 0 a trainer .. 1 a topless competition wing (up to 1.2)
-  character: { stall: 0.9, launch: 0.3 },   // any traits that differ: roll, stall, pitch, flare, launch (0 forgiving .. 1 demanding)
+  character: { stall: 0.9 },                // any traits that differ: roll, stall, pitch, flare (0 forgiving .. 1 demanding)
+  wing: { mass: 28, span: 10, dihedral: 0, carryAlpha: 12.5 },   // its build, for the launch: kg, m, degrees, degrees
   luff: { from: 2, loss: 0.6, tuck: 2.5 },  // an old sail that luffs when dived (optional)
   vg: { loose: { trim: 36, top: 95, glide: 11 }, tight: { trim: 40, top: 115, glide: 12.5, difficulty: 0.6 } },   // optional
   handling: { maxBank: 60 * Math.PI / 180 }, launch: { topSpeed: 7 },   // any force-model and launch values, over all of it
@@ -146,7 +147,8 @@ const glider = createGlider({ preset: wing });
 ```
 
 - **`wingConfig({ mass, stall, trim, top, glide, aspectRatio })`** gives the force-model config for those speeds and that glide: the default wing's angles of attack, with the wing loading, trim and full-bar angles and parasite drag that hit them.
-- **`handlingFor(character)`** gives the handling for a difficulty or a set of traits, as `{ config, launch }`: the force model's roll, stall, pitch and flare values, and the launch's balance and nose values.
+- **`handlingFor(character)`** gives the handling in the air for a difficulty or a set of traits, as `{ config }`: the force model's roll, stall, pitch and flare values.
+- **The launch comes from the wing's build, not a trait.** The pilot carries the keel level, so the wing meets the air at its own `carryAlpha`: a billowy trainer high, near its stall, so it lifts off at a jog; a tight topless wing low, so it has to be run up to far more speed, or its nose lifted toward a sharp stall. The pilot's legs push with a fixed force, so a heavier pilot and wing gather speed more slowly. The wing's own mass is the weight on the shoulders, and its mass and span set its roll inertia there, scaling the pilot's hold on it, its weight tipping it over and the air rolling it. Its `dihedral` rights it in the air on the run, and anhedral (negative) helps it over. The feet leave the ground for good only once the wing can fly away: its glide over the ground, at that airspeed, in that wind and rising air, no steeper than the ground ahead falls. Until then the pilot runs on, the wing carrying them. A poor wing such as the Rogallo, or a shallow deck into a breeze, keeps them running to the edge.
 - **The tip drop is physics, not a script.** A rolling wing's descending tip meets the air at a higher angle of attack. Past a stall whose lift falls away with angle (a small `stallBlend`, a low `plateLift`), that tip loses lift and the roll feeds itself (`rollDamping`), started by the air's small eddies (`airRoughness`). A wing whose stall only mushes never drops one.
 - **The luff** is a nose-down moment that moves a luffed sail's trim angle down (`luffAlpha`, `luffLoss`, `luffTuck`).
 - **The launch handling** lives on the preset (`preset.launch`) and reaches `glider.launch()` through `glider.launchConfig`.
@@ -276,7 +278,7 @@ Open `http://127.0.0.1:4180/range/` after `npm start`.
 |---|---|
 | `wind` | Wind speed in m/s. The default is 5. |
 | `from` | Bearing the wind comes from, in degrees. The default, 180, blows straight up the launch. 225 gives a 45° crosswind for practice. |
-| `launch=real` | Realistic launches. |
+| `launch=easy` | Easy launches: the launch flies itself. The default is realistic: you balance the wing, hold its nose, run and jump. |
 | `model=original` | The older flight model. |
 | `assist=on` | Terrain skimming. |
 | `glider` | A glider preset, such as `t2c-144` or `rogallo-1975`. The default is `intermediate`. |

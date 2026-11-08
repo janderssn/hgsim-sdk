@@ -46,14 +46,17 @@ test('the Rogallo luffs: dived, its nose keeps tucking hands off, and only a ful
   assert.equal(fly('dive-release', 'falcon-170').metrics.settleSeconds !== null, true, 'a modern wing comes back by itself');
 });
 
-test('the ladder on launch: a sloppy pilot gets the easy wings off, and the hard ones go over sooner', () => {
-  const sloppy = Object.fromEntries(LADDER.map(id => [id, fly('ramp-sloppy', id).outcome]));
-  assert.deepEqual(sloppy, { 'alpha-235': 'flying', 'falcon-170': 'flying', 'sport-2': 'flying', 'u2-160': 'wingdrop', 't2c-144': 'wingdrop' });
+test('the ladder on launch, from each wing\'s build: the harder the wing, the faster and longer the run, and the sooner it goes over', () => {
+  const runs = sc => LADDER.map(id => fly(sc, id).metrics.runMetres);
+  for (const sc of ['ramp-breeze', 'slope-breeze']) { const r = runs(sc); for (let i = 1; i < r.length; i++) assert.ok(r[i] > r[i - 1], `${sc}: each harder wing runs further: ${r}`); }
+  const fast = LADDER.map(id => fly('slope-calm', id).metrics.liftoffKmh);
+  assert.ok(fast[4] > fast[0] + 10, 'the T2C has to be run up to far more speed than the Alpha: ' + fast);
+  assert.ok(fly('ramp-breeze', 'rogallo-1975').metrics.runMetres > 3 * fly('ramp-breeze', 'alpha-235').metrics.runMetres, 'the Rogallo cannot glide away from the deck into a breeze as soon: it is run three times as far as the Alpha');
   const heldFor = id => { const r = runScenario({ ...SCENARIOS.find(s => s.id === 'ramp-hands-off'), id: 'probe', wind: { head: 5, gusts: 1.6 } }, { preset: id }); return r.outcome === 'wingdrop' ? r.at : Infinity; };
-  const times = LADDER.map(heldFor);
-  for (let i = 1; i < times.length; i++) assert.ok(times[i] <= times[i - 1], `nobody balancing, each harder wing goes over no later: ${times.map(t => t.toFixed?.(1))}`);
+  const [alpha, falcon, sport, u2, t2c] = LADDER.map(heldFor);
+  assert.ok(alpha === Infinity && falcon === Infinity && sport > u2 && sport > t2c && Math.max(u2, t2c) < 15, `nobody balancing in gusts: the trainers stay up, the Sport 2 goes over late, the U2 and T2C within seconds: ${[alpha, falcon, sport, u2, t2c].map(x => x.toFixed?.(1))}`);
   for (const id of LADDER) for (const sc of ['ramp-calm', 'ramp-breeze', 'slope-calm', 'slope-breeze', 'cliff-light']) assert.equal(fly(sc, id).outcome, 'flying', `${id} launches in ${sc} with a good pilot`);
-  assert.equal(fly('ramp-nose-high', 't2c-144').outcome !== 'flying', true, 'the nose held high spoils the run');
+  assert.equal(fly('ramp-nose-high', 't2c-144').metrics.how, 'edge', 'the nose held past the stall: no lift-off on the deck, only a drop off the lip, diving for the speed it never got');
 });
 
 test('the ladder in the air: slower to roll when slow, and a sharper stall that drops a tip', () => {
@@ -76,11 +79,12 @@ test('defineWing makes a wing from ballpark numbers and a character', () => {
   assert.ok(Math.abs(kmh(p.stallSpeed) - 26) < 1 && Math.abs(kmh(p.trimSpeed) - 35) < 1 && Math.abs(kmh(p.topSpeed) - 90) < 1 && Math.abs(p.bestGlide.glideRatio - 10) < 0.35);
   assert.equal(g.config.stallBlend, handlingFor({ difficulty: 0.3, stall: 0.9 }).config.stallBlend, 'a trait overrides the difficulty');
   assert.equal(g.launchConfig.topSpeed, 7, 'its launch values reach the launch');
-  assert.equal(g.launchConfig.rollTip, handlingFor(0.3).launch.rollTip);
-  assert.deepEqual(TRAITS, ['roll', 'stall', 'pitch', 'flare', 'launch']);
+  assert.deepEqual(TRAITS, ['roll', 'stall', 'pitch', 'flare']);
+  const built = createGlider({ preset: defineWing({ id: 'b', name: 'B', mass: 100, stall: 26, trim: 35, top: 90, glide: 10, wing: { mass: 31, span: 9, dihedral: -2, carryAlpha: 11 } }) }).config;
+  assert.ok(built.wingMass === 31 && built.wingSpan === 9 && Math.abs(built.dihedral + 2 * Math.PI / 180) < 1e-12 && Math.abs(built.carryAlpha - 11 * Math.PI / 180) < 1e-12, 'its build reaches the config the launch reads');
   assert.throws(() => wingConfig({ mass: 100, stall: 30, trim: 28, top: 90, glide: 10 }), /stall < trim < top/);
   const easy = handlingFor(0), hard = handlingFor(1);
-  assert.ok(easy.config.rollFrequency > hard.config.rollFrequency && easy.launch.rollTip < hard.launch.rollTip && easy.config.stallBlend > hard.config.stallBlend);
+  assert.ok(easy.config.rollFrequency > hard.config.rollFrequency && easy.config.stallBlend > hard.config.stallBlend && easy.config.pitchTau > hard.config.pitchTau);
 });
 
 test('presets are tunable and switchable; the default wing is the force model\'s own', () => {
@@ -124,7 +128,7 @@ test('scenarios are repeatable, and a "you" run takes your controls', () => {
   assert.ok(run.glider.state.bank > 0.5, 'your weight shift banks it');
   assert.throws(() => runScenario('nope'), /unknown scenario "nope"/);
   // Nothing is cut short: a launch that goes wrong plays out as the tumble until the wreck is still.
-  const over = runScenario('ramp-sloppy', { preset: 't2c-144' }), wreck = over.samples.filter(s => s.phase === 'tumble');
+  const over = runScenario('ramp-hands-off', { preset: 't2c-144' }), wreck = over.samples.filter(s => s.phase === 'tumble');
   assert.equal(over.outcome, 'wingdrop');
   assert.ok(wreck.length > 5 && wreck.at(-1).q.length === 4 && over.metrics.impactMs > 0, 'the wreck is played out to rest');
   for (const sc of SCENARIOS) assert.ok(sc.name && sc.look && ['launch', 'flight', 'landing'].includes(sc.kind), sc.id);

@@ -3,7 +3,7 @@
  * field, the rocks with the ramp's deck and its timbers, trees, close grass for a sense of speed low down, and the birds
  * that mark the thermal. Nothing here is solid: the ground the flight and the launch feel is world.js.
  */
-import { hash, noise, terrainHeight, slopeAt, LAUNCH, MARK, ROCKS, rockRing, DECK_BACK, DECK_LIP, DECK_FALL, CLIFF_EDGE, ROCK_TOP, RAMP_POSTS, deckY } from './world.js';
+import { hash, noise, terrainHeight, slopeAt, LAUNCH, MARK, SLOPE, ROCKS, rockRing, DECK_BACK, DECK_LIP, DECK_FALL, CLIFF_EDGE, ROCK_TOP, RAMP_POSTS, deckY } from './world.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
@@ -105,6 +105,7 @@ function addTrees(THREE, scene) {
   for (let i = 0; i < 6000 && k < n; i++) {
     const x = (hash(i, 7) - .5) * 2800, z = (hash(i, 11) - .5) * 2800;
     if (Math.hypot(x - MARK.x, z - MARK.z) < 150 || (Math.abs(x - LAUNCH.x) < 70 && Math.abs(z - LAUNCH.z) < 60)) continue;
+    if (Math.abs(x - SLOPE.x) < 30 && z > SLOPE.z - 20 && z < SLOPE.z + 120) continue;   // (the slope launch's run, and the air below it)
     if (slopeAt(x, z) > .75 || hash(i, 13) > .35 + .5 * noise(x / 300, z / 300)) continue;
     const s = .8 + hash(i, 17) * .7, y = terrainHeight(x, z);
     Q.setFromAxisAngle(Y, hash(i, 19) * 6.28); V.set(x, y + 1.5 * s, z); M.compose(V, Q, S.set(s, s, s)); trunk.setMatrixAt(k, M);

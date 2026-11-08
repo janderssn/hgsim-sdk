@@ -10,7 +10,7 @@ The hang-glider simulation from **Above**, and the landing range used to tune it
 Balancing the wing on the ramp before a Realistic launch, and a cliff launch just off the edge. Fly it at **https://hgsim.fly.dev**.
 
 - **`src/`** is the library: plain ES modules with no dependencies. It covers the flight model, the launch run, the crash tumble, landing cues, the pilot's body, terrain following, wind and a flight recorder.
-- **`range/`** is the landing range: a small Three.js world with a ramp and a cliff to launch from, a field with a bullseye, and a thermal. It is for flying the library by hand, with live tuning and every round recorded.
+- **`range/`** is the landing range: a small Three.js world with a ramp, a cliff and an open grass slope to launch from (C cycles them, R returns to the current one), a field with a bullseye, and a thermal. It is for flying the library by hand, with live tuning and every round recorded.
 
 The units are metres, seconds and radians throughout.
 
@@ -147,7 +147,7 @@ Rendering starts at full detail. After sustained slow frames it reduces resoluti
 ## Tests and checks
 
 - **`npm test`:** the unit tests in `tests/`. They cover the flight model, the launch (both modes, the nose and the cliff), landing cues, terrain skimming, the recorder, audio, the range's world, fixed-step timing, takeoff controls, interpolation, rendering quality and HUD updates.
-- **`npm run check:range`:** starts its own server and flies the range in a headless browser. It runs an Easy ramp launch, an Easy cliff launch, a Realistic launch flown by a simple scripted pilot, sitting up and lying prone in flight, and a landing from overhead. It also checks for page errors. Browser tools require Node 22+ and Chrome/Chromium or Edge; set `CHROME_PATH` if the browser is not discovered automatically.
+- **`npm run check:range`:** starts its own server and flies the range in a headless browser. It runs an Easy ramp launch, an Easy cliff launch, an Easy slope launch in calm air, a Realistic launch flown by a simple scripted pilot, sitting up and lying prone in flight, and a landing from overhead. It also checks for page errors. Browser tools require Node 22+ and Chrome/Chromium or Edge; set `CHROME_PATH` if the browser is not discovered automatically.
 
 To measure rendering, start `npm start` and run:
 

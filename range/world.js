@@ -91,3 +91,43 @@ export function rockTop(x, z) {
 
 /** Whatever is underfoot at (x, z): the terrain, a rock, or the ramp's deck. What a wreck lands on. */
 export const groundUnder = (x, z) => Math.max(terrainHeight(x, z), rockTop(x, z), Math.abs(x - LAUNCH.x) < DECK_HALF_WIDTH && z > LAUNCH.z + DECK_BACK && z < LAUNCH.z + DECK_LIP ? deckY(z) : -Infinity);
+
+/** The slope launch: open grass on the ridge west of the ramp, a steady 20 degrees down toward the field, with no edge. */
+export const SLOPE = { x: LAUNCH.x - 90, z: -570, heading: 0 };
+
+/**
+ * The launch sites, so the range treats them alike: where the pilot stands (start, facing down the run), the ground underfoot
+ * on the run, how steeply it falls along the run (rise over run, + downhill), how far the run has before the ground ends
+ * (Infinity on a slope that carries on), and what the recorder calls a round started there. Each is a run down to the edge or
+ * off it: the ramp's deck to its lip (or off its sides), the cliff top to its edge, the slope as far as the pilot runs.
+ */
+export const LAUNCH_SITES = {
+  ramp: {
+    label: 'the ramp', round: 'launch',
+    start: { x: LAUNCH.x, z: LAUNCH.z - RUN_DIST, heading: LAUNCH.heading },
+    ground: (x, z) => deckLine(z),
+    fall: () => DECK_FALL,
+    edgeAhead(x, z, heading) {
+      const fx = Math.sin(heading), fz = Math.cos(heading);
+      const toLip = fz > .05 ? (LAUNCH.z + DECK_LIP - z) / fz : Infinity;
+      const toSide = Math.abs(fx) < 1e-3 ? Infinity : ((fx > 0 ? LAUNCH.x + 3.4 : LAUNCH.x - 3.4) - x) / fx;
+      return Math.max(0, Math.min(toLip, toSide));
+    },
+  },
+  cliff: {
+    label: 'the cliff', round: 'cliff',
+    start: { x: CLIFF.x, z: CLIFF.z, heading: LAUNCH.heading },
+    ground: () => CLIFF.ground,
+    fall: () => 0,
+    edgeAhead(x, z, heading) { const fz = Math.cos(heading); return Math.max(0, fz > .05 ? (CLIFF.edge - .5 - z) / fz : Infinity); },
+  },
+  slope: {
+    label: 'the slope', round: 'slope',
+    start: { x: SLOPE.x, z: SLOPE.z, heading: SLOPE.heading },
+    ground: (x, z) => terrainHeight(x, z),
+    fall: (x, z, heading) => (terrainHeight(x, z) - terrainHeight(x + Math.sin(heading) * 2, z + Math.cos(heading) * 2)) / 2,
+    edgeAhead: () => Infinity,
+  },
+};
+/** The order C steps through the sites. */
+export const SITE_ORDER = ['ramp', 'cliff', 'slope'];

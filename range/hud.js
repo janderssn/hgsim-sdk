@@ -2,7 +2,14 @@ import { compassName } from '../src/wind.js';
 
 const DEG = Math.PI / 180;
 
-function controlHints({ mode, padActive, pilotStand, launchPhase, realLaunch, launchSite }) {
+// How each launch site is launched from, and what C says it goes to.
+const SITE_HINTS = {
+  ramp: { pickUp: 'pick up and run down the ramp', go: 'go to the ramp' },
+  cliff: { pickUp: 'pick up and step off the cliff', go: 'go to the cliff' },
+  slope: { pickUp: 'pick up and run down the slope', go: 'go to the slope' },
+};
+
+function controlHints({ mode, padActive, pilotStand, launchPhase, realLaunch, launchSite, nextSite = 'cliff' }) {
   const flying = mode === 'gliding';
   if (padActive) {
     return flying
@@ -19,9 +26,7 @@ function controlHints({ mode, padActive, pilotStand, launchPhase, realLaunch, la
       : '<b>A</b><b>D</b>balance the wing <b>W</b><b>S</b>nose down / up <b>Space</b>' +
         (launchSite === 'cliff' ? 'step out and jump' : 'start the run');
   }
-  return (launchSite === 'cliff'
-    ? '<b>Space</b>pick up and step off the cliff <b>C</b>go to the ramp'
-    : '<b>Space</b>pick up and run down the ramp <b>C</b>go to the cliff') +
+  return `<b>Space</b>${(SITE_HINTS[launchSite] ?? SITE_HINTS.ramp).pickUp} <b>C</b>${(SITE_HINTS[nextSite] ?? SITE_HINTS.cliff).go}` +
     ' <b>1</b>start over the field <b>Tab</b>panel';
 }
 

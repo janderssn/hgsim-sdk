@@ -47,6 +47,18 @@ try {
   s = s.mode === 'gliding' ? await until(s => s.mode !== 'gliding', 5) : s;
   check(s.mode === 'gliding' && s.airspeed > 9, 'an easy cliff launch flies', JSON.stringify({ mode: s.mode, airspeed: +s.airspeed.toFixed(1) }));
 
+  // An easy slope launch in calm air: a run down open hillside until the wing carries the pilot, then flying clear of the
+  // slope. (In the 5 m/s headwind the wing lifts after a few steps, as on a real hill.)
+  await page.eval(`rangeDemo.wind.set({ speed: 0 }); rangeDemo.standAtSlope(); rangeDemo.launch(); 1`);
+  const startedAt = JSON.parse(await page.eval('JSON.stringify(rangeDemo.getState().position)'));
+  s = await until(s => s.mode === 'gliding' || s.mode === 'crashed' || s.mode === 'tumbling', 15);
+  const leftAt = JSON.parse(await page.eval('JSON.stringify(rangeDemo.getState().position)'));
+  s = s.mode === 'gliding' ? await until(s => s.mode !== 'gliding', 5) : s;
+  const ran = Math.hypot(leftAt[0] - startedAt[0], leftAt[2] - startedAt[2]);
+  await page.eval(`rangeDemo.wind.set({ speed: 5 }); 1`);
+  check(s.mode === 'gliding' && ran > 8 && s.clearance > 6, 'an easy slope launch in calm air runs down the hill and flies',
+    JSON.stringify({ mode: s.mode, ranMetres: +ran.toFixed(1), clearance: +s.clearance.toFixed(1) }));
+
   // A realistic launch, flown by a simple pilot: balance with A/D, start the run, keep the nose level, jump as it lifts.
   check(await open('wind=5&from=180&launch=real'), 'the range loads with realistic launches');
   // The pilot runs in the page, every frame: balance against the roll, the nose a little low on the run and up as the wing

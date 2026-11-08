@@ -1,6 +1,6 @@
 // The landing range's world: the ground a launch, a flight and a wreck feel is where the scenery is drawn.
 import assert from 'node:assert/strict';
-import { terrainHeight, LAUNCH, CLIFF, ROCKS, rockTop, rockRing, groundUnder, deckY, deckLine, DECK_LIP, DECK_BACK, DECK_FALL, landableAt, MARK } from '../range/world.js';
+import { terrainHeight, LAUNCH, CLIFF, SLOPE, ROCKS, rockTop, rockRing, groundUnder, deckY, deckLine, DECK_LIP, DECK_BACK, DECK_FALL, RUN_DIST, LAUNCH_SITES, SITE_ORDER, landableAt, MARK } from '../range/world.js';
 
 // The deck slopes down toward the lip and stands well above the ridge; past its ends it is held level, its line carries on.
 const back = LAUNCH.z + DECK_BACK + 1, lip = LAUNCH.z + DECK_LIP - .1;
@@ -21,4 +21,27 @@ assert.ok(CLIFF.ground > terrainHeight(CLIFF.x, CLIFF.z) && CLIFF.y === CLIFF.gr
 
 // The field is landable, the ridge face is not everywhere.
 assert.ok(landableAt(MARK.x, MARK.z), 'the mark is landable');
+
+// The launch sites, one description each. The ramp: the deck at its own fall, the lip ahead and its sides; the cliff: a level
+// top with its edge just ahead; the slope: open hillside at a steady 20 degrees with no edge, clear of the rocks and the deck.
+assert.deepEqual(SITE_ORDER, ['ramp', 'cliff', 'slope']);
+const { ramp, cliff, slope } = LAUNCH_SITES;
+assert.equal(ramp.start.z, LAUNCH.z - RUN_DIST);
+assert.equal(ramp.ground(ramp.start.x, ramp.start.z), deckY(ramp.start.z));
+assert.equal(ramp.fall(), DECK_FALL);
+assert.ok(Math.abs(ramp.edgeAhead(ramp.start.x, ramp.start.z, 0) - (DECK_LIP + RUN_DIST)) < 1e-9, 'the lip is the run ahead');
+assert.ok(ramp.edgeAhead(ramp.start.x, ramp.start.z, Math.PI / 2) < 4, 'turned sideways, the deck\'s side is close');
+assert.equal(cliff.ground(cliff.start.x, cliff.start.z), CLIFF.ground);
+assert.equal(cliff.start.z, CLIFF.z);
+assert.ok(cliff.edgeAhead(cliff.start.x, cliff.start.z, 0) < 2, 'the cliff edge is a step away');
+assert.equal(slope.start.x, SLOPE.x);
+assert.equal(slope.ground(slope.start.x, slope.start.z), terrainHeight(slope.start.x, slope.start.z));
+assert.equal(slope.edgeAhead(slope.start.x, slope.start.z, 0), Infinity);
+for (let s = 0; s <= 40; s += 5) {
+  const deg = Math.atan(slope.fall(slope.start.x, slope.start.z + s, 0)) * 180 / Math.PI;
+  assert.ok(deg > 18 && deg < 22.5, `the slope runs at about 20 degrees (${deg.toFixed(1)} at ${s} m)`);
+  assert.equal(rockTop(slope.start.x, slope.start.z + s), -Infinity, 'no rock on the slope\'s run');
+  assert.equal(groundUnder(slope.start.x, slope.start.z + s), terrainHeight(slope.start.x, slope.start.z + s), 'nothing but grass underfoot');
+}
+for (const s of Object.values(LAUNCH_SITES)) assert.ok(s.label && s.round && typeof s.ground === 'function');
 console.log('world checks passed');

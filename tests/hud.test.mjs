@@ -69,7 +69,11 @@ test('control hints follow flight posture, gamepad, and realistic launch phases'
   assert.match(hints(), /start the run/);
   hud.update({ ...flight, mode: 'ready', realLaunch: true, launchPhase: 'run' });
   assert.match(hints(), /jump off as it lifts/);
-  hud.update({ ...flight, mode: 'ready', launchSite: 'cliff' });
+  hud.update({ ...flight, mode: 'ready', launchSite: 'cliff', nextSite: 'slope' });
   assert.match(hints(), /pick up and step off the cliff/);
+  assert.match(hints(), /go to the slope/);
+  hud.update({ ...flight, mode: 'ready', launchSite: 'slope', nextSite: 'ramp' });
+  assert.match(hints(), /pick up and run down the slope/);
+  assert.match(hints(), /go to the ramp/);
   assert.equal(dom.nodes.get('alpha').textContent, '—');
 });

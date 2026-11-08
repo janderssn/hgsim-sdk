@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getAirframePose } from '../range/airframe-pose.js';
-import { createSimulationLoop } from '../range/simulation-loop.js';
+import { createSimulationLoop } from '../src/loop.js';
 import { createLaunch, launchPose, shoulderPivot } from '../src/launch.js';
 import { createTumble } from '../src/tumble.js';
 

@@ -1,0 +1,10 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lab · hgsim</title>
+  <!-- The tuning pages are now the lab, in the range itself: L there, or ?lab=launch|flight|landing. -->
+  <script>location.replace('../?lab=' + (/(launch|flight|landing)/.exec(location.pathname + location.search)?.[1] ?? 'launch') + location.search.replace(/^\?/, '&'));</script>
+</head>
+<body><a href="../?lab=launch">Open the lab</a></body>
+</html>

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFlightControls, createTakeoffControls } from '../range/controls.js';
 import { createLaunch, stepLaunch, windOnRun } from '../src/launch.js';
-import { stepSoaring, sampleSoaringAir } from '../src/flight.js';
+import { stepSoaring, sampleAir as sampleSoaringAir } from './support.mjs';
 import { createWind, directionFromBearing } from '../src/wind.js';
 import { LAUNCH, THERMAL, RUN_DIST, DECK_FALL, DECK_BACK, DECK_LIP, deckY, deckLine, terrainHeight } from '../range/world.js';
 

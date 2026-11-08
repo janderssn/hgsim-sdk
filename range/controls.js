@@ -1,3 +1,4 @@
+import { createTakeoffBar, takeoffPitch } from '../src/round.js';
 /** Translate devices into simulation controls without depending on the DOM. */
 const clamp = value => Math.max(-1, Math.min(1, value));
 const finite = value => Number.isFinite(value) ? value : 0;
@@ -26,35 +27,10 @@ const smooth = (start, end, value) => {
 };
 
 /**
- * Keep the launch trim until a new flight input takes over. A key held while
- * running, then released after lift-off, is still the launch input: treating it
- * as a fresh bar command can drop a slow wing back onto the ramp.
+ * Keep the launch trim until a new flight input takes over (the round's own take-off bar, src/round.js): a key held while running,
+ * then released after lift-off, is still the launch input, not a fresh bar command that could drop a slow wing back onto the ramp.
  */
-export function createTakeoffControls({ heldPitch = 0, holdBar = 0, dropped = false, cliff = false, realistic = false } = {}) {
-  const inheritedPitch = clamp(finite(heldPitch));
-  let waitingForRelease = Math.abs(inheritedPitch) >= PITCH_DEADZONE;
-  let handed = false;
-
-  return {
-    get handed() { return handed; },
-    pitch(input, { age = 0, airspeed = 0 } = {}) {
-      const value = clamp(finite(input));
-      const active = Math.abs(value) >= PITCH_DEADZONE;
-      if (waitingForRelease) {
-        if (!active) waitingForRelease = false;
-        // A reversal is a deliberate new command, including before release.
-        else if (Math.sign(value) !== Math.sign(inheritedPitch)) {
-          waitingForRelease = false;
-          handed = true;
-        }
-      } else if (active) handed = true;
-
-      // A cliff step-off needs the same dive assistance as an Easy edge launch.
-      if (dropped && (!realistic || cliff)) {
-        return value <= 0 && airspeed < 16 ? Math.min(value, -.3) : value;
-      }
-      if (handed) return value;
-      return clamp(finite(holdBar)) * (realistic ? 1 : 1 - smooth(2, 7, age));
-    },
-  };
+export function createTakeoffControls(options = {}) {
+  const bar = createTakeoffBar(options);
+  return { get handed() { return bar.handed; }, pitch: (input, info) => takeoffPitch(bar, input, info) };
 }

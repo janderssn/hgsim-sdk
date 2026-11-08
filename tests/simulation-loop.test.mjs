@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createSimulationLoop } from '../range/simulation-loop.js';
+import { createSimulationLoop } from '../src/loop.js';
 
 test('one second advances the same 60 simulation ticks at fast and slow render rates', () => {
   for (const fps of [10, 30, 60, 144]) {

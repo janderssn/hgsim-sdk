@@ -1,0 +1,67 @@
+/* The lab, over the range: one slim bar along the bottom, with the scenario list and the details opening above it when asked for.
+   Selected things are simply lighter; colour is kept for data (the traces) and outcomes. */
+#lab { position: fixed; inset: 0; pointer-events: none; z-index: 5; font: 13px/1.4 "Segoe UI", system-ui, sans-serif; color: #eceae4; }
+#lab[hidden], #lab [hidden] { display: none !important; }
+.lab-float { position: absolute; pointer-events: auto; background: rgba(18, 22, 26, .78); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, .08); border-radius: 10px; }
+#lab button, #lab select, #lab input { font: inherit; color: inherit; }
+#lab button { cursor: pointer; background: none; border: 0; border-radius: 6px; padding: 4px 9px; color: rgba(236, 234, 228, .75); }
+#lab button:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+#lab button.on { background: rgba(255, 255, 255, .16); color: #fff; }
+#lab select { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); border-radius: 6px; padding: 3px 6px; color: rgba(236, 234, 228, .85); }
+#lab select option { background: #1c242b; }
+.lab-seg { display: inline-flex; gap: 1px; }
+.lab-dim { color: rgba(236, 234, 228, .55); }
+.lab-icon { display: inline-grid !important; place-items: center; width: 30px; height: 28px; padding: 0 !important; }
+.lab-icon svg { width: 16px; height: 16px; fill: currentColor; }
+
+/* the bar */
+#labBar { left: 50%; bottom: 10px; transform: translateX(-50%); width: min(1100px, calc(100vw - 20px)); height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 6px; }
+.lab-pick { max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: #eceae4 !important; }
+.lab-pick i { font-style: normal; opacity: .5; font-size: 10px; }
+.lab-transport { display: flex; }
+#lab .lab-fly { color: rgba(239, 75, 83, .85); }
+#lab .lab-fly.on { background: rgba(239, 75, 83, .22); color: #ff8a8f; }
+.lab-speeds button { padding: 4px 6px !important; font-size: 12px; }
+#labTrack { flex: 1; min-width: 60px; height: 28px; cursor: ew-resize; }
+#labClock { min-width: 58px; text-align: right; font-variant-numeric: tabular-nums; color: rgba(236, 234, 228, .6); }
+.lab-chip { font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: 11px; background: rgba(255, 255, 255, .07) !important; }
+#labShow { left: 10px; bottom: 10px; padding: 6px 12px; font-weight: 600; }
+#labNoteBox { position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); width: min(600px, 90vw); display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 9px; background: #ffd36b; color: #2a1f00; }
+#labNoteBox span { font-weight: 700; white-space: nowrap; }
+#labNoteBox input { flex: 1; border: 0; border-radius: 6px; padding: 5px 8px; background: rgba(255, 255, 255, .75); color: #1a1408; outline: none; }
+
+/* above the bar, on demand */
+#labPop { left: calc(50% - min(550px, 50vw - 10px)); bottom: 58px; width: 230px; max-height: min(420px, calc(100vh - 140px)); display: flex; flex-direction: column; padding: 6px; }
+#labPop .lab-seg { margin-bottom: 4px; }
+#labList { overflow-y: auto; }
+#labList button { display: block; width: 100%; text-align: left; padding: 5px 9px; }
+#labDetails { left: 50%; bottom: 58px; transform: translateX(-50%); width: min(1100px, calc(100vw - 20px)); height: min(240px, 40vh); display: flex; gap: 10px; padding: 8px 10px; }
+.lab-traces { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#labLook { margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#labTimeline { flex: 1; width: 100%; min-height: 0; cursor: ew-resize; }
+.lab-side { width: 320px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
+.lab-side [data-tab-pane] { flex: 1; overflow-y: auto; min-height: 0; }
+.lab-side label { display: flex; align-items: center; gap: 6px; }
+.lab-outcome { display: inline-block; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.good { color: #6ccf78 !important; } .warn { color: #f2c14e !important; } .bad { color: #f07178 !important; }
+#lab table { width: 100%; border-collapse: collapse; margin-top: 4px; font-variant-numeric: tabular-nums; }
+#lab th, #lab td { padding: 2px 4px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, .06); }
+#lab th:first-child, #lab td:first-child { text-align: left; color: rgba(236, 234, 228, .55); }
+#lab th { font-weight: 600; color: rgba(236, 234, 228, .55); }
+.lab-note { position: relative; padding: 5px 24px 5px 8px; margin-bottom: 4px; border-radius: 6px; background: rgba(255, 255, 255, .05); cursor: pointer; }
+.lab-note.here { background: rgba(255, 211, 107, .1); }
+.lab-note p { margin: 2px 0 0; }
+#lab .lab-note .x { position: absolute; right: 2px; top: 2px; padding: 0 6px; }
+
+/* the four views' names, and the flag of a note at this moment */
+#labPanes { position: absolute; inset: 0; pointer-events: none; }
+#labPanes b { position: absolute; display: none; padding: 1px 7px; border-radius: 5px; background: rgba(15, 20, 24, .5); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: rgba(236, 234, 228, .7); }
+#labPanes[data-mode="quad"] b { display: block; }
+#labPanes b[data-pane="side"] { left: calc(50% - 60px); top: 10px; } #labPanes b[data-pane="top"] { right: 10px; top: calc(50% - 26px); }
+#labPanes b[data-pane="rear"] { left: 10px; bottom: 60px; } #labPanes b[data-pane="front"] { right: 10px; bottom: 60px; }
+#labPanes[data-mode="quad"]::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(0, 0, 0, .45); }
+#labPanes[data-mode="quad"]::before { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(0, 0, 0, .45); }
+#labFlag { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); max-width: 60%; padding: 5px 11px; border-radius: 7px; background: #ffd36b; color: #2a1f00; font-weight: 600; }
+
+body.lab-on .hud .hints { display: none; }
+@media (max-width: 900px) { .lab-speeds, #labClock { display: none !important; } .lab-side { width: 240px; } }

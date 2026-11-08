@@ -1,5 +1,7 @@
 /**
- * Soaring model for Above. Metres, seconds, radians.
+ * The classic model: the older, simpler, energy-based flight model, kept for side-by-side comparison with the force model
+ * (createGlider({ model: classicModel })). Its numbers are fixed (CLASSIC_DEFAULTS); a config passed to it is validated but
+ * not used, and it samples the world's air with its own original ridge-lift formula. Metres, seconds, radians.
  * Positive roll banks right; this scene's right turn decreases heading.
  *
  * Lateral: a critically damped roll spring toward the bank target and a coordinated turn rate g·tan(bank)/v.
@@ -9,12 +11,12 @@
  *   dv/dt = -g·sin(gamma) - D,   D = g·sink(v, bank)/v (+ dissipative extras)
  * so a steady glide reproduces the sink polar exactly and nothing (bar pumping, flaring, skimming) can create energy
  * in still air: d(y + v²/2g)/dt = lift - v·D/g. Dives build speed, pull-outs zoom-climb, and climbs cost speed.
- * No rendering, collisions or external dependencies; terrain following lives in terrain-skimming.js.
+ * No rendering, collisions or external dependencies; terrain following lives in assists/terrain-skimming.js.
  */
-import { skimGuidance } from './terrain-skimming.js';
+import { skimGuidance } from '../assists/terrain-skimming.js';
 
 const DEG = Math.PI / 180;
-export const SOARING_DEFAULTS = Object.freeze({
+export const CLASSIC_DEFAULTS = Object.freeze({
   gravity: 9.81,
   // Bar -> target airspeed: full bar in (W) 30 m/s, building toward 46 m/s while a deep dive is held (drag caps the
   // real speed near 45 m/s on the 40 degree dive limit); neutral trims at 15 m/s; full flare (S) slows to 10.5 m/s,
@@ -114,7 +116,7 @@ const angle = (value) => Math.atan2(Math.sin(value), Math.cos(value));
 
 /** Positive downward speed through still air. Bank increases wing loading. */
 export function sinkPolar(airspeed, bank = 0) {
-  const cfg = SOARING_DEFAULTS;
+  const cfg = CLASSIC_DEFAULTS;
   const load = 1 / Math.max(0.5, Math.cos(bank));
   const adjustedSpeed = Math.max(0, airspeed) / Math.sqrt(load);
   const speedError = adjustedSpeed - cfg.minimumSinkSpeed;
@@ -128,8 +130,8 @@ export function glidePathAngle(airspeed, bank = 0) {
 }
 
 /** Target airspeed for a bar position (-1 full dive .. +1 full flare), a held-dive time and the loaded stall speed. */
-export function barTargetSpeed(bar, diveHold = 0, stallSpeed = SOARING_DEFAULTS.stallSpeed) {
-  const cfg = SOARING_DEFAULTS;
+export function barTargetSpeed(bar, diveHold = 0, stallSpeed = CLASSIC_DEFAULTS.stallSpeed) {
+  const cfg = CLASSIC_DEFAULTS;
   let speed;
   if (bar < 0) {
     const d = -bar;
@@ -142,7 +144,7 @@ export function barTargetSpeed(bar, diveHold = 0, stallSpeed = SOARING_DEFAULTS.
 
 /** Initial airborne state; set x/y/z/heading to the chosen launch location. */
 export function createSoaringState(overrides = {}) {
-  const cfg = SOARING_DEFAULTS;
+  const cfg = CLASSIC_DEFAULTS;
   const speed = finite(overrides.airspeed, cfg.trimSpeed);
   const path = finite(overrides.pathAngle, glidePathAngle(speed));
   const sink = sinkPolar(speed);
@@ -169,7 +171,7 @@ function terrainAt(environment, x, z) {
  * scene cues match the usable lift. Horizontal wind advects the glider.
  */
 export function sampleSoaringAir(x, y, z, environment = {}) {
-  const cfg = SOARING_DEFAULTS;
+  const cfg = CLASSIC_DEFAULTS;
   const windX = finite(environment.wind?.x);
   const windZ = finite(environment.wind?.z);
   const groundHeight = terrainAt(environment, x, z);
@@ -208,7 +210,7 @@ export function sampleSoaringAir(x, y, z, environment = {}) {
 
 /** Angle of attack for the drawn wing: larger when slow or loaded, small in a fast dive. */
 function alphaFor(speed, load, landingAlpha) {
-  const cfg = SOARING_DEFAULTS;
+  const cfg = CLASSIC_DEFAULTS;
   const ratio = cfg.trimSpeed / Math.max(3, speed);
   return clamp(cfg.trimAlpha * load * ratio * ratio, 0.5 * DEG, 16 * DEG) + landingAlpha;
 }
@@ -218,7 +220,7 @@ function alphaFor(speed, load, landingAlpha) {
  * groundSpeed: horizontal speed over the ground. Returns 'soft', 'firm', 'rough' or 'crash'.
  */
 export function judgeTouchdown({ verticalSpeed = 0, groundSpeed = 0, slope = 0, bank = 0 } = {}) {
-  const cfg = SOARING_DEFAULTS;
+  const cfg = CLASSIC_DEFAULTS;
   const vertical = Math.max(0, finite(verticalSpeed)), ground = Math.abs(finite(groundSpeed));
   if (!(finite(slope, 1) < cfg.maxTouchdownSlope) || Math.abs(finite(bank)) > cfg.maxTouchdownBank) return 'crash';
   if (vertical < cfg.softTouchdown.vertical && ground < cfg.softTouchdown.ground) return 'soft';
@@ -237,7 +239,7 @@ export function judgeTouchdown({ verticalSpeed = 0, groundSpeed = 0, slope = 0, 
  * A long frame is capped at 0.25 seconds; call repeatedly for offline simulation.
  */
 export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
-  const cfg = SOARING_DEFAULTS, g = cfg.gravity;
+  const cfg = CLASSIC_DEFAULTS, g = cfg.gravity;
   if (!Number.isFinite(dt) || dt <= 0) return state;
   for (const key of ['x', 'y', 'z', 'heading', 'bank', 'bankRate', 'pitch', 'pitchRate', 'pathRate', 'bar',
     'diveHold', 'skimAssist', 'skimBlend', 'skimProtect', 'landing', 'autoFlare', 'flare']) {
@@ -360,7 +362,8 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
         windX: air.windX, windZ: air.windZ, lift: air.lift, bar, command, surface, dt: step,
         pullAccel: (cfg.pullG - 1) * g, hardPullAccel: (cfg.hardPullG - 1) * g,
         maxClimb: cfg.maxClimbAngle, maxDive: cfg.maxDiveAngle,
-        stallSpeed: state.stallSpeed }, environment);
+        stallSpeed: state.stallSpeed }, { surfaceAt: environment.skimHeight || environment.terrainHeight,
+        clearance: typeof environment.skimClearance === 'function' ? environment.skimClearance(state) : environment.skimClearance });
       // The assist may spend speed on climbs, but never below 1.2x the stall speed: it cannot stall the wing.
       const energyCap = steady - cfg.speedGain * (1.2 * state.stallSpeed - (v + acceleration * cfg.speedLead));
       command = Math.min(skim.command, Math.max(energyCap, free));
@@ -441,3 +444,29 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
   state.verticalSpeed = totalVertical / duration;
   return state;
 }
+
+/**
+ * The classic model as a flight model for createGlider. Input: roll, pitch, landable (false over ground that cannot be landed
+ * on), field (low over landable ground: the neutral-bar round-out). skim: the terrain-skimming assist's options, or null.
+ */
+export const classicModel = Object.freeze({
+  name: 'classic',
+  defaults: CLASSIC_DEFAULTS,
+  createState: init => createSoaringState(init),
+  step(state, input = {}, dt, world, cfg, skim = null) {
+    const environment = {
+      terrainHeight: world.heightAt, skimHeight: world.surfaceAt, thermals: world.thermals,
+      wind: world.windAt(state.x, state.y, state.z),
+      thermalCeiling: world.config.thermalCeiling, thermalFadeStart: world.config.thermalFadeStart,
+      terrainSkimming: !!skim, skimClearance: skim?.clearance,
+    };
+    return stepSoaring(state, { roll: input.roll, pitch: input.pitch, landable: input.landable, ground: input.field }, dt, environment);
+  },
+  performance: () => Object.freeze({
+    stallSpeed: (bank = 0) => CLASSIC_DEFAULTS.stallSpeed / Math.sqrt(Math.max(0.5, Math.cos(bank))),
+    trimSpeed: (bar = 0) => barTargetSpeed(bar),
+    sink: (airspeed, bank = 0) => sinkPolar(airspeed, bank),
+    glideAngle: (airspeed, bank = 0) => glidePathAngle(airspeed, bank),
+    glideRatio: (airspeed, bank = 0) => Math.max(1, airspeed) / sinkPolar(airspeed, bank),
+  }),
+});

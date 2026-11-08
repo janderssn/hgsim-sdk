@@ -1,7 +1,12 @@
 /**
- * Advances the simulation at a fixed rate while rendering once per browser frame.
- * The clock is injected by frame(), so the same loop can run without a browser.
- * Long pauses discard excess elapsed time instead of building an unbounded backlog.
+ * A fixed-step loop: the simulation advances in equal ticks whatever the frame rate, and the drawing happens once per frame with
+ * how far it is into the next tick (alpha, 0..1) to interpolate by. The well-known "fix your timestep" pattern (Glenn Fiedler),
+ * as cannon-es's world.fixedStep and Rapier's integration parameters do it: the same inputs fly the same flight at 30 Hz or 144 Hz.
+ * The clock is passed to frame(), so the same loop runs without a browser. A long pause drops its excess time (maxFrameSeconds)
+ * instead of building a backlog.
+ *
+ *   const loop = createSimulationLoop({ step: dt => round.step(dt, input()), render: (dt, alpha) => draw(alpha) });
+ *   requestAnimationFrame(function tick(now) { loop.frame(now); requestAnimationFrame(tick); });
  */
 export function createSimulationLoop({ step, render = () => {}, stepSeconds = 1 / 60, maxFrameSeconds = 0.25 }) {
   if (typeof step !== 'function' || typeof render !== 'function') {

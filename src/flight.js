@@ -1,5 +1,5 @@
 /**
- * Hang glider flight model for Above. Metres, seconds, radians. A force model, not a controller:
+ * The force model: hgsim's hang glider.  Metres, seconds, radians. A force model, not a controller:
  *
  *   lift  L = q S CL(alpha)      drag D = q S CD(alpha, ground effect)      q = 1/2 rho V^2
  *   dV/dt     = -D/m - g sin(gamma)                        (airspeed along the flight path)
@@ -15,12 +15,14 @@
  * far for the banked stall speed); the wing stalls past stallAlpha and mushes; near the ground the span's ground
  * effect cuts the induced drag so the wing floats; and the flare is the sail pushed out past the stall at the right
  * moment, its lift spike arresting the sink and its flat-plate drag stopping the wing.
- * No rendering, collisions or external dependencies; terrain following lives in terrain-skimming.js.
+ * No rendering, collisions or external dependencies. The world (world.js) supplies the ground and the air; terrain following is the
+ * optional assist in assists/terrain-skimming.js. Every function takes its config explicitly (GLIDER_DEFAULTS when left out).
  */
-import { skimGuidance } from './terrain-skimming.js';
+import { clamp, finite, smoothstep, wrapAngle as angle, DEG } from './math.js';
+import { skimGuidance } from './assists/terrain-skimming.js';
+import { LANDING_RULES } from './landing.js';
 
-const DEG = Math.PI / 180;
-export const SOARING_DEFAULTS = Object.freeze({
+export const GLIDER_DEFAULTS = Object.freeze({
   gravity: 9.81,
   airDensity: 1.1,                 // kg/m^3, around 1500 m
   mass: 110,                       // pilot, harness and wing, kg
@@ -31,10 +33,14 @@ export const SOARING_DEFAULTS = Object.freeze({
   zeroLiftAlpha: -3 * DEG,
   stallAlpha: 16 * DEG,
   stallBlend: 14 * DEG,            // width of the post-stall blend (a hang glider's stall is soft)
-  plateLift: 1.4,                  // the sail keeps lifting past the stall: a mush, not a break (a game-friendly value)                  // flat-plate lift scale (CL = plateLift * 2 sin a cos a)
+  plateLift: 1.4,                  // flat-plate lift scale (CL = plateLift * 2 sin a cos a): the sail keeps lifting past the stall, a mush, not a break
   plateDrag: 1.0,                  // flat-plate drag scale (CD = plateDrag * 2 sin^2 a)
   // Drag: parasite (wing, pilot, wires) plus induced; oswald efficiency.
   cd0: 0.028,                      // matches the original model's sink at speed, so a skim carries its momentum
+  // A flex wing's sail twists at speed: below twistLift of lift coefficient the washed-out tips fly at small or negative angles
+  // and drag grows as twistDrag (twistLift - CL)^2, so the polar falls away at speed as measured hang glider polars do.
+  twistDrag: 0,
+  twistLift: 0.5,
   oswald: 0.8,
   // Ground effect on the induced drag: sigma = 16 (h/b)^2 / (1 + 16 (h/b)^2), h the wing's height above the ground.
   wingAboveBody: 1.3,
@@ -69,6 +75,14 @@ export const SOARING_DEFAULTS = Object.freeze({
   // pitches up a little when fast and down when slow (the pendulum pilot), which damps the phugoid.
   pitchTau: 0.2,
   pitchRateMax: 80 * DEG,
+  // A luffing sail: below luffAlpha the sail's leading edge collapses and the wing loses luffLoss of its nose-up recovery (the
+  // 1970s Rogallo's luffing dive). Modern wings have luff lines, reflex and battens instead: luffLoss 0, as here.
+  luffAlpha: 4 * DEG,
+  luffLoss: 0,
+  // ... and a luffed sail tucks: its pitching moment turns nose-down, which moves the wing's trim angle down by luffTuck (rad). A dive
+  // that luffs the sail then holds itself in the luff and runs away, unless the pilot pushes out hard enough, and early enough, to
+  // lift the angle back above luffAlpha before the speed (and the bar's load limit) takes the authority away. 0 here.
+  luffTuck: 0,
   speedStability: 0.35 * DEG,      // radians of alpha per m/s of speed away from the bar's trim speed
   // The bar pressure: at speed the pilot cannot push out beyond this load factor.
   loadLimit: 2.8,
@@ -104,42 +118,33 @@ export const SOARING_DEFAULTS = Object.freeze({
   settleAngle: 4,                  // degrees: a slow wing under S settles at this path while it bleeds speed
   // A stalled wing is sluggish in roll (blended in over a few degrees past the stall: no switch).
   stallRollFactor: 0.5,
+  // Aerodynamic roll damping: a rolling wing's descending tip meets the air at a higher angle of attack than the rising one. While
+  // more angle gives more lift that only damps the roll (the spring above stands for it); past a stall whose lift falls away with
+  // angle, the descending tip loses lift and the roll feeds itself: the wing drops a tip and autorotates until the angle comes down.
+  // rollDamping is that effect's strength (1/s at trim speed, per unit of the lift curve's fall against its linear slope): 0 here,
+  // a mushing wing whose lift never falls; a sharp stall (small stallBlend, low plateLift) with it drops a tip by itself.
+  rollDamping: 0,
+  // The air is never quite smooth: small eddies roll the wing about by up to airRoughness rad/s^2 at trim speed (growing with the
+  // speed, to half as much again). Too small to notice in flight; it is what starts a stalled wing's roll one way or the other.
+  airRoughness: 0,
   // Stall warning this many degrees below the stall.
   stallWarnMargin: 2.5 * DEG,
-  // Air.
-  gradientSample: 48,
-  ridgeDecayHeight: 350,
-  // Ridge lift is the wind following the slope: its uphill part times the sine of the slope. Near the ground the wind is
-  // slower (wind shear: full speed from ridgeShearHeight up, falling as (height / ridgeShearHeight)^ridgeShearExp below), so
-  // a slope that holds a wing at ridge height will not hold it a few metres off the ground. Behind a slope the air sinks.
-  ridgeShearHeight: 80,
-  ridgeShearExp: 0.5,
-  leeSink: 0.5,             // share of the windward lift that sinks on a lee slope
-  maxRidgeLift: 7,
-  maxThermalLift: 7,
-  thermalFadeStart: 3900,
-  thermalCeiling: 4400,
-  // Touchdown judgement (vertical contact speed and ground speed), see judgeTouchdown. A flared touchdown is near
-  // 3-5 m/s airspeed, so the ground speed is set by the wind.
-  // (the pilot's legs take a 2 m/s step-down; beyond 3.6 m/s the frame does)
-  softTouchdown: { vertical: 2.2, ground: 8.6 },
-  firmTouchdown: { vertical: 4.8, ground: 10.5 },
-  roughTouchdown: { vertical: 2.8, ground: 19 },
-  maxTouchdownSlope: 0.45,
-  maxTouchdownBank: 0.42,
+  // The wing as a thing to carry and run with (the launch reads these): its own mass and span (its roll inertia on the shoulders),
+  // its dihedral (a sail whose tips sit higher than its root rights itself in the air on the run; anhedral, negative, helps it
+  // over), and carryAlpha, the angle of attack its sail meets the air at with the keel carried level on the run (a billowy
+  // trainer meets it high and lifts near its stall; a tight, flat topless wing meets it low and must be run up to speed, or its
+  // nose lifted, which is where a sharp stall bites).
+  wingMass: 30.8,
+  wingSpan: 10,
+  dihedral: 0,
+  carryAlpha: 13.15 * DEG,
+  // Geometry: the body reference sits footHeight above the feet for the flare and ground effect, and a body reference lower than
+  // contactHeight over the ground is on it (a touchdown; see Glider.contact).
   footHeight: 2.4,
-  // Landing score (scoreLanding).
-  landingPoints: { soft: 300, firm: 150, rough: 50, crash: 0, headwind: 250, bullseye: 500, inner: 300, outer: 150, pad: 60, noStep: 300 },
-  noStepTouchdown: { vertical: 2.2, ground: 3.8 },
-  // Downwind the ground speed is the airspeed plus the wind, and few pilots can run that out. Above tailwindFree (m/s) only a
-  // well flared, slow touchdown survives: airspeed under tailwindAirspeed, less tailwindSlope per m/s of extra tailwind.
-  tailwindFree: 1, tailwindAirspeed: 8.5, tailwindSlope: 0.5,
-  // A light touch at speed is a scrape, not a crash: under scrapeSink m/s of sink, wings about level and too fast to land, the
-  // wing skips off the ground and pays in speed. Anything harder, steeper or banked still crashes.
+  contactHeight: 2.3,
+  // A light touch at speed is a scrape, not a crash: under scrapeSink m/s of sink, wings about level and too fast to land (the
+  // rules' rough ground speed), the wing skips off the ground and pays in speed. Anything harder, steeper or banked still crashes.
   scrapeSink: 4.5,
-  bullseyeRadius: 6,
-  innerRingRadius: 15,
-  outerRingRadius: 30,
   // Flare bookkeeping: a push-out that starts this low counts as the flare.
   flareWindow: 6,
   minimumSpeed: 2,
@@ -147,52 +152,41 @@ export const SOARING_DEFAULTS = Object.freeze({
   maxStep: 1 / 120,
 });
 
-// The live tuning: SOARING_DEFAULTS plus whatever tuneSoaring() has changed (the range's sliders).
-let tuning = { ...SOARING_DEFAULTS };
-/** Override tuning values at runtime (numbers only); tuneSoaring() with no argument restores the defaults. */
-export function tuneSoaring(patch) {
-  if (!patch) { tuning = { ...SOARING_DEFAULTS }; return tuning; }
-  for (const [key, value] of Object.entries(patch)) if (key in SOARING_DEFAULTS && Number.isFinite(value)) tuning[key] = value;
-  return tuning;
-}
-export function getSoaringTuning() { return tuning; }
-
-const clamp = (value, low, high) => Math.max(low, Math.min(high, value));
-const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
-const smoothstep = (low, high, value) => {
-  const t = clamp((value - low) / (high - low), 0, 1);
-  return t * t * (3 - 2 * t);
-};
-const angle = (value) => Math.atan2(Math.sin(value), Math.cos(value));
-
 /* ---------- aerodynamics ---------- */
 const weight = cfg => cfg.mass * cfg.gravity;
 const inducedK = cfg => 1 / (Math.PI * cfg.oswald * (cfg.span * cfg.span / cfg.wingArea));
 /** Lift coefficient: linear to the stall, blended into the flat plate beyond it. */
-export function liftCoefficient(alpha, cfg = tuning) {
+export function liftCoefficient(alpha, cfg = GLIDER_DEFAULTS) {
   const linear = cfg.liftSlope * (Math.min(alpha, cfg.stallAlpha) - cfg.zeroLiftAlpha);
   const w = smoothstep(cfg.stallAlpha, cfg.stallAlpha + cfg.stallBlend, alpha);
   const plate = cfg.plateLift * 2 * Math.sin(alpha) * Math.cos(alpha);
   return Math.max(0, (1 - w) * linear + w * plate);
 }
-/** Drag coefficient: parasite, induced (reduced in ground effect, sigma 0..1) and the stalled sail's plate drag. */
-export function dragCoefficient(alpha, sigma = 1, cfg = tuning) {
+/** Drag coefficient: parasite, induced (reduced in ground effect, sigma 0..1), the stalled sail's plate drag and the twisted sail's drag at speed. */
+export function dragCoefficient(alpha, sigma = 1, cfg = GLIDER_DEFAULTS) {
   const linear = cfg.liftSlope * (Math.min(alpha, cfg.stallAlpha) - cfg.zeroLiftAlpha);
   const w = smoothstep(cfg.stallAlpha, cfg.stallAlpha + cfg.stallBlend, alpha);
   const s = Math.sin(alpha);
-  return cfg.cd0 + inducedK(cfg) * linear * linear * sigma + w * cfg.plateDrag * 2 * s * s;
+  const twist = Math.max(0, cfg.twistLift - linear);
+  return cfg.cd0 + inducedK(cfg) * linear * linear * sigma + w * cfg.plateDrag * 2 * s * s + cfg.twistDrag * twist * twist;
 }
 /** Ground-effect factor on the induced drag for a wing this high above the ground (1 = none). */
-export function groundEffectFactor(wingHeight, cfg = tuning) {
+export function groundEffectFactor(wingHeight, cfg = GLIDER_DEFAULTS) {
   const r = Math.max(0, wingHeight) / cfg.span, t = 16 * r * r;
   return t / (1 + t);
 }
 /** Stall speed in level flight (load factor 1), and in a bank. */
-export function stallSpeed(bank = 0, cfg = tuning) {
+export function stallSpeed(bank = 0, cfg = GLIDER_DEFAULTS) {
   const clMax = liftCoefficient(cfg.stallAlpha, cfg);
   const load = 1 / Math.max(0.5, Math.cos(bank));
   return Math.sqrt(2 * weight(cfg) * load / (cfg.airDensity * cfg.wingArea * clMax));
 }
+/**
+ * The feel was tuned on GLIDER_DEFAULTS; the speeds at which its helpers come in (fine bar control at skimming speed, the ground
+ * cushion, the field's settle, the skim assist's fade) scale with a wing's stall speed against that wing's, so a slower wing
+ * feels the same at the same share of its own speed range.
+ */
+const REFERENCE_STALL = stallSpeed(0, GLIDER_DEFAULTS);
 /** The angle of attack that carries the weight at this airspeed and bank (capped at the stall). */
 function alphaForLevel(speed, bank, cfg) {
   const q = 0.5 * cfg.airDensity * Math.max(1, speed) * Math.max(1, speed);
@@ -203,7 +197,7 @@ function barAlpha(bar, cfg) {
   return bar < 0 ? cfg.alphaTrim - smoothstep(0, 0.9, -bar) * (cfg.alphaTrim - cfg.alphaMin) : cfg.alphaTrim + Math.pow(bar, cfg.outCurve) * (cfg.alphaMax - cfg.alphaTrim);
 }
 /** Trim airspeed for a bar position (-1 full in .. +1 full out): the speed at which the bar's angle carries the weight. */
-export function barTargetSpeed(bar = 0, bank = 0, cfg = tuning) {
+export function barTargetSpeed(bar = 0, bank = 0, cfg = GLIDER_DEFAULTS) {
   const alpha = barAlpha(clamp(finite(bar), -1, 1), cfg);
   const cl = Math.max(0.05, liftCoefficient(Math.min(alpha, cfg.stallAlpha), cfg));
   return Math.sqrt(2 * weight(cfg) / (cfg.airDensity * cfg.wingArea * cl * Math.max(0.5, Math.cos(bank))));
@@ -212,7 +206,7 @@ export function barTargetSpeed(bar = 0, bank = 0, cfg = tuning) {
  * Still-air sink (m/s, positive down) of the steady glide at an airspeed and bank: the wing trimmed to carry the
  * weight at that speed. Below the banked stall speed the wing cannot, and the sink rises steeply.
  */
-export function sinkPolar(airspeed, bank = 0, cfg = tuning) {
+export function sinkPolar(airspeed, bank = 0, cfg = GLIDER_DEFAULTS) {
   const v = Math.max(1, airspeed), load = 1 / Math.max(0.5, Math.cos(bank));
   const q = 0.5 * cfg.airDensity * v * v, clNeeded = weight(cfg) * load / (q * cfg.wingArea);
   const clMax = liftCoefficient(cfg.stallAlpha, cfg);
@@ -225,14 +219,36 @@ export function sinkPolar(airspeed, bank = 0, cfg = tuning) {
   return v * Math.sin(gamma) + shortfall * 6;
 }
 /** Steady still-air glide angle (negative = descending) at an airspeed and bank. */
-export function glidePathAngle(airspeed, bank = 0, cfg = tuning) {
+export function glidePathAngle(airspeed, bank = 0, cfg = GLIDER_DEFAULTS) {
   const v = Math.max(1, airspeed);
   return -Math.asin(clamp(sinkPolar(v, bank, cfg) / v, 0, 0.99));
 }
 
-/** Initial airborne state; set x/y/z/heading to the chosen launch location. */
-export function createSoaringState(overrides = {}) {
-  const cfg = tuning;
+/**
+ * The angle of attack the wing pitches toward at this bar position and airspeed: the bar's own angle plus the pendulum's static
+ * speed stability (fast: the nose comes up; slow: it goes down). The pilot holding the bar in or out overrides most of that
+ * trimming. Before the flight's load cap, pitch damping and assists; the wing reaches it through the pitch lag.
+ */
+export function pitchTrimAlpha(bar, airspeed, cfg = GLIDER_DEFAULTS) {
+  return barAlpha(bar, cfg) + cfg.speedStability * (airspeed - barTargetSpeed(bar, 0, cfg)) * (1 - smoothstep(0, 0.5, Math.abs(bar)));
+}
+
+/**
+ * How fast the wing pitches (rad/s of angle of attack, + nose up) from alpha toward alphaTarget: through the pitch lag and its
+ * rate limit. A luffing sail (below luffAlpha) loses luffLoss of its nose-up recovery and has its trim moved down by luffTuck.
+ */
+export function pitchRate(alpha, alphaTarget, cfg = GLIDER_DEFAULTS) {
+  if (!(cfg.luffLoss > 0) && !(cfg.luffTuck > 0)) return clamp((alphaTarget - alpha) / cfg.pitchTau, -cfg.pitchRateMax, cfg.pitchRateMax);
+  const luffing = smoothstep(cfg.luffAlpha, cfg.luffAlpha - 4 * DEG, alpha);
+  const rate = clamp((alphaTarget - finite(cfg.luffTuck) * luffing - alpha) / cfg.pitchTau, -cfg.pitchRateMax, cfg.pitchRateMax);
+  return rate > 0 ? rate * (1 - cfg.luffLoss * luffing) : rate;
+}
+
+/**
+ * A flight state: where the glider is and how it is flying. init sets any field (x, y, z, heading, airspeed, pathAngle, ...);
+ * airspeed defaults to the trim speed and pathAngle to its steady glide.
+ */
+export function createFlightState(overrides = {}, cfg = GLIDER_DEFAULTS) {
   const speed = finite(overrides.airspeed, barTargetSpeed(0, 0, cfg));
   const path = finite(overrides.pathAngle, glidePathAngle(speed, 0, cfg));
   const alpha = alphaForLevel(speed, 0, cfg);
@@ -248,151 +264,19 @@ export function createSoaringState(overrides = {}) {
     skimAssist: 0, skimBlend: 0, skimProtect: 0, pullUp: false, pullUpReason: '', pullUpTurn: 0, pullUpLead: 0,
     groundEffect: 0, landing: 0, autoFlare: 0, flare: 0, floatWeight: 0, energyExchange: 0,
     flarePressed: false, flareFeet: NaN, flareRatio: NaN, flareBalloon: 0, flareLow: Infinity, flareHigh: -Infinity, flareStallFeet: NaN,
-    headingRate: 0, upright: 0,
+    headingRate: 0, upright: 0, groundClosing: 0,
   }, overrides);
 }
 
-function terrainAt(environment, x, z) {
-  return environment.terrainHeight ? finite(environment.terrainHeight(x, z)) : 0;
-}
-
 /**
- * Sample vertical air motion. Thermals stay anchored to authored locations so
- * scene cues match the usable lift. Horizontal wind advects the glider.
+ * Advances a flight state by dt seconds through world (createWorld). Mutates and returns state.
+ * input: roll -1 (left) .. +1 (right) weight shift; pitch, the bar, -1 (pulled in: dive) .. +1 (pushed out: slow, flare);
+ * stand, the pilot sitting up (drag, for a slow landing); field, true when low over ground that can be landed on (a hands-off
+ * final settles onto it). assist: null, or the terrain-skimming assist's options { clearance: m or (state) => m }.
+ * A long frame is capped at maxFrameTime and divided into steps of at most maxStep; call repeatedly for offline simulation.
  */
-export function sampleSoaringAir(x, y, z, environment = {}) {
-  const cfg = tuning;
-  const windX = finite(environment.wind?.x);
-  const windZ = finite(environment.wind?.z);
-  const groundHeight = terrainAt(environment, x, z);
-  const aboveGround = Math.max(0, y - groundHeight);
-  const thermalCeiling = finite(environment.thermalCeiling, cfg.thermalCeiling);
-  const thermalFadeStart = Math.min(thermalCeiling - 1,
-    finite(environment.thermalFadeStart, Math.min(cfg.thermalFadeStart, thermalCeiling - 500)));
-  let thermalLift = 0;
-  for (const thermal of environment.thermals || []) {
-    if (!Number.isFinite(thermal.x) || !Number.isFinite(thermal.z)) continue;
-    const radius = Math.max(20, finite(thermal.radius, 180));
-    const strength = clamp(finite(thermal.strength), 0, cfg.maxThermalLift);
-    const dx = x - thermal.x;
-    const dz = z - thermal.z;
-    thermalLift += strength * Math.exp(-(dx * dx + dz * dz) / (2 * radius * radius));
-  }
-  thermalLift = Math.min(cfg.maxThermalLift, thermalLift)
-    * (1 - smoothstep(thermalFadeStart, thermalCeiling, y))
-    * (0.12 + 0.88 * smoothstep(15, 180, aboveGround));
-
-  let ridgeLift = 0;
-  if (environment.terrainHeight && (windX !== 0 || windZ !== 0)) {
-    const distance = cfg.gradientSample;
-    const gradientX = (terrainAt(environment, x + distance, z)
-      - terrainAt(environment, x - distance, z)) / (2 * distance);
-    const gradientZ = (terrainAt(environment, x, z + distance)
-      - terrainAt(environment, x, z - distance)) / (2 * distance);
-    // Wind is the direction the air travels toward, so uphill flow is positive.
-    const slopeFlow = (windX * gradientX + windZ * gradientZ) / Math.sqrt(1 + gradientX * gradientX + gradientZ * gradientZ);
-    const shear = Math.pow(clamp(aboveGround / cfg.ridgeShearHeight, .02, 1), cfg.ridgeShearExp);
-    ridgeLift = clamp(slopeFlow > 0 ? slopeFlow : slopeFlow * cfg.leeSink, -cfg.maxRidgeLift, cfg.maxRidgeLift)
-      * shear * Math.exp(-aboveGround / cfg.ridgeDecayHeight);
-  }
-  return { thermalLift, ridgeLift, lift: thermalLift + ridgeLift,
-    windX, windZ, groundHeight, aboveGround };
-}
-
-/**
- * Touchdown judgement. verticalSpeed: speed into the ground (m/s, positive down; pass the contact speed on a slope),
- * groundSpeed: horizontal speed over the ground. Returns 'soft', 'firm', 'rough' or 'crash'.
- */
-export function judgeTouchdown({ verticalSpeed = 0, groundSpeed = 0, slope = 0, bank = 0, tailwind = 0 } = {}) {
-  const cfg = tuning;
-  const vertical = Math.max(0, finite(verticalSpeed)), ground = Math.abs(finite(groundSpeed));
-  if (!(finite(slope, 1) < cfg.maxTouchdownSlope) || Math.abs(finite(bank)) > cfg.maxTouchdownBank) return 'crash';
-  const tail = finite(tailwind);
-  if (tail > cfg.tailwindFree && (vertical >= cfg.softTouchdown.vertical || ground - tail >= cfg.tailwindAirspeed - cfg.tailwindSlope * (tail - cfg.tailwindFree))) return 'crash';
-  if (vertical < cfg.softTouchdown.vertical && ground < cfg.softTouchdown.ground) return 'soft';
-  if (vertical < cfg.firmTouchdown.vertical && ground < cfg.firmTouchdown.ground) return 'firm';
-  if (vertical < cfg.roughTouchdown.vertical && ground < cfg.roughTouchdown.ground) return 'rough';
-  return 'crash';
-}
-
-/**
- * Ground contact too fast to land, but light and wings level: skips the wing off the ground and takes speed for it.
- * contact: { verticalSpeed (into the ground), groundSpeed, slope, bank }. Returns true when it scraped; the caller then keeps flying.
- */
-export function scrapeGround(state, contact, groundHeight) {
-  const cfg = tuning, sink = Math.max(0, finite(contact.verticalSpeed));
-  if (!(sink < cfg.scrapeSink) || Math.abs(finite(contact.groundSpeed)) < cfg.roughTouchdown.ground || !(finite(contact.slope, 1) < cfg.maxTouchdownSlope) || Math.abs(finite(contact.bank)) > cfg.maxTouchdownBank) return false;
-  state.airspeed = Math.max(cfg.roughTouchdown.ground * 0.9, state.airspeed - (0.5 + sink * 1.5));
-  const up = Math.max(0.3, sink * 0.3);
-  state.pathAngle = Math.asin(clamp(up / state.airspeed, 0, 0.3));
-  state.verticalSpeed = up; state.y = groundHeight + cfg.footHeight + 0.02;
-  return true;
-}
-
-/**
- * Landing score for the HUD (every term is something a real pilot plans for).
- * touchdown: { verticalSpeed, groundSpeed, slope, bank } as for judgeTouchdown, plus heading (rad), airspeed, the
- * wind {x, z} at touchdown and flare { pressed, feet, ratio, balloon } (the state's flare bookkeeping); target:
- * { x, z, radius } of the landing mark (optional) with the touchdown position { x, z }.
- * Returns { judged, points, headwind, tailwind, windSpeed, distance, ring, stars, notes, noStep }.
- */
-export function scoreLanding(touchdown = {}, target = null) {
-  const cfg = tuning, pts = cfg.landingPoints;
-  const windX = finite(touchdown.wind?.x), windZ = finite(touchdown.wind?.z), windSpeed = Math.hypot(windX, windZ);
-  const heading = finite(touchdown.heading);
-  // Wind is the direction the air travels toward: a headwind blows against the heading.
-  const headwind = -(Math.sin(heading) * windX + Math.cos(heading) * windZ);
-  const judged = judgeTouchdown({ ...touchdown, tailwind: -headwind });
-  const notes = [];
-  let points = pts[judged] || 0;
-  if (judged === 'soft') notes.push('Soft touchdown');
-  else if (judged === 'firm') notes.push('Firm touchdown');
-  else if (judged === 'rough') notes.push('Rough touchdown');
-  let windPoints = 0;
-  if (windSpeed > 1.5 && judged !== 'crash') {
-    const share = clamp(headwind / windSpeed, -1, 1);
-    windPoints = Math.round(pts.headwind * clamp(share / 0.7, 0, 1));
-    if (share >= 0.7) notes.push('Into wind');
-    else if (share > 0.25) notes.push('Crosswind');
-    else if (share < -0.33) notes.push('Downwind');
-    else notes.push('Across the wind');
-  }
-  points += windPoints;
-  // The flare: a no-stepper is the prize; a balloon, a late flare or no flare at all is named so it can be learned.
-  const vertical = Math.max(0, finite(touchdown.verticalSpeed)), ground = Math.abs(finite(touchdown.groundSpeed));
-  let noStep = false;
-  if (judged === 'soft' && vertical < cfg.noStepTouchdown.vertical && ground < cfg.noStepTouchdown.ground) { noStep = true; points += pts.noStep; notes.push('No-stepper'); }
-  const flare = touchdown.flare;
-  if (flare && judged !== 'crash') {
-    if (flare.balloon > 0.5) notes.push('Flared too early');
-    else if (flare.pressed && finite(flare.feet, 9) < 0.45) notes.push(finite(flare.ratio, 1) > 1.5 ? 'Too fast to flare' : 'Flared late');
-    else if (!flare.pressed && !noStep) notes.push('No flare');
-  }
-  let distance = null, ring = null;
-  if (target && Number.isFinite(target.x) && Number.isFinite(target.z) && Number.isFinite(touchdown.x) && Number.isFinite(touchdown.z)) {
-    distance = Math.hypot(touchdown.x - target.x, touchdown.z - target.z);
-    const radius = finite(target.radius, 60);
-    if (judged !== 'crash') {
-      if (distance <= cfg.bullseyeRadius) { ring = 'bullseye'; points += pts.bullseye; notes.push('Bullseye'); }
-      else if (distance <= cfg.innerRingRadius) { ring = 'inner'; points += pts.inner; notes.push('On the mark'); }
-      else if (distance <= cfg.outerRingRadius) { ring = 'outer'; points += pts.outer; notes.push('Near the mark'); }
-      else if (distance <= radius) { ring = 'pad'; points += pts.pad; }
-    }
-  }
-  const best = pts.soft + pts.headwind + pts.bullseye + pts.noStep;
-  const stars = judged === 'crash' ? 0 : points >= best * 0.85 ? 3 : points >= best * 0.5 ? 2 : 1;
-  return { judged, points, headwind, tailwind: -headwind, windSpeed, distance, ring, stars, notes, noStep };
-}
-
-/**
- * Mutates and returns state.
- * input.roll: A/left=-1, D/right=+1. input.pitch (bar): W/in=-1, S/out=+1. input.landable and input.ground are
- * accepted for compatibility (the landing is pure physics now). environment: { terrainHeight(x,z),
- * thermals:[{x,z,radius,strength}], wind:{x,z}, terrainSkimming, skimHeight(x,z), skimClearance }.
- * A long frame is capped at 0.25 seconds; call repeatedly for offline simulation.
- */
-export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
-  const cfg = tuning, g = cfg.gravity, W = weight(cfg), m = cfg.mass;
+export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAULTS, assist = null) {
+  const g = cfg.gravity, W = weight(cfg), m = cfg.mass;
   if (!Number.isFinite(dt) || dt <= 0) return state;
   for (const key of ['x', 'y', 'z', 'heading', 'bank', 'bankRate', 'pitch', 'pitchRate', 'pathRate', 'bar',
     'skimAssist', 'skimBlend', 'skimProtect', 'flareBalloon']) state[key] = finite(state[key]);
@@ -402,16 +286,16 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
   const rollInput = clamp(finite(input.roll), -1, 1);
   const pitchInput = clamp(finite(input.pitch), -1, 1);
   const bankWanted = Math.sign(rollInput) * Math.pow(Math.abs(rollInput), 1.65) * cfg.maxBank;
-  const surfaceAt = environment.skimHeight || environment.terrainHeight;
   const duration = Math.min(dt, cfg.maxFrameTime);
   const count = Math.ceil(duration / cfg.maxStep);
   const step = duration / count;
   let totalVertical = 0;
   const clMax = liftCoefficient(cfg.stallAlpha, cfg);
+  const ks = stallSpeed(0, cfg) / REFERENCE_STALL;   // (the feel's speed thresholds, scaled to this wing)
 
   for (let index = 0; index < count; index++) {
     // The bar: pulled in quickly, pushed out deliberately, released back to neutral.
-    const fineControl = (environment.terrainSkimming ? 0 : 1) * (1 - smoothstep(6, 12, finite(state.lastFeet, 99))) * smoothstep(18, 24, state.airspeed) * (1 - smoothstep(6 * DEG, 14 * DEG, Math.abs(state.pathAngle)));
+    const fineControl = (assist ? 0 : 1) * (1 - smoothstep(6, 12, finite(state.lastFeet, 99))) * smoothstep(18 * ks, 24 * ks, state.airspeed) * (1 - smoothstep(6 * DEG, 14 * DEG, Math.abs(state.pathAngle)));
     const barInput = pitchInput + (Math.sign(pitchInput) * pitchInput * pitchInput - pitchInput) * fineControl;
     const away = Math.abs(barInput) > Math.abs(state.bar) && barInput * state.bar >= 0;
     const pressure = Math.min(cfg.barPressureMax, Math.pow(Math.max(1, state.airspeed / stallSpeed(0, cfg)), cfg.barPressureExp));
@@ -422,10 +306,12 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
     const bar = state.bar;
 
     const v = state.airspeed, gamma = state.pathAngle, bank = state.bank;
-    const air = sampleSoaringAir(state.x, state.y, state.z, environment);
-    const surface = surfaceAt ? Math.max(air.groundHeight, finite(surfaceAt(state.x, state.z), air.groundHeight))
-      : air.groundHeight;
+    const air = world.airAt(state.x, state.y, state.z);
+    const surface = Math.max(air.groundHeight, world.surfaceAt(state.x, state.z));
     const clearance = state.y - surface, feet = clearance - cfg.footHeight;
+    // How fast the ground comes up to the feet (m/s, + closing), smoothed: a landing approach closes on the ground, a take-off
+    // climbs away from it.
+    if (Number.isFinite(state.lastFeet)) state.groundClosing = finite(state.groundClosing) + ((state.lastFeet - feet) / step - finite(state.groundClosing)) * (1 - Math.exp(-step / 0.25));
     state.lastFeet = feet;
     const q = 0.5 * cfg.airDensity * v * v, qS = q * cfg.wingArea;
     const stall = stallSpeed(bank, cfg);
@@ -433,12 +319,10 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
     state.stallRatio = v / stall;
 
     // What the bar asks for, with the pendulum's speed stability, and what the bar pressure allows at this speed.
-    const trimSpeed = barTargetSpeed(bar, 0, cfg);
-    // (the pilot holding the bar in or out overrides most of the pendulum's own trimming)
-    let alphaTarget = barAlpha(bar, cfg) + cfg.speedStability * (v - trimSpeed) * (1 - smoothstep(0, 0.5, Math.abs(bar)));
+    let alphaTarget = pitchTrimAlpha(bar, v, cfg);
     // (the bar held in holds the dive: the pendulum's trimming only acts on a free bar)
     // (the free bar's pull fades as the nose rises, so a recovery zooms and flows on instead of hanging; S still climbs)
-    const fieldShift = input.ground ? cfg.fieldSettle * DEG * (1 - 0.5 * smoothstep(18, 24, v)) * (1 - smoothstep(0, 0.1, bar)) : 0;   // (hands off only: S flares as it always did)
+    const fieldShift = input.field ? cfg.fieldSettle * DEG * (1 - 0.5 * smoothstep(18 * ks, 24 * ks, v)) * (1 - smoothstep(0, 0.1, bar)) : 0;   // (hands off only: S flares as it always did)
     const zoomFade = smoothstep(cfg.zoomFadeStart * DEG + fieldShift, cfg.zoomFadeEnd * DEG + fieldShift, gamma);
     const freePull = cfg.freeLoad + (Math.cos(gamma) - cfg.zoomPushOver - cfg.freeLoad) * zoomFade;
     const speedRatio = v / stallSpeed(0, cfg), pushPull0 = Math.min(cfg.loadLimit, 1 + cfg.pitchAuthority * speedRatio * speedRatio),
@@ -459,17 +343,16 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
     // Terrain skimming (W held fast and low): the assist asks for a flight-path angle; the pilot flies it with the
     // bar, never past the stall and never beyond the pull the bar allows.
     let frequencyBoost = 0;
-    if (environment.terrainSkimming) {
+    if (assist) {
       const barIntent = pitchInput > 0.2 ? Math.max(bar, 0.6) : bar;
       const slow = smoothstep(1.7, 1.25, v / stall);
-      const requested = typeof environment.skimClearance === 'function' ? environment.skimClearance(state) : environment.skimClearance;
+      const requested = typeof assist.clearance === 'function' ? assist.clearance(state) : assist.clearance;
       const base = Number.isFinite(requested) ? requested : 6.5;
-      const skimEnvironment = slow > 0 ? { ...environment, skimClearance: base + (3.8 - base) * slow } : environment;
       const skim = skimGuidance(state, { v, gamma, heading: state.heading, headingRate: finite(state.headingRate),
         windX: air.windX, windZ: air.windZ, lift: air.lift, bar: barIntent, command: gamma, surface, dt: step,
         pullAccel: (Math.min(cfg.loadLimit, 2.2) - 1) * g, hardPullAccel: (Math.min(cfg.loadLimit, 2.6) - 1) * g,
-        maxClimb: 30 * DEG, maxDive: 45 * DEG, stallSpeed: stall }, skimEnvironment);
-      const weightOn = Math.max(clamp(state.skimBlend, 0, 1), clamp(state.skimProtect, 0, 1)) * (input.ground ? smoothstep(cfg.skimFadeSpeed, cfg.skimFullSpeed, v) : 1);
+        maxClimb: 30 * DEG, maxDive: 45 * DEG, stallSpeed: stall }, { surfaceAt: world.surfaceAt, clearance: slow > 0 ? base + (3.8 - base) * slow : requested });
+      const weightOn = Math.max(clamp(state.skimBlend, 0, 1), clamp(state.skimProtect, 0, 1)) * (input.field ? smoothstep(cfg.skimFadeSpeed * ks, cfg.skimFullSpeed * ks, v) : 1);
       // (the look-ahead command moves as the heading does; it is smoothed over a quarter second before it is flown)
       state.skimCommand = Number.isFinite(state.skimCommand) ? state.skimCommand + (skim.command - state.skimCommand) * (1 - Math.exp(-step / 0.25)) : skim.command;
       if (weightOn > 0.001) {
@@ -490,7 +373,7 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
     state.alphaTarget = alphaTarget;
 
     // Pitch: the wing follows the bar through a lag and a rate limit.
-    const alphaRate = clamp((alphaTarget - state.alpha) / cfg.pitchTau, -cfg.pitchRateMax, cfg.pitchRateMax) * (1 + frequencyBoost * 0.3);
+    const alphaRate = pitchRate(state.alpha, alphaTarget, cfg) * (1 + frequencyBoost * 0.3);
     state.alpha = clamp(state.alpha + alphaRate * step, cfg.alphaMin - 2 * DEG, cfg.alphaMax + 5 * DEG);
     const alpha = state.alpha;
 
@@ -504,7 +387,7 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
     state.groundEffect = 1 - sigma;
     state.alphaRateSmooth = finite(state.alphaRateSmooth) + (Math.max(0, alphaRate) - finite(state.alphaRateSmooth)) * (1 - Math.exp(-step / 0.15));
     const CL = liftCoefficient(alpha, cfg) + cfg.dynamicLift * cfg.chord * state.alphaRateSmooth / Math.max(v, 3), CD = dragCoefficient(alpha, sigma, cfg) + cfg.uprightDrag * Math.max(clamp(finite(state.upright), 0, 1) * clamp(bar, 0, 1), Math.min(clamp(finite(state.upright), 0, 1), cfg.finalUpright), state.standing ? clamp(finite(state.upright), 0, 1) * cfg.standDrag : 0);
-    const L = qS * CL + m * cfg.groundCushion * smoothstep(15, 25, v) * (1 - sigma) * Math.max(0, -v * Math.sin(gamma)), D = qS * CD;
+    const L = qS * CL + m * cfg.groundCushion * smoothstep(15 * ks, 25 * ks, v) * (1 - sigma) * Math.max(0, -v * Math.sin(gamma)), D = qS * CD;
     const n = L / W;
     state.loadFactor = n;
     const accel = -D / m - g * Math.sin(gamma);
@@ -517,10 +400,18 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
     // Roll: weight shift toward the wanted bank, rate limited, with authority growing with airspeed.
     const stallBlend = smoothstep(cfg.stallAlpha - 2 * DEG, cfg.stallAlpha + 4 * DEG, alpha);
     const authority = clamp(v / barTargetSpeed(0, 0, cfg), cfg.rollAuthority[0], cfg.rollAuthority[1]) * (1 - (1 - cfg.stallRollFactor) * stallBlend) * (1 - (1 - cfg.uprightRoll) * clamp(finite(state.upright), 0, 1));
-    const bankShare = cfg.slowBank + (1 - cfg.slowBank) * smoothstep(0.95, 1.3, v / stallSpeed(0, cfg)), bankTarget = bankWanted * bankShare;
+    const bankShare = cfg.slowBank + (1 - cfg.slowBank) * smoothstep(0.95, 1.3, v / stallSpeed(0, cfg));
+    const bankTarget = bankWanted * bankShare;
     const w0 = cfg.rollFrequency * authority, rollError = bank - bankTarget, rollDecay = Math.exp(-w0 * step), rollSpring = (state.bankRate + w0 * rollError) * step;
     state.bank = clamp(bankTarget + (rollError + rollSpring) * rollDecay, -cfg.maxBank, cfg.maxBank);
     state.bankRate = (state.bankRate - w0 * rollSpring) * rollDecay;
+    // The air's own roll: a falling lift curve (past a sharp stall) turns the tips' damping round, and the air's eddies give it a start.
+    if (cfg.rollDamping > 0 || cfg.airRoughness > 0) {
+      const trimV = barTargetSpeed(0, 0, cfg), da = 0.5 * DEG;
+      const falling = Math.max(0, -(liftCoefficient(alpha + da, cfg) - liftCoefficient(alpha - da, cfg)) / (2 * da) / cfg.liftSlope);
+      const eddy = Math.sin(state.x * 0.091 + state.z * 0.047 + 1.3) * Math.sin(state.x * 0.023 - state.z * 0.067 + 0.4) + 0.5 * Math.sin(state.x * 0.17 - state.z * 0.13 + 2.1);
+      state.bankRate += (cfg.rollDamping * falling * (v / trimV) * state.bankRate + cfg.airRoughness * Math.min(1.5, v / trimV) * eddy) * step;
+    }
 
     // Integrate speed and path (semi-implicit on the mean speed for an exact energy book).
     let nextSpeed = v + accel * step;
@@ -564,10 +455,12 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
       // Ballooned: climbed well above where the push-out began, or stalled while still high up.
       state.flareBalloon = state.flareHigh - finite(state.flareFeet) > 1.8 || finite(state.flareStallFeet, 0) > 2.2 ? 1 : 0;
     }
-    // The pilot goes upright as the bar comes out low, and stays upright once there (the landing).
-    const onFinal = input.ground && feet < cfg.uprightHeight && v < 1.7 * stall && bar > -0.1 ? cfg.finalUpright : 0;
+    // The pilot goes upright as the bar comes out low with the ground coming up (the landing), and stays upright once there, through
+    // a balloon too. Climbing away from the ground (a take-off with the bar still out from the run) the pilot stays prone.
+    const closing = finite(state.groundClosing), approaching = closing > 0.2 || state.upright > 0.5;
+    const onFinal = input.field && feet < cfg.uprightHeight && v < 1.7 * stall && bar > -0.1 && closing > -0.2 ? cfg.finalUpright : 0;
     state.standing = !!input.stand;   // (the pilot sitting up by choice, anywhere: Space)
-    const wantUpright = state.standing ? 1 : feet < cfg.uprightHeight && bar > 0.15 && v < 1.7 * stall ? 1 : feet < 3 && state.upright > 0.5 ? 1 : onFinal;   // (not in a fast pull-out)
+    const wantUpright = state.standing ? 1 : feet < cfg.uprightHeight && bar > 0.15 && v < 1.7 * stall && approaching ? 1 : feet < 3 && state.upright > 0.5 ? 1 : onFinal;   // (not in a fast pull-out)
     state.upright = clamp(finite(state.upright) + (wantUpright - finite(state.upright)) * (1 - Math.exp(-step / 0.4)), 0, 1);
     // Presentation: how far the bar is pushed out past trim (the HUD's "flare" cue) and the drawn nose.
     state.flare = clamp((alpha - cfg.alphaTrim) / (cfg.alphaMax - cfg.alphaTrim), 0, 1);
@@ -580,3 +473,57 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
   state.verticalSpeed = totalVertical / duration;
   return state;
 }
+
+/** The glider's performance for a config: its polar and the speeds that matter, as plain functions. */
+export function performance(cfg = GLIDER_DEFAULTS) {
+  return Object.freeze({
+    /** Stall speed, m/s, level or in a bank (rad). */
+    stallSpeed: (bank = 0) => stallSpeed(bank, cfg),
+    /** Trim airspeed, m/s, for a bar position (-1 in .. +1 out). */
+    trimSpeed: (bar = 0, bank = 0) => barTargetSpeed(bar, bank, cfg),
+    /** Still-air sink, m/s (positive down), of the steady glide at an airspeed. */
+    sink: (airspeed, bank = 0) => sinkPolar(airspeed, bank, cfg),
+    /** Steady still-air glide angle, rad (negative descending). */
+    glideAngle: (airspeed, bank = 0) => glidePathAngle(airspeed, bank, cfg),
+    /** Glide ratio (distance per height) in still air at an airspeed. */
+    glideRatio: (airspeed, bank = 0) => Math.max(1, airspeed) / sinkPolar(airspeed, bank, cfg),
+    /** The airspeed at which this angle of attack carries the weight in steady, level-winged flight (Infinity at zero lift). */
+    steadySpeed: alpha => { const cl = liftCoefficient(alpha, cfg); return cl > 0 ? Math.sqrt(2 * weight(cfg) / (cfg.airDensity * cfg.wingArea * cl)) : Infinity; },
+    /**
+     * Static pitch stability: how fast (rad/s, + nose up) the wing pitches back toward its trim when it sits at this angle of
+     * attack at the steady speed for it, with the bar held at bar. Zero at the trim; the steeper it falls through zero, the
+     * stiffer the wing holds its trim.
+     */
+    pitchResponse: (alpha, bar = 0) => {
+      const cl = liftCoefficient(alpha, cfg), v = cl > 0 ? Math.sqrt(2 * weight(cfg) / (cfg.airDensity * cfg.wingArea * cl)) : 60;
+      return pitchRate(alpha, pitchTrimAlpha(bar, Math.min(v, 60), cfg), cfg);
+    },
+    liftCoefficient: alpha => liftCoefficient(alpha, cfg),
+    dragCoefficient: (alpha, sigma = 1) => dragCoefficient(alpha, sigma, cfg),
+  });
+}
+
+/**
+ * Ground contact too fast to land, but light and wings level: skips the wing off the ground and takes speed for it.
+ * contact: { verticalSpeed (into the ground), groundSpeed, slope, bank }; rules: LANDING_RULES or a variant of them.
+ * Returns true when it scraped; the flight then carries on.
+ */
+export function scrapeGround(state, contact, groundHeight, rules = LANDING_RULES, cfg = GLIDER_DEFAULTS) {
+  const sink = Math.max(0, finite(contact.verticalSpeed));
+  if (!(sink < cfg.scrapeSink) || Math.abs(finite(contact.groundSpeed)) < rules.roughTouchdown.ground || !(finite(contact.slope, 1) < rules.maxTouchdownSlope) || Math.abs(finite(contact.bank)) > rules.maxTouchdownBank) return false;
+  state.airspeed = Math.max(rules.roughTouchdown.ground * 0.9, state.airspeed - (0.5 + sink * 1.5));
+  const up = Math.max(0.3, sink * 0.3);
+  state.pathAngle = Math.asin(clamp(up / state.airspeed, 0, 0.3));
+  state.verticalSpeed = up; state.y = groundHeight + cfg.footHeight + 0.02;
+  return true;
+}
+
+/** The force model, as a flight model for createGlider (see models.js for the interface). */
+export const forceModel = Object.freeze({
+  name: 'force',
+  defaults: GLIDER_DEFAULTS,
+  createState: createFlightState,
+  step: stepFlight,
+  performance,
+  scrape: scrapeGround,
+});

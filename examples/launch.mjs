@@ -1,16 +1,21 @@
-// An easy launch down a 15% slope into a 4 m/s breeze: pick the wing up, balance it, run, and fly away on the same physics.
+// An easy launch down a 15% slope, which drops away after 40 m, into a 4 m/s breeze: pick the wing up, balance it, run, and fly away on the same physics.
 // node examples/launch.mjs
-import { createLaunch, stepLaunch, windOnRun, stepSoaring } from '../src/index.js';
+import { createWorld, createGlider } from '../src/index.js';
 
-const air = windOnRun({ x: 0, z: -4 }, 0);   // the wind as the run meets it: headwind and crosswind
-const launch = createLaunch();
+const world = createWorld({ terrain: (x, z) => (z < 40 ? -0.15 * z : -200), wind: { x: 0, z: -4 } });
+const glider = createGlider({ world });
+// A launch site: how steeply the ground falls along the run, and how far ahead it ends.
+const site = { fall: () => 0.15, edgeAhead: (x, z) => 40 - z };
+
+const launch = glider.launch({ site });
 let t = 0, last = '';
 while (!launch.airborne && !launch.failed && t < 20) {
-  stepLaunch(launch, 1 / 60, { ...air, slope: .15, edgeAhead: 40 - launch.distance });
+  launch.step(1 / 60);
   if (launch.phase !== last) { console.log(`${t.toFixed(2)} s  ${launch.phase}`); last = launch.phase; }
   t += 1 / 60;
 }
-console.log(`${t.toFixed(2)} s  off the ground (${launch.reason}) after ${launch.distance.toFixed(1)} m at ${launch.airspeed.toFixed(1)} m/s airspeed`);
-const flight = launch.flight;   // the flight carries on from the very state the run was stepping
-for (let i = 0; i < 180; i++) stepSoaring(flight, {}, 1 / 60, { terrainHeight: () => -1e3, wind: { x: 0, z: -4 }, thermals: [] });
-console.log(`3 s later: ${(flight.airspeed * 3.6).toFixed(0)} km/h, sinking ${(-flight.verticalSpeed).toFixed(2)} m/s`);
+console.log(`${t.toFixed(2)} s  off the ground (${launch.reason}) after ${launch.state.distance.toFixed(1)} m at ${launch.state.airspeed.toFixed(1)} m/s airspeed`);
+
+// The flight carries on from the very state the run was stepping.
+for (let i = 0; i < 300; i++) glider.step(1 / 60, { pitch: i < 60 ? launch.barHold : 0 });
+console.log(`5 s later: ${(glider.state.airspeed * 3.6).toFixed(0)} km/h, ${glider.state.z.toFixed(0)} m out, ${glider.height().toFixed(0)} m over the ground`);

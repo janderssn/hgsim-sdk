@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
-import {createSoaringState, stepSoaring, sinkPolar, sampleSoaringAir, glidePathAngle, barTargetSpeed, judgeTouchdown,
-  scoreLanding, stallSpeed, liftCoefficient, dragCoefficient, groundEffectFactor, SOARING_DEFAULTS as cfg} from '../src/flight.js';
+import {createFlightState as createSoaringState, sinkPolar, glidePathAngle, barTargetSpeed, stallSpeed, liftCoefficient, dragCoefficient, groundEffectFactor,
+  GLIDER_DEFAULTS as cfg} from '../src/flight.js';
+import {judgeTouchdown, scoreLanding} from '../src/landing.js';
+import {AIR_DEFAULTS as air} from '../src/world.js';
+import {stepSoaring, sampleAir as sampleSoaringAir} from './support.mjs';
 const still = {terrainHeight:()=>0, thermals:[], wind:{x:0,z:0}};
 const flat = {...still, terrainSkimming:true, skimHeight:()=>0};
 const simulate = (state, seconds, input, environment=still, fps=60) => {
@@ -134,8 +137,8 @@ test('wind advects ground motion without changing trimmed airspeed',()=>{
 });
 test('thermals fade at altitude ceiling and bank adds sink at trim',()=>{
   const env={thermals:[{x:0,z:0,radius:200,strength:7}]};
-  assert.equal(sampleSoaringAir(0,cfg.thermalCeiling,0,env).thermalLift,0);
-  assert.ok(sampleSoaringAir(0,(cfg.thermalFadeStart+cfg.thermalCeiling)/2,0,env).thermalLift<7);
+  assert.equal(sampleSoaringAir(0,air.thermalCeiling,0,env).thermalLift,0);
+  assert.ok(sampleSoaringAir(0,(air.thermalFadeStart+air.thermalCeiling)/2,0,env).thermalLift<7);
   assert.ok(sinkPolar(16,cfg.maxBank)>sinkPolar(16,0));
 });
 test('compact worlds can lower thermal ceiling without changing default lift',()=>{

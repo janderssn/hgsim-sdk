@@ -1,6 +1,6 @@
 /**
- * Live wind for Above. The wind vector (x, z) is the direction the air travels toward, in m/s, the convention of
- * flight.js (sampleSoaringAir adds it to ground motion; ridge lift reads it against the slope).
+ * Live wind. The wind vector (x, z) is the direction the air travels toward, in m/s, the convention of
+ * hgsim (World.airAt reads it; pass the object as createWorld({ wind }) and update it each frame).
  * A real day's wind is never a constant: the mean meanders in strength (about ±25%) and direction (about ±18°)
  * over a couple of minutes, with lighter gusts on top. Windsocks, streamers and the landing score read the same
  * object, so what the sock shows is what the wing feels.

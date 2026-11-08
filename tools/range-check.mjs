@@ -28,11 +28,11 @@ try {
   const state = () => page.eval(`JSON.stringify((() => { const d = rangeDemo, s = d.getState(), l = d.runUp?.launch; return { mode: s.mode, clearance: s.clearance, airspeed: s.airspeed, phase: l?.phase ?? null, roll: l?.roll ?? 0, rollV: l?.rollV ?? 0, lift: l?.lift ?? 0, judged: s.result?.judged ?? null }; })())`).then(JSON.parse);
   const until = async (test, seconds, each) => { const t = Date.now(); while (Date.now() - t < seconds * 1000) { const s = await state(); if (each) await each(s); if (test(s)) return s; await sleep(50); } return state(); };
 
-  check(await open('wind=5&from=180'), 'the range loads');
+  check(await open('wind=5&from=180&launch=easy'), 'the range loads');
   // The panel's switches (launch mode, flight model, skim assist) lead to pages that exist and keep the other options.
   const links = JSON.parse(await page.eval(`JSON.stringify(['launchSwitch', 'modelSwitch', 'assistSwitch'].map(id => document.getElementById(id).href))`));
   const reached = await Promise.all(links.map(async href => (await fetch(href)).status));
-  check(reached.every(s => s === 200) && links[0].includes('launch=real') && links.every(h => h.includes('wind=5')), "the panel's switches lead to the range", links.map((h, i) => `${new URL(h).pathname}${new URL(h).search} ${reached[i]}`).join(', '));
+  check(reached.every(s => s === 200) && !links[0].includes('launch=') && links.every(h => h.includes('wind=5')), "the panel's switches lead to the range", links.map((h, i) => `${new URL(h).pathname}${new URL(h).search} ${reached[i]}`).join(', '));
   await page.eval(`document.getElementById('panel').classList.add('hidden'); 1`);
 
   // An easy launch from the ramp: it runs itself and flies off the lip.
@@ -60,7 +60,7 @@ try {
     JSON.stringify({ mode: s.mode, ranMetres: +ran.toFixed(1), clearance: +s.clearance.toFixed(1) }));
 
   // A realistic launch, flown by a simple pilot: balance with A/D, start the run, keep the nose level, jump as it lifts.
-  check(await open('wind=5&from=180&launch=real'), 'the range loads with realistic launches');
+  check(await open('wind=5&from=180'), 'the range loads with realistic launches (the default)');
   // The pilot runs in the page, every frame: balance against the roll, the nose a little low on the run and up as the wing
   // lifts, the run started after a moment, and off the end of the ramp.
   await page.eval(`document.getElementById('panel').classList.add('hidden'); rangeDemo.launch(); window.__jumped = false;
@@ -90,7 +90,17 @@ try {
   // On a phone: nothing until the screen is touched, then a stick that balances the wing and a button that launches; a key
   // press puts them away again. The panel starts hidden on a small screen.
   await page.viewport(812, 375, true); await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-  check(await open('wind=4&from=180&launch=real'), 'the range loads on a phone');
+  // The lab: a landing scenario flown by its scripted pilot in the range, recorded, then stepped back through the same renderer.
+  check(await open('wind=4&from=180&lab=landing&scenario=land-cue&glider=falcon-170'), 'the range loads with the lab open');
+  let outcome = null;
+  for (let i = 0; i < 160 && !outcome; i++) { await sleep(250); outcome = await page.eval(`document.querySelector('.lab-outcome')?.textContent ?? null`); }
+  const labClockBefore = await page.eval(`document.getElementById('labClock').textContent`);
+  await page.eval(`for (let i = 0; i < 60; i++) document.getElementById('labBack').click(); 1`); await sleep(300);
+  const stepped = { a: labClockBefore, b: await page.eval(`document.getElementById('labClock').textContent`) };
+  check(outcome === 'soft' && parseFloat(stepped.a) - parseFloat(stepped.b) > .9, 'the lab flies a scenario in the range and steps back through its recording', JSON.stringify({ outcome, ...stepped }));
+  await page.eval(`localStorage.clear(); 1`);
+
+  check(await open('wind=4&from=180'), 'the range loads on a phone');
   const touch = (type, points) => page.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(([x, y], i) => ({ x, y, id: i + 1 })) });
   const touchState = () => page.eval(`JSON.stringify({ shown: document.body.classList.contains('touching'), panel: !document.getElementById('panel').classList.contains('hidden'), label: document.querySelector('.touch-action').textContent, phase: rangeDemo.runUp?.launch.phase ?? null, shift: rangeDemo.runUp?.launch.shift ?? 0 })`).then(JSON.parse);
   const before = await touchState();

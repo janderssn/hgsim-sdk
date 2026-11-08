@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
-import { pullOutHeights, dropToImpact, ZONE_LOW, ZONE_HIGH } from '../src/landing-cues.js';
-import { createSoaringState, stepSoaring, judgeTouchdown, tuneSoaring, getSoaringTuning, scrapeGround } from '../src/flight.js';
+import { pullOutHeights, dropToImpact, ZONE_LOW, ZONE_HIGH, judgeTouchdown } from '../src/landing.js';
+import { createFlightState as createSoaringState, scrapeGround, GLIDER_DEFAULTS } from '../src/flight.js';
+import { defineConfig } from '../src/config.js';
+import { stepSoaring } from './support.mjs';
 
 // The height bar is the dive warning, so its bands have to be true: acting as the marker reaches a band has to clear the ground.
 const env = { terrainHeight: () => 0, thermals: [], wind: { x: 0, z: 0 } }, dt = 1 / 60;
@@ -41,14 +43,14 @@ const seen = dropToImpact({ ...parallel, z: -120, feetY: hill(0, -120) + 15 }); 
 assert.equal(dropToImpact({ ...parallel, vy: 2, feetY: 200 }), null, 'climbing');
 console.log('PASS the bar looks along the flight path');
 // The ground cushion softens a fast arrival, never a landing: at landing speed the flight is the same with or without it.
-function arrive(kmh, feet, pathDeg, pitch) {
+function arrive(kmh, feet, pathDeg, pitch, cfg = GLIDER_DEFAULTS) {
   const s = createSoaringState({ y: feet + 2.3 }); s.airspeed = kmh / 3.6; s.pathAngle = pathDeg * Math.PI / 180; s.verticalSpeed = s.airspeed * Math.sin(s.pathAngle); s.alpha = -1.5 * Math.PI / 180; let low = feet;
-  for (let t = 0; t < 8 && s.y > 2.3 && !(t > .3 && s.verticalSpeed > .2 && pitch >= 0); t += dt) { const g = s.y < 14; stepSoaring(s, { roll: 0, pitch, landable: g, ground: g }, dt, env); low = Math.min(low, s.y - 2.3); }
+  for (let t = 0; t < 8 && s.y > 2.3 && !(t > .3 && s.verticalSpeed > .2 && pitch >= 0); t += dt) { const g = s.y < 14; stepSoaring(s, { roll: 0, pitch, landable: g, ground: g }, dt, env, cfg); low = Math.min(low, s.y - 2.3); }
   return { low, hit: s.y <= 2.3, sink: -s.verticalSpeed };
 }
-const cushion = getSoaringTuning().groundCushion;
-const withIt = [arrive(145, 12, -18, 0), arrive(130, 3, 0, -1), arrive(45, 3, -5, 1)]; tuneSoaring({ groundCushion: 0 });
-const without = [arrive(145, 12, -18, 0), arrive(130, 3, 0, -1), arrive(45, 3, -5, 1)]; tuneSoaring({ groundCushion: cushion });
+const noCushion = defineConfig(GLIDER_DEFAULTS, { groundCushion: 0 });
+const withIt = [arrive(145, 12, -18, 0), arrive(130, 3, 0, -1), arrive(45, 3, -5, 1)];
+const without = [arrive(145, 12, -18, 0, noCushion), arrive(130, 3, 0, -1, noCushion), arrive(45, 3, -5, 1, noCushion)];
 assert.ok(without[0].hit && !withIt[0].hit, 'a fast arrival that would have hit becomes a low pass');
 assert.ok(withIt[1].hit && withIt[1].sink < without[1].sink, 'W held still hits the ground, softer');
 assert.ok(Math.abs(withIt[2].sink - without[2].sink) < .01, 'a landing approach is unchanged');

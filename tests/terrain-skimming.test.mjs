@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
-import {createSoaringState,stepSoaring,SOARING_DEFAULTS as cfg} from '../src/flight.js';
-import {SKIM_DEFAULTS} from '../src/terrain-skimming.js';
+import {createFlightState as createSoaringState,GLIDER_DEFAULTS as cfg} from '../src/flight.js';
+import {SKIM_DEFAULTS} from '../src/assists/terrain-skimming.js';
+import {stepSoaring} from './support.mjs';
 const flat={terrainHeight:()=>0,thermals:[],wind:{x:0,z:0},terrainSkimming:true};
 const energy=s=>s.y+s.airspeed*s.airspeed/(2*cfg.gravity);
 let passed=0;const test=(name,fn)=>{fn();passed++;console.log('PASS',name);};

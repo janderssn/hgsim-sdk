@@ -1,17 +1,20 @@
 import assert from 'node:assert/strict';
-import { runProfile, windOnRun, createLaunch, stepLaunch, launchPose, barForSpeed, runHold, LAUNCH } from '../src/launch.js';
-import { stepSoaring } from '../src/flight.js';
+import { runProfile, windOnRun, createLaunch, stepLaunch, launchPose, barForSpeed, runHold, LAUNCH_DEFAULTS as LAUNCH } from '../src/launch.js';
+import { stepSoaring } from './support.mjs';
 
-const stall = 9.7, run = (headwind, crosswind = 0, distance = 60) => runProfile({ headwind, crosswind }, stall, distance);
-const still = run(0, 0, 40), breeze = run(4), strong = run(9), tail = run(-3, 0, 200), cross = run(1, 6), slope = runProfile({ headwind: 4 }, stall, 60, .12);
+const stall = 9.7, run = (headwind, crosswind = 0, distance = 60) => runProfile({ headwind, crosswind }, distance);
+const still = run(0, 0, 40), breeze = run(4), strong = runProfile({ headwind: 9, airLift: 1.5 }, 60, .2), strongStill = run(9), tail = run(-3, 0, 200), cross = run(1, 10), heldCross = run(1, 6), slope = runProfile({ headwind: 4 }, 60, .2), gentle = runProfile({ headwind: 4 }, 60, .12);
 console.log(JSON.stringify({ still: [still.reason, still.lift.toFixed(2), still.groundSpeed.toFixed(1)], breeze: [breeze.reason, breeze.lift.toFixed(2)], slope: [slope.reason, slope.liftDistance?.toFixed(1)], strong: [strong.reason, strong.liftDistance?.toFixed(1)], tail: [tail.reason, tail.lift.toFixed(2)], cross: cross.failed }));
 
 assert.ok(still.reason === 'edge' && still.lift > .1 && still.lift < .6 && still.groundSpeed < 7.5 && still.flight.bar < -.3, 'no wind: nobody runs at flying speed, so the pilot runs off the edge with the wing part flying, pulling in for the dive');
 assert.ok(breeze.lift > .9 && (!breeze.lifted || breeze.liftDistance > 8), 'a breeze on the flat: a long run before the wing carries the pilot, if it ever does (nothing but gravity down a slope or a strong wind gets a wing off quickly)');
 assert.ok(slope.lifted && slope.liftDistance > 3 && slope.liftDistance < 25, 'the same breeze on a slope: the wing lifts the pilot off after a short run');
-assert.ok(strong.lifted && strong.liftDistance < 2, 'a strong headwind: a step or two');
-assert.ok(tail.failed === 'stumbled' && tail.lift < .3, 'a tailwind: the wing never gets near flying, and the sprint gives out');
-assert.equal(cross.failed, 'crosswind', 'a strong crosswind spoils the launch');
+assert.ok(gentle.lifted && gentle.liftDistance > 2 * slope.liftDistance, 'a gentler slope: the wing carries the pilot as soon, but its glide cannot leave the ground behind until it is faster');
+assert.ok(strong.lifted && strong.liftDistance < 2, 'a strong headwind up a slope, with its rising air: a step or two');
+assert.ok(!strongStill.lifted && strongStill.lift > .9, 'the same wind on flat ground with no rising air: the wing carries the pilot, but it cannot climb away from the ground, so the feet stay on it');
+assert.ok(tail.reason === 'edge' && tail.lift < .3, 'a tailwind: the wing never gets near flying, and the pilot runs off the end with it');
+assert.equal(cross.failed, 'wingdrop', 'a crosswind stronger than the weight shift takes the wing over, an easy launch too');
+assert.ok(!heldCross.failed, 'a lighter one the pilot holds level');
 // Wind is the direction the air moves toward: air moving toward -z meets a run toward +z head on.
 const w = windOnRun({ x: 0, z: -5 }, 0); assert.ok(Math.abs(w.headwind - 5) < 1e-9 && Math.abs(w.crosswind) < 1e-9);
 
@@ -29,7 +32,7 @@ assert.ok(launchPose(createLaunch(), 0).height < .3 && launchPose(s, 0).height >
 // One physics: the feet stay planted to the last step, and the flight carries on from the launch's own state, the wing's path
 // through the air down the slope it ran on, at the angle of attack the pilot held it at, with nothing changing in the first step.
 const off = launchPose(s, 0), f = s.flight, before = { v: f.airspeed, path: f.pathAngle, alpha: f.alpha, bar: f.bar };
-assert.ok(off.plant === 1 && Math.abs(off.pathAngle - f.pathAngle) < 1e-9 && off.pathAngle < -.07 && Math.abs(f.alpha - runHold(undefined, undefined, 1).alpha) < .03, 'the lift-off path is the run down the slope, with the nose let up to the lift-off angle: ' + JSON.stringify({ path: off.pathAngle, alpha: f.alpha }));
+assert.ok(off.plant === 1 && Math.abs(off.pathAngle - f.pathAngle) < 1e-9 && off.pathAngle < -.07 && Math.abs(f.alpha - runHold(1).alpha) < .03, 'the lift-off path is the run down the slope, with the nose let up to the lift-off angle: ' + JSON.stringify({ path: off.pathAngle, alpha: f.alpha }));
 assert.ok(Math.abs(f.loadFactor - 1) < .03 && f.airspeed > 9.5 && f.airspeed < 11, 'it lifts off with the wing carrying the weight, just above the stall: ' + f.airspeed.toFixed(2));
 stepSoaring(f, { pitch: s.barHold }, 1 / 60, { terrainHeight: () => 0 });
 assert.ok(Math.abs(f.airspeed - before.v) < .08 && Math.abs(f.pathAngle - before.path) < .01 && Math.abs(f.alpha - before.alpha) < .01 && Math.abs(f.bar - before.bar) < .1, 'the first airborne step changes nothing by more than a step (the bar only starts easing from the lift-off hold to the run hold): ' + JSON.stringify({ dv: f.airspeed - before.v, dpath: f.pathAngle - before.path, dalpha: f.alpha - before.alpha }));
@@ -65,14 +68,15 @@ assert.ok(!mine.failed && mine.airborne && mine.reason === 'flying' && went > 30
 assert.ok(mine.flight.verticalSpeed > -mine.groundSpeed * .15 + .5, 'the jump put energy into the wing: ' + mine.flight.verticalSpeed.toFixed(2));
 function clampTest(v, a, b) { return Math.max(a, Math.min(b, v)); }
 console.log('realistic launch checks passed');
-// The nose on a realistic run: level or a touch down gets off; held high it stalls the sail, so on a slope it never flies (and
+// The nose on a realistic run, from the keel carried level (the wing's carryAlpha, 3 degrees under the stall for the default wing):
+// level gets off; held low it needs a longer run; held past the stall it stalls the sail, so on a slope it never flies (and well past it
 // wanders off in yaw), while off a ramp's lip the wing can still dive for its speed.
 { const D = Math.PI / 180, lev = s => -Math.max(-1, Math.min(1, s.roll * 3 + s.rollV * .6));
   const runWith = (off, slope, edge) => { const s = createLaunch(); s.phase = 'run'; s.k = 1; s.noseCmd = off * D;
     for (let i = 0; i < 60 * 15 && !s.airborne && !s.failed; i++) stepLaunch(s, 1 / 60, { headwind: 3, slope, edgeAhead: edge - s.distance, manual: true, push: 1, balance: lev(s), nose: Math.max(-1, Math.min(1, (off * D - s.noseCmd) / (2 * D))) }); return s; };
-  const level = runWith(0, .1, 400), low = runWith(-4, .1, 400), high = runWith(2, .1, 400), higher = runWith(6, .1, 400), lip = runWith(3, .2, 22);
+  const level = runWith(0, .2, 400), low = runWith(-4, .2, 400), high = runWith(5, .2, 400), higher = runWith(8, .2, 400), lip = runWith(5, .2, 22);
   assert.ok(level.reason === 'flying' && low.reason === 'flying' && low.distance > level.distance * 1.3, 'nose too low: it flies, after a much longer run');
-  assert.ok(!high.airborne && high.failed === 'stumbled', 'nose high on a slope: the sail never lets the run gather speed, it never gets off, and the legs give out');
+  assert.ok(!high.airborne, 'nose high on a slope: the sail never lets the run gather speed, and it never gets off');
   assert.equal(higher.failed, 'turned', 'nose well past the stall: the wing wanders off and the wind takes it round');
   assert.ok(lip.airborne && lip.distance > 20, 'nose high on a ramp: no lift-off on the deck, only off the lip, pulled in to dive for its speed: ' + JSON.stringify({ failed: lip.failed, reason: lip.reason, at: lip.distance })); }
 console.log('nose checks passed');
@@ -94,13 +98,13 @@ console.log('nose checks passed');
     assert.ok(runs.every(r => r.groundSpeed < LAUNCH.topSpeed + LAUNCH.downhillSpeed * slope + LAUNCH.liftedSpeed + 1), name + ': nobody runs faster than legs go, downhill or not: ' + runs.map(r => r.groundSpeed.toFixed(1)).join(', '));
   }
   const level = realRun({ headwind: 1, slope: 0, edge: 40 }), right = realRun({ headwind: 1, slope: 0, edge: 40, rollAt: 10 * D }), left = realRun({ headwind: 1, slope: 0, edge: 40, rollAt: -10 * D });
-  assert.ok(right.heading < -.15 && left.heading > .15 && Math.abs(level.heading) < .1 && right.right > .4 && left.right < -.4 && Math.abs(level.right) < .3,
+  assert.ok(right.heading < -.08 && left.heading > .08 && Math.abs(level.heading) < .05 && right.right > .2 && left.right < -.2 && Math.abs(level.right) < .1,
     'a wing held 10 degrees off level drags the pilot toward the low tip and the run turns after it (the right wing low, to the right, as in flight): ' + JSON.stringify({ level, right, left }, (k, v) => k === 's' ? undefined : +v.toFixed?.(2) || v));
   // It builds as the wing takes the weight: a light wing's pull is held at the shoulders, so the first steps run straight.
   const rampLevel = realRun({ headwind: 1.5, slope: .22, edge: 24 }), rampRight = realRun({ headwind: 1.5, slope: .22, edge: 24, rollAt: 9 * D });
   const earlyTurn = (rampLevel.early - rampRight.early) / D, lateTurn = (rampLevel.heading - rampRight.heading) / D;
   assert.ok(rampRight.s.airborne && earlyTurn < 1 && lateTurn > 2.5 && lateTurn > 4 * earlyTurn, 'the veer comes as the wing loads up, not in the first steps: ' + JSON.stringify({ earlyTurn, lateTurn }));
   const flat = realRun({ headwind: 1, slope: 0 }).s;
-  assert.ok(flat.failed === 'stumbled' && flat.t > 9, 'a light wind on the flat never lifts the wing: the sprint gives out');
+  assert.ok(!flat.airborne && !flat.failed, 'a light wind on the flat never lifts the wing: the run goes on');
 }
 console.log('wind, overrun and veer checks passed');

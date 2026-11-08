@@ -33,9 +33,9 @@ const TEXTURES = {
   'birch-bark-roughness.jpg': 'ea0d121fff979fee3c8417fca89dedac2c5c1f52aa09426ef3666467a35f0a3e',
 };
 const SPECIES = [
-  { id: 'PineMature', name: 'Mature alpine pine', family: 'pine', age: 'mature', preset: 'pine_large', seed: 31337, height: 25, leaf: 'pine', bark: 'pine', tint: '#b3c2b4', edits: { children: 72, count: 27, width: .79, start: .38, leafSize: 2.6, angle: 100 } },
-  { id: 'PineYoung', name: 'Young alpine pine', family: 'pine', age: 'young', preset: 'pine_small', seed: 8911, height: 14, leaf: 'pine', bark: 'pine', tint: '#c9cfb4', edits: { children: 51, count: 22, width: .72, start: .17, leafSize: 2.55, angle: 103 } },
-  { id: 'FirMature', name: 'Mature silver fir', family: 'fir', age: 'mature', preset: 'pine_medium', seed: 24517, height: 27, leaf: 'pine', bark: 'pine', tint: '#a4b9b3', edits: { children: 95, count: 27, width: .57, start: .13, leafSize: 2.9, angle: 88 } },
+  { id: 'PineMature', name: 'Mature alpine pine', family: 'pine', age: 'mature', preset: 'pine_large', seed: 31337, height: 25, leaf: 'pine', bark: 'pine', tint: '#b3c2b4', edits: { children: 54, count: 34, width: 1.03, start: .29, leafSize: 2.25, angle: 106 } },
+  { id: 'PineYoung', name: 'Young alpine pine', family: 'pine', age: 'young', preset: 'pine_small', seed: 8911, height: 14, leaf: 'pine', bark: 'pine', tint: '#c9cfb4', edits: { children: 38, count: 29, width: .89, start: .13, leafSize: 1.9, angle: 107 } },
+  { id: 'FirMature', name: 'Mature silver fir', family: 'fir', age: 'mature', preset: 'pine_medium', seed: 24517, height: 27, leaf: 'pine', bark: 'pine', tint: '#a4b9b3', edits: { children: 76, count: 33, width: .71, start: .13, leafSize: 2.3, angle: 98 } },
   { id: 'AshMature', name: 'Green mountain ash', family: 'ash', age: 'mature', preset: 'ash_medium', seed: 9001, height: 20, leaf: 'ash', bark: 'birch', tint: '#c4d0b3' },
 ];
 const MID_DETAIL = { sectionStride: 3, segmentFactor: .6, leafStride: 2, leafScale: 1.28, billboard: 'single' };
@@ -85,10 +85,10 @@ function authorOptions(species) {
     options.leaves.size = e.leafSize;
     options.leaves.sizeVariance = .29;
     options.leaves.start = .12;
-    options.leaves.angle = species.family === 'fir' ? 71 : 50;
+    options.leaves.angle = species.family === 'fir' ? 48 : 34;
   }
   if (species.family === 'ash') {
-    options.leaves.size = 4.4; options.leaves.sizeVariance = .48;
+    options.leaves.size = 3.65; options.leaves.sizeVariance = .36; options.leaves.count = 19;
     options.branch.segments[0] = 9; options.branch.segments[1] = 5;
   }
   return options;

@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import * as THREE from '../range/vendor/three.module.js';
 import { AERIAL_QUALITY, createAerialAtmosphere, sampleSkyRadiance, atmosphereTransmittance } from '../range/aerial-atmosphere.js';
-import { CLOUD_FIELD, bakeCloudShape, bakeCloudWeather, bakeCloudShadow, sampleCloudDensity, cloudShadowCoordinates } from '../range/cloud-field.js';
+import { CLOUD_FIELD, bakeCloudShape, bakeCloudShadow, sampleCloudDensity, cloudShadowCoordinates } from '../range/cloud-field.js';
 
 const sun = new THREE.Vector3(.5904601, .6817721, .4319070).normalize();
-const create = () => createAerialAtmosphere(THREE, { sunDirection: sun, shapeSize: 16, weatherSize: 16, shadowSize: 16 });
+const create = () => createAerialAtmosphere(THREE, { sunDirection: sun, shapeSize: 16, shadowSize: 16 });
 const near = (a, b, tolerance = 1e-8) => assert.ok(Math.abs(a - b) < tolerance, `${a} differs from ${b}`);
 
 test('spectral aerial extinction has correct distance, altitude and reciprocal-path behaviour', () => {
@@ -37,7 +37,7 @@ test('illustrated aerial depth preserves the near corridor and smoothly separate
   assert.deepEqual(atmosphereTransmittance(500, 200, 300, style), atmosphereTransmittance(500, 200, 300));
   const distant = atmosphereTransmittance(3500, 200, 1000, style);
   const clear = atmosphereTransmittance(3500, 200, 1000);
-  assert.ok(distant.every((channel, i) => channel > 0 && channel < clear[i] * .8));
+  assert.ok(distant.every((channel, i) => channel > 0 && channel < clear[i] * .9));
   const reverse = atmosphereTransmittance(3500, 1000, 200, style);
   distant.forEach((channel, i) => near(channel, reverse[i]));
   for (const distance of [700, 3000]) {
@@ -78,7 +78,7 @@ test('illustrated afternoon keeps one linear solar colour across sky, IBL and cl
   const sunColor = new THREE.Color().setRGB(1, .83, .64);
   const style = 'illustrated-alpine';
   const aerial = createAerialAtmosphere(THREE, { sunDirection: direction, sunColor, style,
-    shapeSize: 16, weatherSize: 16, shadowSize: 16 });
+    shapeSize: 16, shadowSize: 16 });
   try {
     assert.deepEqual(aerial.uniforms.aerialSunColor.value.toArray(), [1, .83, .64]);
     const disc = aerial.sampleSkyRadiance(direction), diffuse = aerial.sampleSkyRadiance(direction, { sunDisk: false });
@@ -102,18 +102,27 @@ test('illustrated afternoon keeps one linear solar colour across sky, IBL and cl
 });
 
 test('periodic 3D cloud banks and their sun optical-depth map share one medium', () => {
-  const shape = bakeCloudShape(24), weather = bakeCloudWeather(32);
+  const shape = bakeCloudShape(24);
   assert.deepEqual(bakeCloudShape(24), shape, 'reloading uses the same deterministic field');
   assert.throws(() => bakeCloudShape(0), /size/);
-  assert.throws(() => bakeCloudWeather(1024), /size/);
   for (const [x, y, z] of [[-300, 2500, 900], [2300, 2900, -8000], [6400, 3100, 300]]) {
-    const value = sampleCloudDensity(shape, weather, x, y, z);
-    near(value, sampleCloudDensity(shape, weather, x + CLOUD_FIELD.period, y, z));
-    near(value, sampleCloudDensity(shape, weather, x, y, z - CLOUD_FIELD.period));
-    assert.equal(sampleCloudDensity(shape, weather, x, 2200, z), 0);
-    assert.equal(sampleCloudDensity(shape, weather, x, 3600, z), 0);
+    const value = sampleCloudDensity(shape, x, y, z);
+    near(value, sampleCloudDensity(shape, x + CLOUD_FIELD.period, y, z));
+    near(value, sampleCloudDensity(shape, x, y, z - CLOUD_FIELD.period));
+    assert.equal(sampleCloudDensity(shape, x, 2200, z), 0);
+    assert.equal(sampleCloudDensity(shape, x, 3600, z), 0);
   }
-  const shadow = bakeCloudShadow(shape, weather, sun, 32, 24);
+  let occupied = 0;
+  for (let x = 0; x < CLOUD_FIELD.period; x += 800) for (let z = 0; z < CLOUD_FIELD.period; z += 800) {
+    const y = CLOUD_FIELD.bottom + (CLOUD_FIELD.top - CLOUD_FIELD.bottom) * .35;
+    const density = sampleCloudDensity(shape, x, y, z);
+    if (density < .04) continue;
+    occupied++;
+    near(density, sampleCloudDensity(shape, x + CLOUD_FIELD.period, y, z));
+    near(density, sampleCloudDensity(shape, x, y, z - CLOUD_FIELD.period));
+  }
+  assert.ok(occupied > 0, 'periodicity must exercise occupied cloud, not only clear samples');
+  const shadow = bakeCloudShadow(shape, sun, 32, 24);
   assert.ok(shadow.data.some(x => x === 0), 'clear sky leaves real sunlit gaps');
   assert.ok(shadow.data.some(x => x > 200), 'thick banks cast readable shadows');
   for (const [x, z] of [[2, 7], [15, 21], [27, 4]]) {
@@ -123,7 +132,7 @@ test('periodic 3D cloud banks and their sun optical-depth map share one medium',
     let tau = 0;
     for (let i = 0; i < slices; i++) {
       const y = CLOUD_FIELD.bottom + (i + .5) * step;
-      tau += sampleCloudDensity(shape, weather, wx + sun.x / sun.y * y, y, wz + sun.z / sun.y * y) * step / sun.y * CLOUD_FIELD.extinction;
+      tau += sampleCloudDensity(shape, wx + sun.x / sun.y * y, y, wz + sun.z / sun.y * y) * step / sun.y * CLOUD_FIELD.extinction;
     }
     near(shadow.data[z * shadow.size + x] / 255, 1 - Math.exp(-tau), .045);
   }

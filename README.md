@@ -167,7 +167,7 @@ shared rock contacts, force parameters and 19-bone glider rig remain intact.
 Use `?quality=high`, `medium` or `low` to hold a preset; default is `auto`.
 HDR-capable devices share the grade at all levels; low skips AO/glow. Adaptive
 quality changes visual work independently of the fixed 60 Hz flight simulation.
-[Current validation](docs/graphics/alpine-rebuild/validation.md) distinguish functional
+[Current validation](docs/graphics/alpine-polish/validation.md) distinguishes functional
 checks, software-renderer observations and unverified native-GPU targets.
 
 ## Tests and checks

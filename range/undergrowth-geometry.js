@@ -72,35 +72,46 @@ class BotanicalMesh {
   }
 }
 
-/** A painted meadow fan: three intertwined crowns, with long arching leaves. */
-export function createGrassFanGeometry(THREE, { bladesPerCrown = 5, distant = false } = {}) {
+/** Fine arching fescue crowns; root shade and dry tips belong to each blade. */
+export function createGrassFanGeometry(THREE, { bladesPerCrown = 7, distant = false } = {}) {
   const mesh = new BotanicalMesh(THREE);
-  const stations = distant ? [0, .54, 1] : [0, .20, .41, .63, .83, 1];
-  const widths = distant ? [.18, 1, 0] : [.12, .70, 1, .88, .46, 0];
+  // Extra stations follow the high-curvature shoulder, without adding a midrib
+  // strip to every leaf. The inexpensive distance fan shares the same outline.
+  const stations = distant ? [0, .52, 1] : [0, .13, .30, .49, .68, .85, 1];
+  const widths = distant ? [.18, 1, 0] : [.10, .72, 1, .94, .72, .40, 0];
   const random = n => { const value = Math.sin(n * 127.1 + 311.7) * 43758.5453; return value - Math.floor(value); };
   for (let crown = 0; crown < 3; crown++) {
     const crownAngle = crown * 2.399963;
-    const rootX = Math.cos(crownAngle) * .25, rootZ = Math.sin(crownAngle) * .25;
+    const rootX = Math.cos(crownAngle) * .22, rootZ = Math.sin(crownAngle) * .22;
     for (let blade = 0; blade < bladesPerCrown; blade++) {
-      const seed = crown * 8 + blade, angle = blade * 2.399963 + crown * .8 + random(seed + 1) * .45;
-      const height = .39 + random(seed + 3) * .36;
-      const bend = .38 + random(seed + 7) * .32;
-      const width = .011 + random(seed + 11) * .009;
-      const twist = (random(seed + 17) - .5) * .85;
-      const arc = 2.35 + random(seed + 19) * .48;
+      const seed = crown * 13 + blade, angle = blade * 2.399963 + crown * .8 + random(seed + 1) * .75;
+      const height = .48 + random(seed + 3) * .48;
+      const bend = .32 + random(seed + 7) * .43;
+      const width = (distant ? .014 : .012) + random(seed + 11) * (distant ? .007 : .009);
+      const twist = (random(seed + 17) - .5) * 1.1;
+      const dry = blade % 5 === 0;
+      const curl = .32 + random(seed + 19) * .24;
       const first = mesh.positions.length / 3;
       for (let row = 0; row < stations.length; row++) {
         const t = stations[row], sideAngle = angle + Math.PI / 2 + twist * t;
-        const radius = .02 + bend * Math.pow(t, 1.4);
-        const center = [rootX + Math.cos(angle) * radius,
-          -.025 + height * Math.sin(t * arc), rootZ + Math.sin(angle) * radius];
+        // Cubic-like growth begins nearly vertical then relaxes into a long
+        // hanging tip. Side sweep prevents a repeated radial-star silhouette.
+        const radius = .014 + bend * t * t;
+        const sweep = Math.sin(t * Math.PI) * .07 * (random(seed + 29) - .5);
+        const center = [rootX + Math.cos(angle) * radius - Math.sin(angle) * sweep,
+          -.025 + height * (1 - (1 - t) ** 1.7 - curl * t ** 3.2),
+          rootZ + Math.sin(angle) * radius + Math.cos(angle) * sweep];
+        const ripening = Math.max(0, Math.min(1, (t - .22) / .52));
+        const rootShade = .55 + .45 * Math.min(1, t / .4);
+        // Summer light catches warm arching shoulders above cooler living roots.
+        // The shared instance pigment still grades these toward moist/woodland sage.
+        const pigment = dry ? [.90, .71, .36]
+          : [.64 + ripening * .36, .79 + ripening * .03, .43];
         for (const side of row === stations.length - 1 ? [0] : [-1, 1]) {
-          const color = [ .48 + t * .49, .55 + t * .42, .36 + t * .43 ];
-          // A cool folded edge and warm blade face read as intentional brushwork.
-          const paintedEdge = side === -1 ? .91 : 1;
+          const paintedEdge = side === -1 ? .95 : 1;
           mesh.vertex([center[0] + Math.cos(sideAngle) * width * widths[row] * side,
-            center[1] + width * .22 * side, center[2] + Math.sin(sideAngle) * width * widths[row] * side],
-          color.map(channel => channel * paintedEdge * (.94 + random(seed + 23) * .12)), (side + 1) / 2, t);
+            center[1] + width * .18 * side, center[2] + Math.sin(sideAngle) * width * widths[row] * side],
+          pigment.map(channel => channel * rootShade * paintedEdge * (.90 + random(seed + 23) * .16)), (side + 1) / 2, t);
         }
       }
       for (let row = 0; row < stations.length - 2; row++) {
@@ -112,12 +123,12 @@ export function createGrassFanGeometry(THREE, { bladesPerCrown = 5, distant = fa
     }
   }
   const geometry = mesh.finish();
-  // Read the whole clump as a soft, sunlit volume rather than alternating dark
-  // flat strips. The distant sward shares the terrain normal to avoid shimmer.
+  // Botanical normals represent the whole porous clump, avoiding dark paper
+  // strips while retaining leaf folds and real shadow attenuation.
   const normals = geometry.attributes.normal, normal = new THREE.Vector3();
   for (let i = 0; i < normals.count; i++) {
     normal.fromBufferAttribute(normals, i);
-    normal.y = Math.abs(normal.y) + (distant ? 2.8 : .38);
+    normal.y = Math.abs(normal.y) + (distant ? 2.8 : .55);
     normal.normalize(); normals.setXYZ(i, normal.x, normal.y, normal.z);
   }
   return geometry;

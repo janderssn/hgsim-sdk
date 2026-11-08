@@ -1,0 +1,18 @@
+{
+  "url": "http://127.0.0.1:4281/range/",
+  "warmupSeconds": 8,
+  "fps": 0.45,
+  "meanMs": 2233.26,
+  "p95Ms": 6133.2,
+  "frames": 5,
+  "durationSeconds": 11.17,
+  "dpr": 1,
+  "adapter": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+  "canvas": {
+    "width": 576,
+    "height": 238
+  },
+  "calls": 155,
+  "triangles": 445805,
+  "quality": "low"
+}

@@ -7,7 +7,7 @@ const hash = (x, z = 0) => { let n = Math.imul(x | 0, 374761393) ^ Math.imul(z |
 
 const PALETTE = Object.freeze({ timber: '#8f6543', endgrain: '#c49362', darkWood: '#4e4539',
   ivory: '#e5d2a5', plaster: '#cfbb96', teal: '#366c6b', burgundy: '#824a43', rust: '#b86c3e',
-  stone: '#878b77', slate: '#646c6a', slateLight: '#858a7f', slateBlue: '#58636c', moss: '#788254', brass: '#c89851', iron: '#484b46', window: '#f2bf6f' });
+  stone: '#878b77', slate: '#606762', slateLight: '#737973', slateBlue: '#596566', moss: '#788254', brass: '#c89851', iron: '#484b46', window: '#6f9298', bark: '#534738', endwood: '#b4946a' });
 
 /** Original brush atlas: long fibres and broad scraped paint, without photo noise. */
 function brushTexture(THREE) {
@@ -87,9 +87,36 @@ export function createAlpineSetDressing(THREE, scene, {
   opaque.name = 'Illustrated weathered timber and mineral paint';
   const metal = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: .69, metalness: .30 });
   metal.name = 'Oxidised alpine hardware';
-  const windows = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: .58,
-    emissive: '#bd7331', emissiveIntensity: .13 });
-  windows.name = 'Warm refuge windows';
+  const windows = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: .22, metalness: .18,
+    emissive: '#53432e', emissiveIntensity: .025 });
+  windows.name = 'Recessed refuge glazing and reflected alpine sky';
+  windows.onBeforeCompile = shader => {
+    shader.vertexShader = `varying vec2 vPaneUv; varying vec3 vPaneWorld, vPaneNormal;\n${shader.vertexShader}`;
+    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
+      #include <begin_vertex>
+      vPaneUv = uv;
+      vPaneWorld = (modelMatrix * vec4(position, 1.0)).xyz;
+      vPaneNormal = normalize(mat3(modelMatrix) * normal);
+    `);
+    shader.fragmentShader = `varying vec2 vPaneUv; varying vec3 vPaneWorld, vPaneNormal;\n${shader.fragmentShader}`;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
+      #include <color_fragment>
+      vec3 paneView = normalize(cameraPosition - vPaneWorld);
+      vec3 paneReflection = reflect(-paneView, normalize(vPaneNormal));
+      float paneFresnel = .20 + .60 * pow(1.0 - abs(dot(paneView, normalize(vPaneNormal))), 4.0);
+      float paneRecess = smoothstep(.02, .14, vPaneUv.x) * smoothstep(.02, .14, 1.0-vPaneUv.x)
+        * smoothstep(.02, .12, vPaneUv.y) * smoothstep(.02, .12, 1.0-vPaneUv.y);
+      float curtain = (1.0-smoothstep(.12,.23,vPaneUv.x)) + smoothstep(.78,.90,vPaneUv.x);
+      vec3 paneRoom = mix(vec3(.035,.043,.038), vec3(.27,.22,.14), curtain*.68);
+      paneRoom *= .44 + .56 * paneRecess;
+      // Opaque glazing avoids sorted transparency while retaining a dark recessed
+      // interior and view-dependent blue sky reflection; mullions are geometry.
+      vec3 paneSky = mix(vec3(.19,.25,.23),vec3(.20,.36,.46),smoothstep(-.2,.8,paneReflection.y));
+      float paneStreak = .94 + .06 * sin(vPaneUv.x*91.0 + sin(vPaneUv.y*13.0));
+      diffuseColor.rgb = mix(paneRoom, paneSky, paneFresnel) * paneStreak;
+    `);
+  };
+  windows.customProgramCacheKey = () => 'alpine-recessed-glazing-v1';
   const cloth = new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness: .95, side: THREE.DoubleSide });
   cloth.name = 'Faded awning canvas';
   const wind = { value: 0 }, clock = { value: 0 };
@@ -126,7 +153,9 @@ export function createAlpineSetDressing(THREE, scene, {
         float storyWood = 1.0 - step(0.5, vStoryFinish);
         float storyPaint = step(0.5, vStoryFinish) * (1.0 - step(1.5, vStoryFinish));
         float storyCloth = step(2.5, vStoryFinish) * (1.0 - step(3.5, vStoryFinish));
-        float storyMap = step(3.5, vStoryFinish);
+        float storyMap = step(3.5, vStoryFinish) * (1.0-step(4.5,vStoryFinish));
+        float storyBark = step(4.5,vStoryFinish) * (1.0-step(5.5,vStoryFinish));
+        float storyEndgrain = step(5.5,vStoryFinish) * (1.0-step(6.5,vStoryFinish));
         float storyFibre = storyWood * 0.90 + storyPaint * 0.78 + storyCloth * 0.55;
         diffuseColor.rgb *= mix(1.0, 0.30 + storyBrush.r * 0.85, storyFibre);
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.49, 0.36, 0.22), storyBrush.g * storyPaint * 0.75);
@@ -136,6 +165,14 @@ export function createAlpineSetDressing(THREE, scene, {
         diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.44, 0.31, 0.19),
           (storyEndWear * 0.22 + storyFlake * 0.55) * storyPaint);
         diffuseColor.rgb *= mix(1.0, storyBrush.b * 0.32 + 0.70, storyCloth);
+        float barkFurrow = pow(.5+.5*sin(vStoryUv.x*76.0+sin(vStoryUv.y*17.0)*.7),7.0);
+        diffuseColor.rgb *= 1.0-storyBark*(.12+barkFurrow*.42);
+        vec2 growthPoint=(vStoryUv-.5)*vec2(1.0,1.09);
+        float growthRadius=length(growthPoint);
+        float growthPhase=growthRadius*116.0+sin(vStoryUv.y*18.0)*.6;
+        float growthFilter=1.0-smoothstep(.7,2.2,fwidth(growthPhase));
+        float growthRing=(.5+.5*sin(growthPhase))*growthFilter;
+        diffuseColor.rgb *= 1.0-storyEndgrain*(.07+growthRing*.23);
         diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(alpineRouteMap, vStoryUv).rgb, storyMap);
       `);
     };
@@ -149,7 +186,7 @@ export function createAlpineSetDressing(THREE, scene, {
         #endif
       `);
     };
-    material.customProgramCacheKey = () => `${previousKey()}|original-alpine-brush-v3`;
+    material.customProgramCacheKey = () => `${previousKey()}|original-alpine-brush-v4`;
     material.userData.originalBrush = brush;
   }
   if (atmosphere?.installMaterial) materials.forEach(material => atmosphere.installMaterial(material));
@@ -162,14 +199,16 @@ export function createAlpineSetDressing(THREE, scene, {
     const base = colours.get(colour) || new THREE.Color(colour);
     const position = geometry.attributes.position, normal = geometry.attributes.normal;
     const tint = new Float32Array(position.count * 3);
+    const isSlate = ['slate', 'slateLight', 'slateBlue'].includes(colour);
     for (let i = 0; i < position.count; i++) {
-      const face = (normal ? .92 + .08 * Math.max(0, normal.getY(i)) : 1) * (.83 + hash(seed, 943) * .29);
+      const face = (normal ? .92 + .08 * Math.max(0, normal.getY(i)) : 1)
+        * (isSlate ? .94 + hash(seed, 943) * .09 : .83 + hash(seed, 943) * .29);
       const weather = .92 + .12 * hash(Math.round(position.getX(i) * 19) + seed, Math.round(position.getZ(i) * 23) + seed * 3);
       tint[i * 3] = base.r * face * weather; tint[i * 3 + 1] = base.g * face * weather; tint[i * 3 + 2] = base.b * face * weather;
     }
     geometry.setAttribute('color', new THREE.BufferAttribute(tint, 3));
     if (!geometry.attributes.uv) geometry.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(position.count * 2), 2));
-    const finishKind = ['timber', 'endgrain', 'darkWood'].includes(colour) ? 0 : ['stone', 'moss', 'slate', 'slateLight', 'slateBlue'].includes(colour) ? 2 : 1;
+    const finishKind = colour === 'bark' ? 5 : colour === 'endwood' ? 6 : ['timber', 'endgrain', 'darkWood'].includes(colour) ? 0 : ['stone', 'moss', 'slate', 'slateLight', 'slateBlue'].includes(colour) ? 2 : 1;
     geometry.setAttribute('storyFinish', new THREE.BufferAttribute(new Float32Array(position.count).fill(finishKind), 1));
     if (finishKind === 0 || finishKind === 1) {
       geometry.computeBoundingBox();
@@ -187,12 +226,10 @@ export function createAlpineSetDressing(THREE, scene, {
     sourceGeometries.add(geometry); return geometry;
   }
   function mesh(ctx, geometry, colour, material = opaque) {
-    const authoredUv = material === cloth ? geometry.attributes.uv?.clone() : null;
+    const authoredUv = material === cloth || material === windows ? geometry.attributes.uv?.clone() : null;
     const object = new THREE.Mesh(finish(geometry, colour), material);
-    if (material === cloth) {
-      object.geometry.attributes.storyFinish.array.fill(3);
-      if (authoredUv) object.geometry.setAttribute('uv', authoredUv);
-    }
+    if (material === cloth) object.geometry.attributes.storyFinish.array.fill(3);
+    if (authoredUv) object.geometry.setAttribute('uv', authoredUv);
     object.castShadow = object.receiveShadow = true; ctx.root.add(object); ctx.parts.push(object); return object;
   }
   function box(ctx, x, y, z, sx, sy, sz, colour = 'timber', material = opaque, angles = null) {
@@ -332,15 +369,25 @@ export function createAlpineSetDressing(THREE, scene, {
         [x + side * (half + eave), y - .12, z + depth / 2 + eave], [x, y + rise, z + depth / 2 + eave]], colour);
       for (let row = 0; row < 10; row++) for (let column = 0; column < Math.ceil(depth / .38); column++) {
         const t0 = row / 10, t1 = (row + 1.16 + hash(row, column) * .05) / 10;
-        const z0 = z - depth / 2 - eave + column * (depth + eave * 2) / Math.ceil(depth / .38);
+        const tileWidth = (depth + eave * 2) / Math.ceil(depth / .38);
+        const z0 = z - depth / 2 - eave + column * tileWidth;
         const z1 = z0 + (depth + eave * 2) / Math.ceil(depth / .38) * (.89 + hash(row+17,column+side)*.09);
-        const height = t => y + rise * (1 - t) - .12 * t + .035 + hash(row, column + side * 39) * .015;
-        const tone = hash(row * 17 + column, side + 5) < .12 ? 'moss' : hash(row + 5, column) < .35 ? 'slateLight' : hash(row, column + side) < .4 ? 'slateBlue' : colour;
+        const height = t => y + rise * (1 - t) - .12 * t + .035 + hash(row, column + side * 39) * .025;
+        const tone = hash(row * 17 + column, side + 5) < .045 && row < 4 ? 'moss' : hash(row + 5, column) < .14 ? 'slateLight' : hash(row, column + side) < .28 ? 'slateBlue' : colour;
         const points = [[x + side * t0 * (half + eave), height(t0), z0], [x + side * t1 * (half + eave), height(t1), z0],
           [x + side * t1 * (half + eave), height(t1), z1], [x + side * t0 * (half + eave), height(t0), z1]];
         if (side > 0) points.reverse(); polygon(ctx, points, tone);
         const edgeX=x+side*t1*(half+eave),edgeY=height(t1);
         polygon(ctx,[[edgeX,edgeY,z0],[edgeX,edgeY-.075,z0],[edgeX,edgeY-.075,z1],[edgeX,edgeY,z1]],'darkWood');
+      }
+    }
+    for (const side of [-1,1]) {
+      box(ctx,x+side*(half+.43),y-.20,z,.17,.23,depth+1.03,'darkWood');
+      box(ctx,x+side*(half+.49),y-.13,z,.12,.19,depth+1.12,'timber');
+      const rafters=Math.ceil(depth/.68);
+      for(let i=0;i<=rafters;i++) {
+        const rz=z-depth/2-.35+i*(depth+.7)/rafters;
+        beam(ctx,[x+side*(half-.5),y+.14,rz],[x+side*(half+.52),y-.20,rz],.105,'darkWood');
       }
     }
     beam(ctx, [x, y + rise + .07, z - depth / 2 - .57], [x, y + rise + .07, z + depth / 2 + .57], .15, 'endgrain');
@@ -405,6 +452,55 @@ export function createAlpineSetDressing(THREE, scene, {
     }
   }
 
+  function recessedWindow(ctx, x, y, z, width, height, side = false) {
+    const at = (u,v,d) => side ? [x+d,y+v,z+u] : [x+u,y+v,z-d];
+    const solid = (u,v,d,w,h,t,colour,material=opaque) => {
+      const p=at(u,v,d);return box(ctx,...p,side?t:w,h,side?w:t,colour,material);
+    };
+    solid(0,0,.025,width+.27,height+.28,.10,'darkWood');
+    for(const edge of [-1,1]) {
+      solid(edge*(width/2+.035),0,.18,.12,height+.30,.29,'timber');
+      solid(0,edge*(height/2+.03),.18,width+.34,.14,.29,'timber');
+    }
+    // Four inset panes sit a full 20cm behind their outer surrounds.
+    for(const column of [-1,1]) for(const row of [-1,1]) {
+      const geometry=new THREE.PlaneGeometry(width/2-.055,height/2-.055);
+      const pane=mesh(ctx,geometry,'window',windows);pane.position.set(...at(column*width/4,row*height/4,.115));
+      pane.rotation.y=side?Math.PI/2:Math.PI;
+    }
+    solid(0,0,.205,.075,height,.105,'ivory');
+    solid(0,0,.205,width,.07,.105,'ivory');
+    solid(0,-height/2-.12,.23,width+.48,.13,.48,'endgrain');
+    // Projecting sill and angled rain cap make wall/glass shadow separation visible.
+    solid(0,height/2+.15,.24,width+.46,.09,.40,'endgrain');
+    for(const edge of [-1,1]) {
+      solid(edge*(width/2+.19),-height/2-.27,.15,.085,.28,.22,'darkWood');
+    }
+  }
+  function logStack(ctx,x,z) {
+    const base=localGround(ctx,x,z);
+    for(let row=0;row<3;row++) for(let column=0;column<4-row;column++) {
+      const px=x+(column-(3-row)/2)*.37, py=base+.20+row*.32;
+      const radius=.16+hash(row,column)*.025,length=1.05+hash(column,row)*.20;
+      const log=mesh(ctx,new THREE.CylinderGeometry(radius*.90,radius,length,9),'bark');
+      log.position.set(px,py,z);log.rotation.x=Math.PI/2;
+      for(const end of [-1,1]) {
+        const cut=mesh(ctx,new THREE.CircleGeometry(radius*.88,9),'endwood');cut.position.set(px,py,z+end*(length/2+.002));
+        if(end<0)cut.rotation.y=Math.PI;
+        // Split ends have a real narrow dark crack and pale ring.
+        const split=box(ctx,px,py,z+end*(length/2+.004),radius*1.28,.012,.009,'darkWood');split.rotation.z=.4+hash(column,row);
+      }
+    }
+  }
+  function lantern(ctx,x,y,z) {
+    box(ctx,x,y,z,.30,.43,.27,'darkWood');
+    for(const side of [-1,1]) box(ctx,x+side*.125,y,z,.028,.49,.31,'iron',metal);
+    box(ctx,x,y,z-.15,.19,.31,.015,'window',windows);
+    const cap=mesh(ctx,new THREE.ConeGeometry(.25,.16,4),'iron',metal);cap.position.set(x,y+.30,z);cap.rotation.y=Math.PI/4;
+    box(ctx,x,y-.25,z,.37,.06,.34,'iron',metal);
+    rope(ctx,[[x-.08,y+.38,z],[x-.07,y+.52,z],[x+.07,y+.52,z],[x+.08,y+.38,z]],.016,'iron');
+  }
+
   function refuge(ctx) {
     const floor = feetLevel(ctx, [[-4.5, -3], [4.5, -3], [-4.5, 3], [4.5, 3]], .28);
     for (const x of [-4.2, 0, 4.2]) for (const z of [-2.7, 2.7]) {
@@ -444,6 +540,9 @@ export function createAlpineSetDressing(THREE, scene, {
       box(ctx, x, floor + 1.75, -2.75 + i * .5, .10, 3.15, .45, i % 4 ? 'timber' : 'burgundy');
     }
     for (const x of [-4.5, 4.5]) for (const z of [-3.08, 3.08]) box(ctx, x, floor + 1.72, z, .22, 3.42, .24, 'endgrain');
+    for(const z of [-3.14,3.14]) for(const h of [.24,3.22]) box(ctx,0,floor+h,z,9.25,.16,.16,h<1?'darkWood':'timber');
+    for(const x of [-4.64,4.64]) for(const h of [.24,3.22]) box(ctx,x,floor+h,0,.16,.16,6.24,h<1?'darkWood':'timber');
+
     for (const z of [-3.07, 3.07]) {
       const points = [[-4.5, floor + 3.32, z], [0, floor + 5.45, z], [4.5, floor + 3.32, z]];
       if (z > 0) points.reverse(); polygon(ctx, points, 'burgundy');
@@ -461,14 +560,20 @@ export function createAlpineSetDressing(THREE, scene, {
     for (const x of [1.00, 2.36]) box(ctx, x, floor + 1.3, -3.23, .12, 2.66, .12, 'endgrain');
     box(ctx, 1.68, floor + 2.65, -3.22, 1.48, .12, .12, 'endgrain');
     box(ctx, 2.10, floor + 1.25, -3.25, .08, .20, .06, 'brass', metal);
+    for(const height of [.65,1.81]) {
+      box(ctx,1.68,floor+height,-3.23,.96,.94,.08,'darkWood');
+      box(ctx,1.68,floor+height,-3.29,.82,.79,.055,'teal');
+    }
+    for(const height of [.29,1.27,2.27]) box(ctx,1.14,floor+height,-3.33,.22,.065,.035,'iron',metal);
+    beam(ctx,[2.08,floor+1.16,-3.37],[2.08,floor+1.36,-3.37],.038,'brass',metal,false);
+    lantern(ctx,2.93,floor+2.29,-3.34);
+    beam(ctx,[2.93,floor+2.68,-3.13],[2.93,floor+2.68,-3.43],.045,'iron',metal,false);
+    logStack(ctx,5.15,1.3);
+
     for (const x of [-2.50, -.50]) {
-      box(ctx, x, floor + 1.96, -3.14, 1.27, 1.34, .08, 'window', windows);
-      for (const dx of [-.72, 0, .72]) box(ctx, x + dx, floor + 1.96, -3.22, .08, 1.55, .12, 'ivory');
-      for (const dy of [-.75, 0, .75]) box(ctx, x, floor + 1.96 + dy, -3.23, 1.50, .08, .13, 'ivory');
-      box(ctx, x - .94, floor + 1.96, -3.10, .31, 1.57, .12, 'teal');
-      box(ctx, x + .94, floor + 1.96, -3.10, .31, 1.57, .12, 'teal');
+      recessedWindow(ctx,x,floor+1.96,-3.12,1.27,1.34);
       for(const side of [-1,1]) {
-        for(let slat=0;slat<7;slat++)box(ctx,x+side*.94,floor+1.33+slat*.21,-3.18,.30,.15,.055,'teal',opaque,[-.15,0,0]);
+        for(let slat=0;slat<7;slat++)box(ctx,x+side*.94,floor+1.33+slat*.21,-3.18,.30,.15,.055,'teal',opaque,[-.15,side*.10,0]);
         for(const hinge of [-.45,.45])box(ctx,x+side*.94,floor+1.96+hinge,-3.22,.27,.04,.025,'iron',metal);
       }
       box(ctx, x, floor + 1.05, -3.38, 1.64, .32, .42, 'burgundy');
@@ -482,18 +587,21 @@ export function createAlpineSetDressing(THREE, scene, {
         const bloom=mesh(ctx,new THREE.IcosahedronGeometry(.065,1),flower%3?'ivory':'rust');bloom.position.set(px,py+.16,-3.42);
       }
     }
-    for (const z of [-1.55, 1.25]) {
-      box(ctx, 4.58, floor + 1.93, z, .08, 1.37, 1.47, 'window', windows);
-      for (const dz of [-.79, 0, .79]) box(ctx, 4.66, floor + 1.93, z + dz, .12, 1.54, .085, 'ivory');
-      for (const dy of [-.76, .76]) box(ctx, 4.67, floor + 1.93 + dy, z, .13, .09, 1.67, 'ivory');
-    }
+    for (const z of [-1.55, 1.25]) recessedWindow(ctx,4.60,floor+1.93,z,1.47,1.37,true);
     for (let step = 0; step < 3; step++) box(ctx, 1.68, floor - .05 - step * .18, -3.55 - step * .42, 2.06, .22, .70, 'stone');
     // A faded striped canopy and a front valance form a readable field-side silhouette.
     for (let stripe = 0; stripe < 8; stripe++) {
       const x0 = -4.25 + stripe * .82, x1 = x0 + .83;
-      polygon(ctx, [[x0, floor + 3.05, -3.22], [x0, floor + 2.65, -6.28],
-        [x1, floor + 2.65, -6.28], [x1, floor + 3.05, -3.22]], stripe % 4 ? 'ivory' : 'burgundy', cloth,
-      [0, 0, 0, 1, 1, 1, 1, 0]);
+      const points=[],uv=[];
+      for(let segment=0;segment<=8;segment++) {
+        const t=segment/8, sag=Math.sin(t*Math.PI)*.20, ripple=Math.sin(t*13+stripe*.8)*.014;
+        const yy=floor+3.05-.40*t-sag+ripple,zz=-3.22-3.06*t;
+        points.push([x0,yy,zz],[x1,yy+Math.sin(stripe*.6)*.025,zz]);uv.push(0,t,1,t);
+      }
+      const awning=new THREE.BufferGeometry();awning.setAttribute('position',new THREE.Float32BufferAttribute(points.flat(),3));
+      awning.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));const indices=[];
+      for(let segment=0;segment<8;segment++){const a=segment*2;indices.push(a,a+2,a+1,a+1,a+2,a+3);}
+      awning.setIndex(indices);awning.computeVertexNormals();mesh(ctx,awning,stripe%4?'ivory':'burgundy',cloth);
       polygon(ctx, [[x0, floor + 2.65, -6.28], [x0 + .15, floor + 2.38, -6.30],
         [x1 - .15, floor + 2.38, -6.30], [x1, floor + 2.65, -6.28]], stripe % 4 ? 'ivory' : 'burgundy', cloth);
     }
@@ -617,6 +725,7 @@ export function createAlpineSetDressing(THREE, scene, {
     },
     dispose() {
       if (disposed) return; disposed = true; scene.remove(group);
+      stones.dispose();
       outputGeometries.forEach(geometry => geometry.dispose()); materials.forEach(material => material.dispose()); brush.dispose(); routeMap.dispose();
     },
   };

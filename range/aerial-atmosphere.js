@@ -1,4 +1,4 @@
-import { CLOUD_FIELD, CLOUD_DENSITY_GLSL, bakeCloudShape, bakeCloudWeather, bakeCloudShadow } from './cloud-field.js';
+import { CLOUD_FIELD, CLOUD_DENSITY_GLSL, bakeCloudShape, bakeCloudShadow } from './cloud-field.js';
 
 /** Bounded WebGL2 budgets; these are work limits, not hardware FPS claims. */
 export const AERIAL_QUALITY = Object.freeze({
@@ -22,8 +22,8 @@ export const AERIAL_STYLES = Object.freeze({
     // A cool molecular spectrum against warm aerosol forward scattering:
     // turquoise windows, apricot banks and violet/slate atmospheric depth.
     rayTint: [.65, 1.20, 1.60], mieTint: [1.09, .95, .88], multiple: [.085, .16, .255], ground: [.14, .145, .17],
-    aerialTint: [.74, .82, 1.15], cloudBase: [.13, .14, .225], cloudTop: [.17, .125, .14],
-    cloudSunTint: [1.18, .90, 1.02], depthStrength: 5.5,
+    aerialTint: [.70, .79, 1.02], cloudBase: [.075, .105, .18], cloudTop: [.19, .145, .12],
+    cloudSunTint: [1.25, .96, .72], depthStrength: 3.4,
   }),
 });
 const clamp = x => Math.max(0, Math.min(1, x));
@@ -170,16 +170,17 @@ const VERTEX_WORLD = /* glsl */`
  * low-resolution background pass; ordinary geometry supplies exact occlusion.
  */
 export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunColor = SUN_COLOR, style = 'daylight', quality = 'high',
-  cloudOffset = [CLOUD_FIELD.offsetX, CLOUD_FIELD.offsetZ], shapeSize = 64, weatherSize = 128, shadowSize = 128 } = {}) {
+  cloudOffset = [CLOUD_FIELD.offsetX, CLOUD_FIELD.offsetZ], shapeSize = 128, shadowSize = 128 } = {}) {
   const direction = new THREE.Vector3(...normalize(sunDirection));
   const solarColor = colorChannels(sunColor), palette = styleFor(style);
-  const shape = bakeCloudShape(shapeSize), weather = bakeCloudWeather(weatherSize);
-  const shadow = bakeCloudShadow(shape, weather, direction, shadowSize);
-  const shapeTexture = new THREE.Data3DTexture(shape.data, shape.size, shape.size, shape.size);
-  shapeTexture.format = THREE.RGFormat;
+  const shape = bakeCloudShape(shapeSize);
+  const shadow = bakeCloudShadow(shape, direction, shadowSize);
+  const shapeTexture = new THREE.Data3DTexture(shape.data, shape.width, shape.height, shape.depth);
+  shapeTexture.format = THREE.RGBAFormat;
   shapeTexture.type = THREE.UnsignedByteType;
   shapeTexture.unpackAlignment = 1;
-  shapeTexture.wrapS = shapeTexture.wrapT = shapeTexture.wrapR = THREE.RepeatWrapping;
+  shapeTexture.wrapS = shapeTexture.wrapR = THREE.RepeatWrapping;
+  shapeTexture.wrapT = THREE.ClampToEdgeWrapping;
   shapeTexture.minFilter = shapeTexture.magFilter = THREE.LinearFilter;
   shapeTexture.generateMipmaps = false;
   shapeTexture.needsUpdate = true;
@@ -193,7 +194,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
     texture.needsUpdate = true;
     return texture;
   };
-  const weatherTexture = texture2D(weather), shadowTexture = texture2D(shadow);
+  const shadowTexture = texture2D(shadow);
   const clearClouds = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
   clearClouds.needsUpdate = true;
   const uniforms = {
@@ -222,7 +223,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
       // The artistic compression belongs to distant land layers. Cloud banks
       // retain the base high-altitude medium so peach rims survive the view.
       aerialDepthStrength: { value: 1 },
-      aerialCloudShape: { value: shapeTexture }, aerialCloudWeather: { value: weatherTexture },
+      aerialCloudShape: { value: shapeTexture },
       inverseProjection: { value: new THREE.Matrix4() }, inverseView: { value: new THREE.Matrix4() },
       aerialCloudSteps: { value: 48 }, aerialCloudLightSteps: { value: 3 },
       aerialCloudEncodeScale: { value: 1 },
@@ -283,8 +284,12 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
             // Keep lit edges in a useful HDR range: over-bright white banks erase
             // the peach key/slate underside distinction after tone mapping.
             float powder = 1.0 - exp(-density * 5.0);
+            vec3 billowNormal = aerialCloudNormal(p);
+            float faceLight = smoothstep(-0.35, 0.90, dot(billowNormal, aerialSunDirection));
+            float rim = pow(1.0 - abs(dot(billowNormal, -direction)), 3.0) * faceLight;
             vec3 sunlight = aerialSunColor * aerialCloudSunTint
-              * (sunVisibility * (0.72 + phase * 0.12) * (0.78 + powder * 0.22) + 0.08);
+              * (sunVisibility * (0.40 + faceLight * 0.70 + rim * 0.22 + phase * 0.12)
+                * (0.78 + powder * 0.22) + 0.045);
             float stepTransmittance = exp(-density * stepLength * ${CLOUD_FIELD.extinction});
             float weight = transmittance * (1.0 - stepTransmittance);
             radiance += (ambient + sunlight) * weight;
@@ -465,7 +470,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
       disposed = true;
       sky.removeFromParent();
       sky.geometry.dispose(); skyMaterial.dispose(); cloudQuad.geometry.dispose(); cloudMaterial.dispose();
-      shapeTexture.dispose(); weatherTexture.dispose(); shadowTexture.dispose(); clearClouds.dispose(); cloudTarget.dispose();
+      shapeTexture.dispose(); shadowTexture.dispose(); clearClouds.dispose(); cloudTarget.dispose();
     },
   };
 }

@@ -178,3 +178,63 @@ test('adaptive quality retains albedo and flutter while reusing maps without red
   assert.deepEqual(textures.map(map => map.version), textureVersions);
   assert.equal(finishGlider(THREE, scene), finish);
 });
+
+test('flutter composes the cloth and preceding lighting callbacks instead of replacing them', () => {
+  const {scene, wing, sail} = fixture();
+  finishGlider(THREE, scene);
+  const clothCompile = sail.material.onBeforeCompile;
+  sail.material.onBeforeCompile = function(shader, renderer) {
+    clothCompile.call(this, shader, renderer);
+    shader.uniforms.sharedLightingProbe = { value: 7 };
+  };
+  addSailFlutter(wing);
+  const shader = { uniforms: {}, vertexShader: '#include <begin_vertex>',
+    fragmentShader: '#include <map_fragment>\n#include <lights_physical_pars_fragment>' };
+  sail.material.onBeforeCompile(shader);
+  assert.equal(shader.uniforms.sharedLightingProbe.value, 7);
+  assert.ok(shader.uniforms.uFlutterAmp);
+  assert.match(shader.vertexShader, /vAircraftRestPosition = position/);
+  assert.match(shader.fragmentShader, /RE_Direct_Sail/);
+  assert.match(shader.fragmentShader, /ivoryFlash/);
+});
+
+test('equipment follows the original pilot bones while prone and upright poses remain unchanged', async () => {
+  const { registerHooks } = await import('node:module');
+  const { readFile } = await import('node:fs/promises');
+  const hook = registerHooks({ resolve(specifier, context, next) {
+    return next(specifier === 'three' ? new URL('../range/vendor/three.module.js', import.meta.url).href : specifier, context);
+  } });
+  try {
+    const { GLTFLoader } = await import('../range/vendor/GLTFLoader.js');
+    const { createPilotRig } = await import('../src/pilot-rig.js');
+    const source = await readFile(new URL('../range/assets/hang-glider.glb', import.meta.url));
+    const buffer = source.buffer.slice(source.byteOffset, source.byteOffset + source.byteLength);
+    const before = (await new GLTFLoader().parseAsync(buffer, '')).scene;
+    const after = (await new GLTFLoader().parseAsync(buffer, '')).scene;
+    const result = finishGlider(THREE, after), equipment = [];
+    after.traverse(object => { if (object.name.startsWith('FlightEquipment-')) equipment.push(object); });
+    assert.equal(equipment.length, 5, 'equipment is batched by bone/material');
+    assert.ok(result.geometries.reduce((sum, geometry) => sum + geometry.attributes.position.count / 3, 0) < 5000);
+    const pilotBefore = before.getObjectByName('Pilot'), pilotAfter = after.getObjectByName('Pilot');
+    const rigBefore = createPilotRig(THREE, pilotBefore), rigAfter = createPilotRig(THREE, pilotAfter);
+    let boneCount = 0; pilotAfter.traverse(object => { if (object.isBone) boneCount++; });
+    assert.equal(boneCount, 19);
+    for (const pose of [{upright:0}, {upright:1}, {upright:0,bar:.8,shift:.7}, {upright:1,run:1,speed:6}]) {
+      rigBefore.update(1/60, pose, true); rigAfter.update(1/60, pose, true);
+      before.updateMatrixWorld(true); after.updateMatrixWorld(true);
+      pilotBefore.traverse(object => {
+        if (!object.isBone) return;
+        const match = pilotAfter.getObjectByName(object.name);
+        assert.deepEqual(match.matrixWorld.elements, object.matrixWorld.elements, object.name + ' keeps its original pose');
+      });
+      for (const mesh of equipment) {
+        assert.ok(mesh.parent.isBone, 'hardware follows the existing rig');
+        assert.ok(mesh.matrixWorld.elements.every(Number.isFinite));
+      }
+    }
+    rigAfter.update(0,{upright:0},true);after.updateMatrixWorld(true);
+    const head = pilotAfter.getObjectByName('Head').getWorldPosition(new THREE.Vector3());
+    const foot = pilotAfter.getObjectByName('Foot_L').getWorldPosition(new THREE.Vector3());
+    assert.ok(head.z-foot.z > 1.2 && Math.abs(head.y-foot.y) < .6, 'the flight pilot is physically prone, not standing');
+  } finally { hook.deregister(); }
+});

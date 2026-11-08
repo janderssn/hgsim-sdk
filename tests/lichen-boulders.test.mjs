@@ -13,6 +13,15 @@ test('rounded granite has welded smooth normals and finite bounded silhouette', 
     assert.ok(geometry.boundingSphere.radius < 1.5);
     const normal = geometry.attributes.normal;
     for (let i = 0; i < normal.count; i++) assert.ok(Math.abs(Math.hypot(normal.getX(i), normal.getY(i), normal.getZ(i)) - 1) < 1e-5);
+    const directions = new Set();
+    let upward = 0, downward = 0;
+    for (let i = 0; i < normal.count; i++) {
+      directions.add([normal.getX(i), normal.getY(i), normal.getZ(i)].map(v => Math.round(v * 10)).join(','));
+      if (normal.getY(i) > .6) upward++;
+      if (normal.getY(i) < -.6) downward++;
+    }
+    assert.ok(directions.size > 40, 'fractured faces retain distinct lighting directions');
+    assert.ok(upward > 10 && downward > 10, 'moss normals distinguish tops and undersides');
     geometry.dispose();
   }
 });

@@ -1,14 +1,13 @@
 /**
- * Deterministic, periodic fractal-value/Worley cloud medium. The 3D shape and
+ * Deterministic, periodic volume of overlapping cumulus billows. The 3D shape and
  * sun-column map are baked once on the CPU, never rebuilt as the camera moves.
  * Distances are metres. No external textures, random frame offsets or assets.
  */
 export const CLOUD_FIELD = Object.freeze({
   period: 12800,
-  shapePeriod: 3200,
   bottom: 2300,
-  top: 3100,
-  extinction: .0065,
+  top: 3400,
+  extinction: .0072,
   windX: 4.2,
   windZ: 1.3,
   // Initial authored phase: the flight corridor opens under clear sky while
@@ -29,46 +28,42 @@ function random(x, y, z, seed = 0) {
   return ((n ^ n >>> 16) >>> 0) / 4294967295;
 }
 
-function noise(x, y, z, period, seed) {
-  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
-  const fade = v => v * v * v * (v * (v * 6 - 15) + 10);
-  const u = fade(x - ix), v = fade(y - iy), w = fade(z - iz);
-  const h = (dx, dy, dz) => random(mod(ix + dx, period), mod(iy + dy, period), mod(iz + dz, period), seed);
-  return mix(mix(mix(h(0, 0, 0), h(1, 0, 0), u), mix(h(0, 1, 0), h(1, 1, 0), u), v),
-    mix(mix(h(0, 0, 1), h(1, 0, 1), u), mix(h(0, 1, 1), h(1, 1, 1), u), v), w);
-}
-
-function worley(x, y, z, cells) {
-  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
-  let distance = 4;
-  for (let dz = -1; dz <= 1; dz++) for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
-    const cx = ix + dx, cy = iy + dy, cz = iz + dz;
-    const wx = mod(cx, cells), wy = mod(cy, cells), wz = mod(cz, cells);
-    const px = cx + random(wx, wy, wz, 4573) - x;
-    const py = cy + random(wx, wy, wz, 8923) - y;
-    const pz = cz + random(wx, wy, wz, 2357) - z;
-    distance = Math.min(distance, px * px + py * py + pz * pz);
-  }
-  return clamp(1 - Math.sqrt(distance));
-}
-
-/** Texel-centred 3D shape: broad rounded mass in R, smaller erosion in G. */
-export function bakeCloudShape(size = 64) {
+/** A bounded anisotropic volume of actual overlapping ellipsoidal billows. */
+export function bakeCloudShape(size = 128) {
   if (!Number.isInteger(size) || size < 8 || size > 128) throw new RangeError('Cloud volume size must be 8–128.');
-  const data = new Uint8Array(size ** 3 * 2);
-  for (let z = 0; z < size; z++) for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    const u = (x + .5) / size, v = (y + .5) / size, w = (z + .5) / size;
-    const broad = noise(u * 4, v * 4, w * 4, 4, 719);
-    const middle = noise(u * 8, v * 8, w * 8, 8, 911);
-    // Rounded cellular lobes carry the silhouette; lattice noise only
-    // modulates them, avoiding large squared-off cloud banks.
-    const cellular = worley(u * 6, v * 6, w * 6, 6);
-    const fine = noise(u * 16, v * 16, w * 16, 16, 1237);
-    const offset = ((z * size + y) * size + x) * 2;
-    data[offset] = Math.round(clamp(broad * .30 + middle * .12 + cellular * .58) * 255);
-    data[offset + 1] = Math.round(clamp(fine * .55 + middle * .45) * 255);
+  const width = size * 2, depth = width, height = Math.max(8, Math.floor(size / 4));
+  const data = new Uint8Array(width * height * depth * 4);
+  const sx = CLOUD_FIELD.period / width, sy = (CLOUD_FIELD.top - CLOUD_FIELD.bottom) / height;
+  for (const billow of cloudBillows()) {
+    const { x, y, z, rx, ry, rz } = billow;
+    const minX = Math.floor((x - rx) / sx), maxX = Math.ceil((x + rx) / sx);
+    const minY = Math.max(0, Math.floor((y - ry - CLOUD_FIELD.bottom) / sy));
+    const maxY = Math.min(height - 1, Math.ceil((y + ry - CLOUD_FIELD.bottom) / sy));
+    const minZ = Math.floor((z - rz) / sx), maxZ = Math.ceil((z + rz) / sx);
+    for (let iz = minZ; iz <= maxZ; iz++) for (let iy = minY; iy <= maxY; iy++) for (let ix = minX; ix <= maxX; ix++) {
+      const dx = ((ix + .5) * sx - x) / rx;
+      const dy = (CLOUD_FIELD.bottom + (iy + .5) * sy - y) / ry;
+      const dz = ((iz + .5) * sx - z) / rz;
+      const radius = Math.hypot(dx, dy, dz);
+      if (radius >= 1) continue;
+      const density = Math.round((1 - smooth(.78, 1, radius)) * 255);
+      const offset = ((mod(iz, depth) * height + iy) * width + mod(ix, width)) * 4;
+      data[offset] = Math.max(data[offset], density);
+    }
   }
-  return { size, data };
+  const at = (x, y, z) => data[((mod(z, depth) * height + Math.max(0, Math.min(height - 1, y))) * width + mod(x, width)) * 4];
+  // Gradient normals account for the anisotropic voxel dimensions. They derive
+  // from the same union used by optical depth and cloud shadows.
+  for (let z = 0; z < depth; z++) for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
+    const nx = (at(x - 1, y, z) - at(x + 1, y, z)) / sx;
+    const ny = (at(x, y - 1, z) - at(x, y + 1, z)) / sy;
+    const nz = (at(x, y, z - 1) - at(x, y, z + 1)) / sx;
+    const length = Math.hypot(nx, ny, nz) || 1, offset = ((z * height + y) * width + x) * 4;
+    data[offset + 1] = Math.round((nx / length * .5 + .5) * 255);
+    data[offset + 2] = Math.round((ny / length * .5 + .5) * 255);
+    data[offset + 3] = Math.round((nz / length * .5 + .5) * 255);
+  }
+  return { size, width, height, depth, data };
 }
 
 const CLOUD_BANKS = [
@@ -78,55 +73,63 @@ const CLOUD_BANKS = [
   [.55, .93, .09, .05], [.04, .94, .065, .045],
 ];
 
-/** Kilometre-scale cumulus groups with genuine clear corridors between banks. */
-export function bakeCloudWeather(size = 128) {
-  if (!Number.isInteger(size) || size < 8 || size > 512) throw new RangeError('Cloud weather size must be 8–512.');
-  const data = new Uint8Array(size * size);
-  for (let z = 0; z < size; z++) for (let x = 0; x < size; x++) {
-    const u = (x + .5) / size, v = (z + .5) / size;
-    // Separate rounded banks with broad clear corridors. Weather only defines
-    // the envelope; the shared 3D medium supplies the billowed silhouette.
-    let coverage = 0;
-    for (const [cx, cz, rx, rz] of CLOUD_BANKS) {
-      const dx = Math.min(Math.abs(u - cx), 1 - Math.abs(u - cx)) / (rx * 1.5);
-      const dz = Math.min(Math.abs(v - cz), 1 - Math.abs(v - cz)) / (rz * 1.15);
-      const radius = Math.hypot(dx, dz);
-      coverage = Math.max(coverage, 1 - smooth(.30, 1.0, radius));
+function cloudBillows() {
+  const billows = [], period = CLOUD_FIELD.period;
+  CLOUD_BANKS.forEach(([cx, cz, rx, rz], bank) => {
+    // Low broad puffs form a connected shelf; unequal rising puffs give the
+    // skyline its scalloped outline. The shape is never a vertically extruded mask.
+    for (let base = 0; base < 2; base++) billows.push({
+      x: (cx + (base - .5) * rx) * period, y: CLOUD_FIELD.bottom + 170,
+      z: cz * period, rx: rx * period * .95, ry: 155, rz: rz * period * .75,
+    });
+    for (let puff = 0; puff < 7; puff++) {
+      const along = (puff / 6 - .5) * 2.1;
+      const vertical = 210 + random(bank, puff, 3, 107) * 260;
+      const primary = {
+        x: (cx + rx * along) * period,
+        z: (cz + (random(bank, puff, 0, 71) - .5) * rz * .8) * period,
+        y: CLOUD_FIELD.bottom + 150 + vertical * .70,
+        rx: rx * (.38 + random(bank, puff, 1, 83) * .23) * period,
+        ry: vertical,
+        rz: rz * (.57 + random(bank, puff, 2, 97) * .35) * period,
+      };
+      billows.push(primary);
+      // Smaller connected shoulders break up the large smooth balloon shape.
+      // They remain real volume, so their silhouette and sun shadow agree.
+      for (let shoulder = 0; shoulder < 5; shoulder++) {
+        const angle = shoulder / 5 * Math.PI * 2 + random(bank, puff, shoulder, 131) * .9;
+        const rise = .05 + random(bank, puff, shoulder, 149) * .68;
+        const radial = Math.sqrt(1 - rise * rise);
+        const scale = .25 + random(bank, puff, shoulder, 163) * .16;
+        billows.push({
+          x: primary.x + Math.cos(angle) * primary.rx * radial * .88,
+          y: primary.y + primary.ry * rise * .88,
+          z: primary.z + Math.sin(angle) * primary.rz * radial * .88,
+          rx: primary.rx * scale,
+          ry: Math.max(90, primary.ry * scale),
+          rz: primary.rz * scale,
+        });
+      }
     }
-    data[z * size + x] = Math.round(coverage * 255);
-  }
-  return { size, data };
+  });
+  return billows;
 }
 
-function sample2(field, u, v) {
-  const n = field.size, x = mod(u, 1) * n - .5, y = mod(v, 1) * n - .5;
-  const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
-  const at = (dx, dy) => field.data[mod(iy + dy, n) * n + mod(ix + dx, n)] / 255;
-  return mix(mix(at(0, 0), at(1, 0), fx), mix(at(0, 1), at(1, 1), fx), fy);
-}
-
-function sample3(field, x, y, z, channel = 0) {
-  const n = field.size, px = mod(x, 1) * n - .5, py = mod(y, 1) * n - .5, pz = mod(z, 1) * n - .5;
+function sample3(field, x, y, z) {
+  const { width, height, depth } = field;
+  const px = mod(x, 1) * width - .5, py = clamp(y) * height - .5, pz = mod(z, 1) * depth - .5;
   const ix = Math.floor(px), iy = Math.floor(py), iz = Math.floor(pz);
   const fx = px - ix, fy = py - iy, fz = pz - iz;
-  const at = (dx, dy, dz) => field.data[((mod(iz + dz, n) * n + mod(iy + dy, n)) * n + mod(ix + dx, n)) * 2 + channel] / 255;
+  const at = (dx, dy, dz) => field.data[((mod(iz + dz, depth) * height + Math.max(0, Math.min(height - 1, iy + dy))) * width + mod(ix + dx, width)) * 4] / 255;
   return mix(mix(mix(at(0, 0, 0), at(1, 0, 0), fx), mix(at(0, 1, 0), at(1, 1, 0), fx), fy),
     mix(mix(at(0, 0, 1), at(1, 0, 1), fx), mix(at(0, 1, 1), at(1, 1, 1), fx), fy), fz);
 }
 
-/** Matches CLOUD_DENSITY_GLSL, including the soft, eroded lower boundary. */
-export function sampleCloudDensity(shape, weather, x, y, z) {
-  const { bottom, top, period, shapePeriod } = CLOUD_FIELD;
-  const coverage = smooth(.16, .86, sample2(weather, x / period, z / period));
-  const h = (y - bottom) / (top - bottom);
-  const bankTop = .28 + coverage * .7;
-  const profile = smooth(0, .12, h) * (1 - smooth(bankTop * .65, bankTop, h));
-  if (profile <= 0 || coverage < .08) return 0;
-  const base = sample3(shape, x / shapePeriod, y / shapePeriod, z / shapePeriod);
-  const erosion = sample3(shape, x / shapePeriod, y / shapePeriod, z / shapePeriod, 1);
-  const threshold = .58 - coverage * .25;
-  const mass = smooth(threshold, threshold + .15, base);
-  return clamp(mass * profile - (1 - erosion) * .025) * (.42 + coverage * .58);
+/** Matches CLOUD_DENSITY_GLSL: one actual 3D medium for pixels and shadows. */
+export function sampleCloudDensity(shape, x, y, z) {
+  const { bottom, top, period } = CLOUD_FIELD;
+  if (y <= bottom || y >= top) return 0;
+  return sample3(shape, x / period, (y - bottom) / (top - bottom), z / period);
 }
 
 /** Sun-ray intersection with y=0. The same texture shades every object height. */
@@ -139,7 +142,7 @@ export function cloudShadowCoordinates(position, sunDirection, seconds = 0,
 }
 
 /** Optical depth encoded as 1-exp(-tau), preserving soft penumbral transitions. */
-export function bakeCloudShadow(shape, weather, sunDirection, size = 128, slices = 16) {
+export function bakeCloudShadow(shape, sunDirection, size = 128, slices = 16) {
   const [sx, sy0, sz] = Array.isArray(sunDirection) ? sunDirection : [sunDirection.x, sunDirection.y, sunDirection.z];
   const sy = Math.max(.08, sy0), { bottom, top, period, extinction } = CLOUD_FIELD;
   const data = new Uint8Array(size * size);
@@ -149,7 +152,7 @@ export function bakeCloudShadow(shape, weather, sunDirection, size = 128, slices
     let opticalDepth = 0;
     for (let slice = 0; slice < slices; slice++) {
       const y = bottom + (slice + .5) * step;
-      opticalDepth += sampleCloudDensity(shape, weather, wx + sx / sy * y, y, wz + sz / sy * y) * step / sy * extinction;
+      opticalDepth += sampleCloudDensity(shape, wx + sx / sy * y, y, wz + sz / sy * y) * step / sy * extinction;
     }
     data[z * size + x] = Math.round((1 - Math.exp(-opticalDepth)) * 255);
   }
@@ -159,18 +162,18 @@ export function bakeCloudShadow(shape, weather, sunDirection, size = 128, slices
 export const CLOUD_DENSITY_GLSL = /* glsl */`
   precision highp sampler3D;
   uniform sampler3D aerialCloudShape;
-  uniform sampler2D aerialCloudWeather;
   uniform vec2 aerialWindOffset;
+  vec3 aerialCloudUv(vec3 p) {
+    return vec3((p.x - aerialWindOffset.x) / ${CLOUD_FIELD.period.toFixed(1)},
+      (p.y - ${CLOUD_FIELD.bottom.toFixed(1)}) / ${(CLOUD_FIELD.top - CLOUD_FIELD.bottom).toFixed(1)},
+      (p.z - aerialWindOffset.y) / ${CLOUD_FIELD.period.toFixed(1)});
+  }
+  vec3 aerialCloudNormal(vec3 p) {
+    vec3 normal = texture(aerialCloudShape, aerialCloudUv(p)).gba * 2.0 - 1.0;
+    return normalize(normal + vec3(0.0, 0.08, 0.0));
+  }
   float aerialCloudDensity(vec3 p) {
-    p.xz -= aerialWindOffset;
-    float coverage = smoothstep(0.16, 0.86, texture(aerialCloudWeather, p.xz / ${CLOUD_FIELD.period.toFixed(1)}).r);
-    float h = (p.y - ${CLOUD_FIELD.bottom.toFixed(1)}) / ${(CLOUD_FIELD.top - CLOUD_FIELD.bottom).toFixed(1)};
-    float bankTop = 0.28 + coverage * 0.7;
-    float profile = smoothstep(0.0, 0.12, h) * (1.0 - smoothstep(bankTop * 0.65, bankTop, h));
-    if (profile <= 0.0 || coverage < 0.08) return 0.0;
-    vec2 shape = texture(aerialCloudShape, p / ${CLOUD_FIELD.shapePeriod.toFixed(1)}).rg;
-    float threshold = 0.58 - coverage * 0.25;
-    float mass = smoothstep(threshold, threshold + 0.15, shape.r);
-    return clamp(mass * profile - (1.0 - shape.g) * 0.025, 0.0, 1.0) * (0.42 + coverage * 0.58);
+    if (p.y <= ${CLOUD_FIELD.bottom.toFixed(1)} || p.y >= ${CLOUD_FIELD.top.toFixed(1)}) return 0.0;
+    return texture(aerialCloudShape, aerialCloudUv(p)).r;
   }
 `;

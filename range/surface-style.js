@@ -37,14 +37,14 @@ export function sampleGroundStyle(x, z, { moisture = .5, canopy = 0, path = 0 } 
   const mown = 1 - smooth(95, 165, Math.hypot(x - MARK.x, z - MARK.z));
   const dry = blend(GROUND_PALETTE.ochre, GROUND_PALETTE.straw, smooth(.24, .80, patch));
   const lush = blend(GROUND_PALETTE.fern, GROUND_PALETTE.sage, smooth(.20, .78, patch));
-  let color = blend(lush, dry, smooth(.42, .65, dryness));
+  let color = blend(lush, dry, smooth(.32, .74, dryness));
   color = blend(color, GROUND_PALETTE.olive, .33 * (1 - smooth(.30, .59, middle)));
   // Broad russet interruptions soften the lawn and read as worn late-summer
   // soil shoulders. They are pigment, not baked shadow or false terrain relief.
-  const wear = smooth(.50, .64, variation * .62 + broad * .38) * .66 * (1 - mown * .65);
+  const wear = smooth(.50, .64, variation * .62 + broad * .38) * .50 * (1 - mown * .65);
   const soil = blend(GROUND_PALETTE.russet, GROUND_PALETTE.umber, smooth(.48, .75, variation));
   color = blend(color, soil, wear);
-  color = blend(color, GROUND_PALETTE.field, mown * .24);
+  color = blend(color, GROUND_PALETTE.field, mown * .65);
   color = color.map(value => value * (.87 + variation * .22));
   color = blend(color, GROUND_PALETTE.umber, path * .84);
   return { dryness, mown, patch, variation, wear, color };

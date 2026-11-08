@@ -1,0 +1,510 @@
+{
+  "output": "docs/graphics/alpine-polish",
+  "errors": [],
+  "frames": [
+    {
+      "output": "docs/graphics/alpine-polish/staging.jpg",
+      "view": "staging",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54279,
+          "near": 13,
+          "mid": 71,
+          "far": 17372,
+          "testedCells": 349
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 37108
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": true,
+          "cellX": -7,
+          "cellZ": -106,
+          "tufts": 1455,
+          "flowers": 56,
+          "pebbles": 32,
+          "ferns": 7,
+          "shrubs": 377,
+          "litter": 46,
+          "deadwood": 1,
+          "seeds": 91,
+          "distantFans": 2801,
+          "distantRadius": 110,
+          "draws": 9,
+          "triangles": 572500,
+          "cachedCells": 195,
+          "cellBuilds": 314,
+          "farCachedCells": 406,
+          "farCellBuilds": 470
+        }
+      },
+      "camera": [
+        -38,
+        254.29618247119836,
+        -631
+      ],
+      "render": {
+        "frame": 33,
+        "calls": 172,
+        "triangles": 1826229,
+        "points": 0,
+        "lines": 12
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-polish/refuge.jpg",
+      "view": "refuge",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54279,
+          "near": 47,
+          "mid": 260,
+          "far": 14778,
+          "testedCells": 290
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 37108
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": true,
+          "cellX": -11,
+          "cellZ": -64,
+          "tufts": 1453,
+          "flowers": 72,
+          "pebbles": 39,
+          "ferns": 9,
+          "shrubs": 418,
+          "litter": 12,
+          "deadwood": 0,
+          "seeds": 90,
+          "distantFans": 1820,
+          "distantRadius": 110,
+          "draws": 8,
+          "triangles": 581403,
+          "cachedCells": 169,
+          "cellBuilds": 483,
+          "farCachedCells": 373,
+          "farCellBuilds": 812
+        }
+      },
+      "camera": [
+        -61,
+        94.0423309842934,
+        -382
+      ],
+      "render": {
+        "frame": 37,
+        "calls": 134,
+        "triangles": 3906012,
+        "points": 0,
+        "lines": 0
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-polish/meadow.jpg",
+      "view": "meadow",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54279,
+          "near": 20,
+          "mid": 134,
+          "far": 13530,
+          "testedCells": 284
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 37108
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": true,
+          "cellX": 33,
+          "cellZ": -42,
+          "tufts": 3000,
+          "flowers": 131,
+          "pebbles": 88,
+          "ferns": 6,
+          "shrubs": 600,
+          "litter": 2,
+          "deadwood": 0,
+          "seeds": 220,
+          "distantFans": 4112,
+          "distantRadius": 110,
+          "draws": 8,
+          "triangles": 1108240,
+          "cachedCells": 169,
+          "cellBuilds": 652,
+          "farCachedCells": 349,
+          "farCellBuilds": 1161
+        }
+      },
+      "camera": [
+        200,
+        35.68865361974663,
+        -250
+      ],
+      "render": {
+        "frame": 41,
+        "calls": 110,
+        "triangles": 3092456,
+        "points": 0,
+        "lines": 10
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-polish/departure.jpg",
+      "view": "departure",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54279,
+          "near": 0,
+          "mid": 38,
+          "far": 22128,
+          "testedCells": 444
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 37108
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": false,
+          "cellX": 33,
+          "cellZ": -42,
+          "tufts": 3000,
+          "flowers": 131,
+          "pebbles": 88,
+          "ferns": 6,
+          "shrubs": 600,
+          "litter": 2,
+          "deadwood": 0,
+          "seeds": 220,
+          "distantFans": 4112,
+          "distantRadius": 110,
+          "draws": 0,
+          "triangles": 1108240,
+          "cachedCells": 169,
+          "cellBuilds": 652,
+          "farCachedCells": 349,
+          "farCellBuilds": 1161
+        }
+      },
+      "camera": [
+        -1.0469051170564527,
+        273.0099973108333,
+        -545.0974715192948
+      ],
+      "render": {
+        "frame": 45,
+        "calls": 189,
+        "triangles": 763595,
+        "points": 0,
+        "lines": 12
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-polish/approach.jpg",
+      "view": "approach",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54279,
+          "near": 45,
+          "mid": 192,
+          "far": 18906,
+          "testedCells": 382
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 37108
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": true,
+          "cellX": -10,
+          "cellZ": -73,
+          "tufts": 1113,
+          "flowers": 44,
+          "pebbles": 31,
+          "ferns": 3,
+          "shrubs": 207,
+          "litter": 4,
+          "deadwood": 0,
+          "seeds": 82,
+          "distantFans": 2133,
+          "distantRadius": 110,
+          "draws": 8,
+          "triangles": 413905,
+          "cachedCells": 169,
+          "cellBuilds": 821,
+          "farCachedCells": 349,
+          "farCellBuilds": 1510
+        }
+      },
+      "camera": [
+        -58.886625117572486,
+        174.35248016826168,
+        -432.442606756767
+      ],
+      "render": {
+        "frame": 49,
+        "calls": 208,
+        "triangles": 3798253,
+        "points": 0,
+        "lines": 12
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-polish/aircraft.jpg",
+      "view": "aircraft",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54279,
+          "near": 0,
+          "mid": 59,
+          "far": 17147,
+          "testedCells": 330
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 37108
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": false,
+          "cellX": -10,
+          "cellZ": -73,
+          "tufts": 1113,
+          "flowers": 44,
+          "pebbles": 31,
+          "ferns": 3,
+          "shrubs": 207,
+          "litter": 4,
+          "deadwood": 0,
+          "seeds": 82,
+          "distantFans": 2133,
+          "distantRadius": 110,
+          "draws": 0,
+          "triangles": 413905,
+          "cachedCells": 169,
+          "cellBuilds": 821,
+          "farCachedCells": 349,
+          "farCellBuilds": 1510
+        }
+      },
+      "camera": [
+        2.0320451408938465,
+        218.9366180566437,
+        -466.65899026700333
+      ],
+      "render": {
+        "frame": 53,
+        "calls": 164,
+        "triangles": 901174,
+        "points": 0,
+        "lines": 0
+      }
+    },
+    {
+      "output": "docs/graphics/alpine-polish/launch.jpg",
+      "view": "launch",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54279,
+          "near": 0,
+          "mid": 13,
+          "far": 7986,
+          "testedCells": 177
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 60,
+          "triangles": 37108
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": false,
+          "cellX": -10,
+          "cellZ": -73,
+          "tufts": 1113,
+          "flowers": 44,
+          "pebbles": 31,
+          "ferns": 3,
+          "shrubs": 207,
+          "litter": 4,
+          "deadwood": 0,
+          "seeds": 82,
+          "distantFans": 2133,
+          "distantRadius": 110,
+          "draws": 0,
+          "triangles": 413905,
+          "cachedCells": 169,
+          "cellBuilds": 821,
+          "farCachedCells": 349,
+          "farCellBuilds": 1510
+        }
+      },
+      "camera": [
+        78,
+        253.74987226232417,
+        -472
+      ],
+      "render": {
+        "frame": 57,
+        "calls": 129,
+        "triangles": 501314,
+        "points": 0,
+        "lines": 0
+      }
+    }
+  ]
+}

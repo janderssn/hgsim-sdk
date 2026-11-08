@@ -36,7 +36,7 @@ const PROJECTION = `
   }
   vec3 surfaceEarthPigment(float grain, float earthVariation) {
     return mix(vec3(0.21, 0.15, 0.10), vec3(0.34, 0.25, 0.16),
-      smoothstep(0.20, 0.80, earthVariation)) * (0.78 + grain * 0.75);
+      smoothstep(0.20, 0.80, earthVariation)) * (0.60 + grain * 1.12);
   }
   vec3 surfaceWeights(vec3 n) {
     vec3 w = abs(n);
@@ -148,18 +148,14 @@ function localCliffSurface(material, maps, forestUniforms, detailUniforms) {
       float surfaceDetail = surfaceDetailFade(surfaceDetailDistance);
       vec3 stoneNormal = normalize(vSurfaceNormal);
       vec3 stoneWeights = surfaceWeights(stoneNormal);
-      vec3 stoneAxis = abs(stoneNormal);
-      bool stoneTop = stoneAxis.y > max(stoneAxis.x, stoneAxis.z);
-      bool stoneSideX = stoneAxis.x > stoneAxis.z;
-      // One stable world projection gives the large exfoliation slabs a useful
-      // physical scale without paying for three macro samples per fragment.
-      vec2 stoneMacroUv = (stoneTop ? vSurfacePosition.xz :
-        (stoneSideX ? vSurfacePosition.zy : vSurfacePosition.xy)) / 32.0;
-      vec2 stoneMacroDx = (stoneTop ? surfacePositionDx.xz :
-        (stoneSideX ? surfacePositionDx.zy : surfacePositionDx.xy)) / 32.0;
-      vec2 stoneMacroDy = (stoneTop ? surfacePositionDy.xz :
-        (stoneSideX ? surfacePositionDy.zy : surfacePositionDy.xy)) / 32.0;
-      vec3 stoneColor = textureGrad(cliffMacroColor, stoneMacroUv, stoneMacroDx, stoneMacroDy).rgb;
+      // Continuous world projection avoids visible texture switches at rounded
+      // shoulders. Texture gradients retain stable filtering at flight distance.
+      vec3 stoneColor = surfaceTexture(cliffMacroColor, vSurfacePosition, stoneWeights, 1.0 / 32.0).rgb;
+      // Slow intersecting mineral bands break texture repetition without a
+      // second set of three projections on every distant cliff fragment.
+      float broadMineral = sin(dot(vSurfacePosition, vec3(.011, .023, .007))) * .06
+        + sin(dot(vSurfacePosition, vec3(-.017, .009, .019))) * .04;
+      stoneColor *= .98 + broadMineral;
       float mineralLuma = dot(stoneColor, vec3(0.2126, 0.7152, 0.0722));
       stoneColor = mix(vec3(mineralLuma), stoneColor, 0.55);
       vec3 stoneAlbedo = diffuseColor.rgb * stoneColor;
@@ -222,7 +218,7 @@ function localCliffSurface(material, maps, forestUniforms, detailUniforms) {
           0.19, normal, normalScale * 0.45), surfaceDetail * 0.45 * (1.0 - stoneGroundCover * 0.65)));
     `);
   };
-  material.customProgramCacheKey = () => 'above-painted-granite-ledges-v4';
+  material.customProgramCacheKey = () => 'above-painted-granite-ledges-v5';
 }
 
 function terrainSurface(material, maps, forestUniforms, detailUniforms) {
@@ -365,7 +361,7 @@ function terrainSurface(material, maps, forestUniforms, detailUniforms) {
         if (bareSoil > 0.001) landDetail = mix(landDetail,
           textureGrad(surfaceSoilNormal, soilUv, surfacePositionDx.xz * 0.24,
             surfacePositionDy.xz * 0.24).xyz * 2.0 - 1.0, bareSoil);
-        landDetail.xy *= normalScale * 0.25;
+        landDetail.xy *= normalScale * mix(0.32, 0.68, bareSoil);
         vec3 landViewNormal = normalize(surfaceFrame(normal, meadowDx, meadowDy) * normalize(landDetail));
         if (exposedRock > 0.001) landViewNormal = normalize(mix(landViewNormal,
           surfaceNormalTexture(surfaceRockNormal, vSurfacePosition, landWeights,
@@ -378,7 +374,7 @@ function terrainSurface(material, maps, forestUniforms, detailUniforms) {
       reflectedLight.directDiffuse *= mix(1.0, forestVisibility, 0.68);
     `);
   };
-  material.customProgramCacheKey = () => 'above-painted-ecological-meadow-v6';
+  material.customProgramCacheKey = () => 'above-painted-ecological-meadow-v7';
 }
 
 function mountainSurface(material, maps, uniforms, detailUniforms) {
@@ -436,7 +432,8 @@ function mountainSurface(material, maps, uniforms, detailUniforms) {
       if (mountainCliff > 0.001) {
         vec3 pigment = textureGrad(mountainGraniteMacro, graniteMacroUv, graniteDx, graniteDy).rgb;
         float mineralLuma = dot(pigment, vec3(0.2126, 0.7152, 0.0722));
-        mountainColor = mix(mountainColor, mix(vec3(mineralLuma), pigment, 0.55), mountainCliff);
+        vec3 mineral = mix(vec3(mineralLuma), pigment, 0.65) * vec3(1.14, 1.03, .90);
+        mountainColor = mix(mountainColor, mineral, mountainCliff);
       }
       if (mountainVegetation > 0.001) {
         vec3 mountainMeadow = textureGrad(mountainMeadowColor, vSurfacePosition.xz * 0.012,
@@ -471,7 +468,7 @@ function mountainSurface(material, maps, uniforms, detailUniforms) {
       reflectedLight.indirectSpecular *= mountainAmbientOcclusion;
     `);
   };
-  material.customProgramCacheKey = () => 'above-painted-mountain-v5';
+  material.customProgramCacheKey = () => 'above-painted-mountain-v6';
 }
 
 /** Load locally retained, attributed PBR maps before constructing the scene. */

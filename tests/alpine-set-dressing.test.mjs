@@ -67,11 +67,11 @@ test('shared materials receive the atmosphere once and kit disposal releases eac
     assert.ok(!installed.has(material)); installed.add(material);
   } } });
   assert.equal(installed.size, 4);
-  const geometries = new Set(), materials = new Set(), counts = new Map();
-  kit.group.traverse(object => { if (object.geometry) geometries.add(object.geometry); if (object.material) materials.add(object.material); });
-  for (const resource of [...geometries, ...materials]) resource.addEventListener('dispose', () => counts.set(resource, (counts.get(resource) || 0) + 1));
+  const geometries = new Set(), materials = new Set(), instances = new Set(), counts = new Map();
+  kit.group.traverse(object => { if (object.isInstancedMesh) instances.add(object); if (object.geometry) geometries.add(object.geometry); if (object.material) materials.add(object.material); });
+  for (const resource of [...geometries, ...materials, ...instances]) resource.addEventListener('dispose', () => counts.set(resource, (counts.get(resource) || 0) + 1));
   kit.dispose(); kit.dispose();
-  for (const resource of [...geometries, ...materials]) assert.equal(counts.get(resource), 1);
+  for (const resource of [...geometries, ...materials, ...instances]) assert.equal(counts.get(resource), 1);
 });
 
 test('trail boards show a shared original contour map and release its texture once', async () => {

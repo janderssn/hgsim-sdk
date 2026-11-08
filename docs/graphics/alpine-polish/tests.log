@@ -1,0 +1,302 @@
+
+> hgsim@0.1.0 test
+> node --test "tests/*.test.mjs"
+
+✔ spectral aerial extinction has correct distance, altitude and reciprocal-path behaviour (4.706655ms)
+✔ illustrated aerial depth preserves the near corridor and smoothly separates distant slopes (0.332098ms)
+✔ single-scattering sky is finite at the horizon and sun-aligned across sky and IBL (14.652644ms)
+✔ illustrated afternoon keeps one linear solar colour across sky, IBL and cloud lighting (12.143307ms)
+✔ periodic 3D cloud banks and their sun optical-depth map share one medium (24.920426ms)
+✔ cloud shadows remain fixed in world space and correctly project different object heights (0.250656ms)
+✔ material hooks compose once, preserve instancing, and scatter in linear light (4.02336ms)
+✔ cloned surface callbacks nested in a ground-cover wrapper keep one complete aerial program (4.374976ms)
+✔ cloud work is capped at 4K, follows camera without moving the field, and restores render state (4.461337ms)
+✔ airframe origin follows the flight in high air and lowers the model only near contact (1.291999ms)
+✔ lift-off preserves the launch shoulder pivot and blends continuously into the airborne origin (0.870186ms)
+✔ settling a grounded wing levels it while retaining its current heading (0.091297ms)
+✔ a collision during catch-up seeds the tumble from current physics, independent of stale rendering (0.501653ms)
+✔ composed clearings and access trails reserve space while keeping the complete target meadow (34.619154ms)
+✔ original prop kit is grounded, keeps gameplay clearances and has a bounded shared draw budget (390.65626ms)
+✔ shared materials receive the atmosphere once and kit disposal releases each owned resource once (211.054953ms)
+✔ trail boards show a shared original contour map and release its texture once (317.427818ms)
+✔ the bundled geological data retain metre scale, valley alignment and source provenance (0.988233ms)
+✔ heightfield headers must provide both finite world origins (1.204328ms)
+✔ decorative DEM triangles are finite and stay below every playable corner (285.273685ms)
+✔ different patch LODs share exactly the same boundary samples (269.412674ms)
+✔ camera updates move only optional sky and dispose owned resources once (508.73725ms)
+✔ unavailable elevation assets leave a safe empty decorative group (25.101316ms)
+PASS nothing is created before unlock, and unlock is idempotent
+PASS update survives missing, partial and garbage state fields
+PASS every event plays with missing or odd data and unknown events are ignored
+  peak live one-shot nodes 452, peak voices 20, persistent 61
+PASS no node leak across 1000 emits; voices stay capped and clean up to baseline
+PASS a same-instant burst of 1000 emits stays bounded (rate limit + voice stealing)
+PASS sound preference persists as on/off and survives broken storage
+PASS disabled sound mutes the master and schedules nothing
+PASS vario pitch and beep rate rise monotonically with climb (600-1400 Hz above +0.3 m/s)
+PASS vario beeps only while gliding in climb, faster in stronger lift
+PASS footsteps follow walking pace and stop when paused or gliding
+PASS pause fades the wind/ambience bed, and resuming restores it
+PASS wind brightens and grows with airspeed; on foot it is very quiet
+PASS stall luff and skim swells fire once per edge and dedupe with explicit emits
+[audio] Error: no audio device
+    at createContext (file:///workspace/hgsim/tests/audio.test.mjs:244:91)
+    at Object.unlock (file:///workspace/hgsim/range/audio.js:314:15)
+    at file:///workspace/hgsim/tests/audio.test.mjs:245:37
+    at test (file:///workspace/hgsim/tests/audio.test.mjs:11:27)
+    at file:///workspace/hgsim/tests/audio.test.mjs:243:1
+PASS a failing AudioContext never throws into the game
+{
+  "passed": 14
+}
+✔ tests/audio.test.mjs (539.618011ms)
+✔ keyboard and gamepad controls combine, cancel, and stay within their range (1.026861ms)
+✔ triggers affect the airborne bar while the launch nose follows the stick (0.125309ms)
+✔ releasing an inherited launch key keeps trim until a new flight command (0.208003ms)
+✔ a reversed launch input or a fresh flight input takes over immediately (0.101943ms)
+✔ Easy launches ease their held bar in after two seconds (0.090996ms)
+✔ cliff and Easy edge launches dive for speed while allowing pilot override (0.091928ms)
+✔ a launch input released after lift-off cannot drop the glider back onto the ramp (32.14483ms)
+✔ launch kit stays below the wing at deck edges and keeps trail furniture behind the run (86.20665ms)
+✔ all furnishing heights follow the supplied canonical ground and deck (29.503615ms)
+✔ quality hides small trail decoration and disposal preserves caller materials (23.899574ms)
+✔ Blender library includes detailed trees and a self-contained multi-view atlas (13.867866ms)
+✔ asset adapter bakes node transforms once without changing source geometry (11.186201ms)
+✔ props-only adapter retains original props without touching legacy tree geometry (10.69963ms)
+✔ tree detail uses a bounded number of shared draws and culls behind the camera (523.374682ms)
+✔ evergreen stands create clustered mature forests and preserve meadow clearances (484.602407ms)
+✔ stationary lens and viewport changes rebuild the tree frustum (455.708342ms)
+✔ distant trees use opaque alpha-tested atlas cards instead of full branch geometry (620.647238ms)
+✔ props library deterministically strips obsolete tree geometry and embedded tree images (22.918991ms)
+✔ every original prop retains exact transforms, accessor data, materials and world bounds (30.906141ms)
+✔ subset retains ancestor transforms while pruning unrelated sibling geometry (6.723261ms)
+PASS samples at 20 Hz whatever the frame rate, in the declared field order
+PASS marks land at the current flight time, and a mark just after the round joins that round
+PASS a round thrown away at once is dropped, but a marked one is kept
+PASS beginning a new round closes the one in progress as abandoned
+PASS storage keeps the latest rounds, survives filling up, and a failing send cannot disturb the flight
+PASS non-numeric values are stored as zero, not as broken data
+{"passed":6}
+✔ tests/flight-recorder.test.mjs (46.106301ms)
+POLAR {"stall":9.690891752635194,"trim":13.036046275669133,"fullIn":47.22756446537026,"minSink":0.9869022139492137,"minSinkSpeed":10.499999999999991,"bestLD":12.271858666913273}
+PASS the polar is a hang glider: stall near 9.7 m/s, min sink about 1.1 m/s, best glide about 10.5
+PASS still air only ever dissipates energy, whatever the bar and the weight shift do
+PASS trim is steady: the neutral bar settles on the trim speed at the polar sink, with no drift
+DIVE {"maxKmh":183.92450262782444,"steepestDeg":-59.143661045231106,"zoomTopDeg":0.5943440368197392,"minSpeedAfter":15.468858104498228}
+PASS pulling in dives: the nose drops away, the speed builds past 100 km/h and the dive settles; letting the bar out zooms without a stall
+ZOOM {"neutral":2.4307089426524726,"pushed":30.578930360721415,"ideal":37.21006613142777}
+PASS speed in hand is yours to spend: from 30 m/s a neutral bar holds about level and S zooms it into height
+STALL {"breakAt":2.8833333333333333,"noseDeg":-36.7233385572338,"sink":-5.607129628655985,"slowFor":1.0500000000000012}
+PASS holding the bar fully out at height breaks into a stall: the nose drops, speed returns, and pulling in recovers
+PASS binary bar input is slewed, and the push-out is slower when fast (bar pressure)
+PASS right input banks promptly and decreases heading in the scene convention; release levels the wing
+TURN {"at45":0.9666666666666667,"t360":7.183333333333334,"bank":59.99999999999983,"speed":15.51376367081881,"sink":-2.3474278813330414}
+PASS full input reaches 45 degrees in about a second and a half; a 360 at full bank takes 6-9 s and never stalls at neutral bar
+PASS a steep bank at neutral bar does not stall: the nose drops, the speed builds and the sink grows; pushing out in it does stall
+THERMAL {"climbPerSecond":4.190403159453482,"speed":14.599545784820863,"bank":45.88729716520852}
+PASS circling in a strong thermal with a little push-out climbs steadily without stalling
+PASS windward ridge lifts while reversed wind sinks on the lee and cliff spikes stay bounded
+PASS wind advects ground motion without changing trimmed airspeed
+PASS thermals fade at altitude ceiling and bank adds sink at trim
+PASS compact worlds can lower thermal ceiling without changing default lift
+PASS flight is stable across 30 and 144 FPS and long pauses are capped
+PASS touchdown judgement: soft, firm, rough and crash bands on contact speed, ground speed, slope and bank
+PASS no automatic landing rules: the same input gives the same bar whatever the height, so S cannot round out for you
+NOFLARE {"none":{"seconds":17.783333333333335,"vertical":0.6938189644909019,"ground":13.233540641445092,"airspeed":13.251657950319938,"judged":"rough","points":550,"headwind":0,"tailwind":0,"windSpeed":0,"distance":0,"ring":"bullseye","stars":1,"notes":["Rough touchdown","No flare","Bullseye"],"noStep":false},"high":{"seconds":14.083333333333334,"vertical":5.517099461055242,"ground":6.679647318532309,"airspeed":8.670839656326681,"judged":"crash","points":0,"headwind":0,"tailwind":0,"windSpeed":0,"distance":0,"ring":null,"stars":0,"notes":[],"noStep":false}}
+PASS never pushing out skids in at trim; holding S from too high stalls and drops in hard
+PASS the landing window can be judged by eye: holding S on final from 1.5-2 m is soft, 3 m firm, under 1 m a fast skid, 8 m a crash
+PASS near the stall the wing is heavy: a quarter turn takes longer and banks less than at trim
+PASS tapping A and D stays smooth: the roll spring never moves more than a degree a frame
+HOOK {"seconds":5.516666666666667,"maxBankDeg":59.999994984399784,"speedAfter":22.28145965798792,"minFeet":3.068593859631623}
+PASS a hard roll out of a fast low skim is a wingover hook: 180 degrees in under 6 s, speed spent, never into the ground
+PASS landing score: no-stepper, headwind and bullseye points; flare notes
+PASS a final can be flown down: over landable ground W descends at landing speed and hands off does not climb; elsewhere the assist still holds
+PASS a slow final does not float: low over landable ground a hands-off wing comes down sooner, and arrives rough rather than crashing
+PASS a tailwind over 1 m/s is too fast to run out unless the flare was very good, and the margin shrinks as it grows
+PASS skimming has fine control: taps and small stick trim the last metres, a held press still acts, nothing holds the height, a steep dive is untouched
+{
+  "passed": 28,
+  "tests": [
+    "the polar is a hang glider: stall near 9.7 m/s, min sink about 1.1 m/s, best glide about 10.5",
+    "still air only ever dissipates energy, whatever the bar and the weight shift do",
+    "trim is steady: the neutral bar settles on the trim speed at the polar sink, with no drift",
+    "pulling in dives: the nose drops away, the speed builds past 100 km/h and the dive settles; letting the bar out zooms without a stall",
+    "speed in hand is yours to spend: from 30 m/s a neutral bar holds about level and S zooms it into height",
+    "holding the bar fully out at height breaks into a stall: the nose drops, speed returns, and pulling in recovers",
+    "binary bar input is slewed, and the push-out is slower when fast (bar pressure)",
+    "right input banks promptly and decreases heading in the scene convention; release levels the wing",
+    "full input reaches 45 degrees in about a second and a half; a 360 at full bank takes 6-9 s and never stalls at neutral bar",
+    "a steep bank at neutral bar does not stall: the nose drops, the speed builds and the sink grows; pushing out in it does stall",
+    "circling in a strong thermal with a little push-out climbs steadily without stalling",
+    "windward ridge lifts while reversed wind sinks on the lee and cliff spikes stay bounded",
+    "wind advects ground motion without changing trimmed airspeed",
+    "thermals fade at altitude ceiling and bank adds sink at trim",
+    "compact worlds can lower thermal ceiling without changing default lift",
+    "flight is stable across 30 and 144 FPS and long pauses are capped",
+    "touchdown judgement: soft, firm, rough and crash bands on contact speed, ground speed, slope and bank",
+    "no automatic landing rules: the same input gives the same bar whatever the height, so S cannot round out for you",
+    "never pushing out skids in at trim; holding S from too high stalls and drops in hard",
+    "the landing window can be judged by eye: holding S on final from 1.5-2 m is soft, 3 m firm, under 1 m a fast skid, 8 m a crash",
+    "near the stall the wing is heavy: a quarter turn takes longer and banks less than at trim",
+    "tapping A and D stays smooth: the roll spring never moves more than a degree a frame",
+    "a hard roll out of a fast low skim is a wingover hook: 180 degrees in under 6 s, speed spent, never into the ground",
+    "landing score: no-stepper, headwind and bullseye points; flare notes",
+    "a final can be flown down: over landable ground W descends at landing speed and hands off does not climb; elsewhere the assist still holds",
+    "a slow final does not float: low over landable ground a hands-off wing comes down sooner, and arrives rough rather than crashing",
+    "a tailwind over 1 m/s is too fast to run out unless the flare was very good, and the margin shrinks as it grows",
+    "skimming has fine control: taps and small stick trim the last metres, a held press still acts, nothing holds the height, a steep dive is untouched"
+  ]
+}
+✔ tests/flight.test.mjs (486.61999ms)
+✔ forest mesh library contains complete, bounded near/mid crowns with valid topology (43.657668ms)
+✔ all forest author images retain their pinned package checksums (13.849407ms)
+✔ every azimuth/elevation atlas tile has cutout coverage and linear unit normals (718.144916ms)
+✔ woodland clearance, deterministic placement and actual canopy coverage agree (81.121248ms)
+✔ rotated culling bounds contain every corner of an asymmetric wide crown (0.528513ms)
+✔ composed sites reserve tree-free space and grove pigments keep warm edges distinct from cool interiors (47.485702ms)
+✔ neighboring trees form coherent species and age stands instead of independent speckle (72.175288ms)
+✔ forest mip chains retain input provenance, independent views and transparent surface RGB (299.394324ms)
+✔ flight-distance mip normals remain unit surface data with unchanged cutout coverage (99.982741ms)
+✔ baked canopy/contact shading follows actual trees and leaves open ground white (8.09879ms)
+✔ overlapping crowns stay soft and bounded rather than multiplying to black (23.431043ms)
+✔ glider finishing preserves rig and geometry while adding finite UVs and shared materials (73.141884ms)
+✔ textured sail keeps its flutter shader and animation resources on repeated finishing (73.871418ms)
+✔ adaptive quality retains albedo and flutter while reusing maps without redundant shader updates (57.894198ms)
+✔ flutter composes the cloth and preceding lighting callbacks instead of replacing them (45.203667ms)
+✔ equipment follows the original pilot bones while prone and upright poses remain unchanged (93.719346ms)
+✔ GPU timing never reads an unavailable result and bounds outstanding queries (1.195023ms)
+✔ a disjoint clock invalidates all queued results and can resume next frame (0.143726ms)
+✔ missing extensions and disposed profilers are safe no-ops (0.141673ms)
+✔ one connected escarpment has finite structural faces and two bounded material draws (59.914853ms)
+✔ physical rock heights match actual rendered triangles, including fracture edges (3686.966495ms)
+✔ authored launch heights and the first metres beyond their edges remain usable (1.743016ms)
+✔ shared ecology is deterministic, bounded and follows the rock, toe and access path (20.541761ms)
+✔ a dense meadow uses bounded shared draws for expressive grass fans, herbs and seed heads (162.669398ms)
+✔ world anchoring survives camera movement and return visits without reallocating buffers (255.476935ms)
+✔ neighbouring streaming cells keep the positions of shared world tufts (79.911429ms)
+✔ streaming samples only entering world cells and bounds its cache along long flights (486.632313ms)
+✔ bullseye, elevated platforms, exposed rocks and steep terrain remain free of detail (114.734913ms)
+✔ terrain ecology keeps the shared trail and exposed-rock masks clear (22.705535ms)
+✔ altitude suppresses invisible detail, restores cached buffers and allows quality changes aloft (46.310619ms)
+✔ all quality levels reuse fixed capacity, shrink at the edge in the GPU and own only their resources (116.449587ms)
+✔ actual tree coverage replaces meadow flora with layered woodland plants and debris (111.385995ms)
+✔ shared mowing and moisture fields change botanical height, pigment and seed growth (168.050727ms)
+✔ coarse meadow strokes bridge the near fade without restreaming at every near-cell crossing (112.7992ms)
+✔ a steady flight performs no repeated DOM lookups or unchanged DOM writes (2.064297ms)
+✔ stall information stays in the instrument without restoring removed popups (0.171758ms)
+✔ control hints follow flight posture, gamepad, and realistic launch phases (0.224527ms)
+PASS acting at either band clears the ground, from every dive height
+PASS the red band stays close to the height really needed
+PASS going well past the red band hits the ground
+PASS the green zone is where a flare lands softly
+PASS the bar looks along the flight path
+PASS the cushion softens fast arrivals and leaves landings alone
+PASS a light touch at speed scrapes, anything worse does not
+{"passed":8}
+✔ tests/landing-cues.test.mjs (280.765716ms)
+{"still":["edge","0.27","6.7"],"breeze":["edge","0.97"],"slope":["flying","8.5"],"strong":["flying","0.5"],"tail":["edge","0.08"],"cross":"crosswind"}
+launch checks passed
+realistic launch checks passed
+nose checks passed
+✔ tests/launch.test.mjs (116.021905ms)
+✔ rounded granite has welded smooth normals and finite bounded silhouette (63.310172ms)
+✔ boulder clusters frame the staging area without occupying structures or launch corridors (64.884815ms)
+✔ launch staging shelf is physically walkable rather than a pointed summit (8.486222ms)
+✔ rock kit preserves shared scanned texture ownership and composes the source projection (64.247448ms)
+✔ HDR reduction preserves linear radiance and leaves the photographic source untouched (7.307022ms)
+✔ the directional key points at the sun in the unrotated equirectangular sky (0.496585ms)
+✔ a constant HDR environment gives π times its radiance on every surface (15.522074ms)
+✔ a brighter upper sky produces the matching analytic diffuse illumination (27.900558ms)
+✔ positions and drawing angles interpolate between snapshots with clamped endpoints (0.927882ms)
+✔ heading crosses the ±pi boundary over the shortest arc in either direction (0.121423ms)
+✔ interpolation leaves physics snapshots unchanged and can reuse an output object (0.095774ms)
+✔ the base profile and unaffected approach/thermal heights remain exact (0.689745ms)
+✔ the launch ledges join the ridge without moving their authored structures (6.213863ms)
+✔ asymmetric valley shoulders and southern rim provide finite physical relief (15.439574ms)
+✔ the full 240-grid drawing stays within one metre of physical slopes and the launch shoulder (838.82522ms)
+✔ refuge terrace has a level usable yard and leaves the central descent untouched (0.222884ms)
+✔ contact occlusion reads depth from the original beauty pass, with no material override (5.981705ms)
+✔ low retains the same grade with no occlusion pass; unsupported HDR renders directly (0.554622ms)
+✔ the authored grade follows the only tone map and precedes display encoding at every preset (0.416185ms)
+✔ medium reduces AO sampling and resolution and restores high without resizing the viewport (0.33333ms)
+✔ a failed render restores the caller target, statistics mode, and XR state (0.458368ms)
+✔ starts with full detail and leaves healthy frames allocation-free (1.773851ms)
+✔ sustained slow frames reduce work and dispose obsolete shadow targets once (0.187602ms)
+✔ detail recovers slowly after sustained fast rendering (0.159009ms)
+✔ inactive pages and isolated long tasks do not reduce detail (0.117296ms)
+✔ repeated GPU stalls count toward sustained load despite bursts of fast frames (0.09976ms)
+✔ framebuffer size respects native DPR, pixel budgets and GPU limits (0.142083ms)
+✔ resize adapts physical resolution and resets stale timing samples (0.101002ms)
+✔ manual high detail stays selected under load and across viewport changes (0.150826ms)
+✔ manual levels apply once and repeated or invalid selections do not invalidate resources (0.235363ms)
+✔ returning to auto keeps the chosen level and adapts only from fresh samples (12.790399ms)
+✔ drawing quality never changes the terrain: the drawn ground stays where the glider touches it (905.059103ms)
+✔ grass tiles retain all instances and expose finite bounds for frustum culling (811.381072ms)
+✔ detail follows the camera with hysteresis and reuses instance buffers (426.010489ms)
+✔ Sierra backdrop faces the measured western ridgeline and retains source provenance (12.775527ms)
+✔ one second advances the same 60 simulation ticks at fast and slow render rates (3.746571ms)
+✔ fractional elapsed time is retained until a full tick is available (0.485328ms)
+✔ a long pause caps catch-up work and preserves only the fractional remainder (0.101322ms)
+✔ reset drops pending time and can anchor the next visible frame explicitly (0.079799ms)
+✔ invalid and backward timestamps neither advance nor corrupt the clock (0.091668ms)
+PASS heading zero tilts right wing upward on positive east slope
+PASS heading ninety samples its right wing toward north with correct sign
+PASS pose never changes physics state and flat ground preserves the entire manual turn
+PASS high flight and inactive assist start with unchanged physics bank
+PASS terrain correction caps its target and yields to strong manual bank
+PASS correction eases in at .09 seconds and out at .18 without snapping
+PASS outside-flight reset returns actual bank immediately
+PASS level wings get nominal clearance while full bank gets wing-tip allowance
+PASS slope-aligned wings stay low and extreme terrain clearance stays bounded
+{
+  "passed": 9
+}
+✔ tests/skim-pose.test.mjs (86.498442ms)
+✔ static batching preserves transformed surfaces, UVs and normals without changing source buffers (14.059112ms)
+✔ shared materials partition many timbers into two colour and two shadow draws (7.280777ms)
+✔ mirrored geometry keeps the source front face after baking its world transform (0.384376ms)
+✔ unsupported dynamic or incompatible meshes fail explicitly before touching source resources (0.674182ms)
+✔ surface quality preserves PBR maps and bounds texture uploads (maximum 1×) (8.007268ms)
+✔ surface quality preserves PBR maps and bounds texture uploads (maximum 4×) (25.421845ms)
+✔ surface quality preserves PBR maps and bounds texture uploads (maximum 16×) (1.231018ms)
+✔ forest coverage updates existing shaders without transferring ownership (0.904438ms)
+✔ one shared atmosphere installer preserves surface shader callbacks (4.702398ms)
+✔ ecology controls retain opaque linear channels and match their physical source (21.350796ms)
+✔ world pigment is deterministic, bounded and follows wet soil and mowing (18.40251ms)
+CAPTURE {"height":20,"minClear":6.453295819880727,"final":6.461180926601203,"speed":17.152461115713088,"maxVsStep":0.09521454975788313,"maxLoad":1.4255297317540963}
+CAPTURE {"height":40,"minClear":6.45005365211279,"final":6.457836438524441,"speed":19.836844512342147,"maxVsStep":0.09490061885950674,"maxLoad":1.5333660648465082}
+CAPTURE {"height":80,"minClear":6.446487289700589,"final":6.44986908063687,"speed":24.476176356822993,"maxVsStep":0.09933318297736538,"maxLoad":1.5038219052417512}
+PASS a fast dive is captured near the 6.5 m target: no plunge, no bounce, within the g limits
+ENERGY {"flat":23.71152792222268,"downhill":30.53266837030311,"uphill":20.998416562220054}
+PASS skimming obeys energy: no speed from nothing, a flat skim slows, downhill speeds up, uphill slows down
+PASS rolling terrain stays clear and smooth, consistently at 30, 60 and 144 FPS
+PASS S pulls out smoothly: the assist fades over several frames and the glider climbs away
+PASS releasing W eases the assist out and leaves the glider flying level without a pop
+PASS no assist when disabled, when slow, or without the bar pushed in
+WALL {"warnedAt":2.433333333333333,"contactAt":16.516666666666666,"contactSpeed":10.728701698748681}
+PASS a wall that needs more climb than the limits allow raises PULL UP early and never parks the glider
+PASS a feasible 18 m crest is followed at speed, with no warning and no contact
+PASS optional surface callback follows water or obstacle tops without steering
+PASS the bank clearance callback raises only the following height
+PASS the skim never takes the weight shift away: the wing banks as freely low as high, and a hard roll is a full-bank hook
+PASS the skim proper is low flying: a high dive is rounded out without the skim bank limit or the HUD skim
+ESCAPE {"side":1,"warnedAt":0.13333333333333333,"reason":"energy","turn":1,"bank":58.60641378994258}
+ESCAPE {"side":-1,"warnedAt":0.13333333333333333,"reason":"energy","turn":-1,"bank":58.60641378994258}
+PASS PULL UP names the escape: TURN toward the lower side for a face no pull can clear, early, with full bank
+PASS releasing W during a PULL UP keeps the assist holding while the pilot turns away
+PASS a long gentle rise that outlasts the energy is not a TURN warning: the glider settles onto the slope
+PASS a long paused frame stays finite and capped
+{
+  "passed": 16
+}
+✔ tests/terrain-skimming.test.mjs (432.201961ms)
+world checks passed
+✔ tests/world.test.mjs (223.438023ms)
+ℹ tests 139
+ℹ suites 0
+ℹ pass 139
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7210.414396

@@ -1,5 +1,6 @@
-// Original, texture-only detailing for the existing rigged glider. The asset's
-// positions, skin weights, bone names and attachment metadata stay untouched.
+// Original cloth finishing and bone-following equipment for the existing rig.
+// Authored positions, skin weights, bone names and attachment metadata stay intact.
+import { addPilotEquipment } from './pilot-detail.js';
 const finished = new WeakMap();
 
 function texture(THREE, width, height, sample, color = false) {
@@ -98,6 +99,63 @@ function addUVs(THREE, mesh, sail, pilot) {
   geometry.setAttribute('uv', new THREE.BufferAttribute(values, 2));
 }
 
+/** Macro cloth structure is evaluated before skinning, so stitched pigment
+ * stays attached to the jacket while the existing rig bends underneath it. */
+function installAircraftCloth(material, name) {
+  const jacket = name.includes('teal shell');
+  const sail = name.includes('ivory dacron') || name.includes('under red inner cloth') || name.includes('signal royal blue');
+  if (!jacket && !sail) return;
+  material.onBeforeCompile = shader => {
+    shader.vertexShader = `varying vec3 vAircraftRestPosition;\n${shader.vertexShader}`;
+    shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
+      #include <begin_vertex>
+      vAircraftRestPosition = position;
+    `);
+    if (!shader.fragmentShader) return;
+    shader.fragmentShader = `varying vec3 vAircraftRestPosition;\n${shader.fragmentShader}`;
+    shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+      #include <map_fragment>
+      vec3 clothPoint = vAircraftRestPosition;
+      ${jacket ? `
+      float jacketPanel = smoothstep(-.025, .08, clothPoint.y);
+      vec3 fieldCloth = mix(vec3(.135, .170, .092), vec3(.43, .115, .038), jacketPanel);
+      float sleeveFold = sin(clothPoint.y * 66.0 + sin(clothPoint.x * 24.0) * 1.4);
+      float elbowFold = sin(clothPoint.y * 39.0 - clothPoint.x * 17.0);
+      fieldCloth *= .93 + sleeveFold * .045 + elbowFold * .035;
+      float jacketHem = 1.0 - smoothstep(.004, .012, abs(clothPoint.y - .115));
+      float podSeam = 1.0 - smoothstep(.003, .008, abs(abs(clothPoint.x) - .115));
+      fieldCloth *= 1.0 - jacketHem * .20 - podSeam * (1.0 - jacketPanel) * .12;
+      diffuseColor.rgb *= fieldCloth;
+      ` : `
+      float span = abs(clothPoint.x) / 4.5625;
+      float ivoryFlash = smoothstep(.65, .665, span) * (1.0 - smoothstep(.77, .785, span));
+      ${name.includes('ivory dacron') ? 'diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.73,.66,.49), ivoryFlash * .93);' : ''}
+      float panelTension = sin(clothPoint.x * 10.8 + clothPoint.z * 1.2);
+      diffuseColor.rgb *= .97 + panelTension * .025;
+      `}
+    `);
+    if (sail) shader.fragmentShader = shader.fragmentShader.replace('#include <lights_physical_pars_fragment>', `
+      #include <lights_physical_pars_fragment>
+      // A thin Dacron sheet passes a small amount of the already shadowed sun.
+      // This belongs to the real direct-light loop, never an emissive glow.
+      void RE_Direct_Sail(const in IncidentLight light, const in vec3 geometryPosition,
+        const in vec3 geometryNormal, const in vec3 geometryViewDir,
+        const in vec3 geometryClearcoatNormal, const in PhysicalMaterial material,
+        inout ReflectedLight reflectedLight) {
+        RE_Direct_Physical(light, geometryPosition, geometryNormal, geometryViewDir,
+          geometryClearcoatNormal, material, reflectedLight);
+        float throughCloth = pow(max(0.0, dot(geometryViewDir, -light.direction)), 2.0);
+        float grazing = 1.0 - abs(dot(geometryNormal, light.direction));
+        reflectedLight.directDiffuse += light.color * material.diffuseColor * RECIPROCAL_PI
+          * (throughCloth * .32 + grazing * .07);
+      }
+      #undef RE_Direct
+      #define RE_Direct RE_Direct_Sail
+    `);
+  };
+  material.customProgramCacheKey = () => `aircraft-cloth-v2-${jacket ? 'jacket' : name}`;
+}
+
 /**
  * Apply the alpine concept's ivory/orange sail, teal pod and metal finishes.
  * Call before addSailFlutter(): ordinary PBR maps leave its shader hook free.
@@ -106,6 +164,7 @@ function addUVs(THREE, mesh, sail, pilot) {
 export function finishGlider(THREE, scene) {
   if (finished.has(scene)) return finished.get(scene);
   const maps = makeTextiles(THREE);
+  const equipment = addPilotEquipment(THREE, scene);
   const materials = new Map();
   const surfaces = [];
 
@@ -125,7 +184,7 @@ export function finishGlider(THREE, scene) {
       if (textile) {
         material.map = name.includes('sail /') ? maps.sail : maps.cloth;
         material.normalMap = maps.normal;
-        material.normalScale.set(.17, .17);
+        material.normalScale.set(.10, .10);
         material.roughnessMap = maps.roughness;
         material.roughness = .86;
         material.metalness = 0;
@@ -148,10 +207,10 @@ export function finishGlider(THREE, scene) {
         material.color.set('#8d846d');
         material.roughness = .87;
       } else if (name.includes('teal shell')) {
-        material.color.set('#235c60');
+        material.color.set('#ffffff');
         material.roughness = .74;
       } else if (name.includes('reinforced panels')) {
-        material.color.set('#153b40');
+        material.color.set('#343c2b');
       } else if (name.includes('webbing and boots')) {
         material.color.set('#242d2d');
         material.roughness = .85;
@@ -179,6 +238,7 @@ export function finishGlider(THREE, scene) {
         material.metalness = .74;
         material.roughness = .24;
       }
+      installAircraftCloth(material, name);
       material.needsUpdate = true;
       materials.set(original, material);
       return material;
@@ -212,7 +272,8 @@ export function finishGlider(THREE, scene) {
     return changed;
   }
 
-  const result = { scene, materials: [...materials.values()], textures: Object.values(maps), setQuality };
+  equipment.materials.forEach(material => material.dispose());
+  const result = { scene, geometries: equipment.geometries, materials: [...materials.values()], textures: Object.values(maps), setQuality };
   finished.set(scene, result);
   return result;
 }

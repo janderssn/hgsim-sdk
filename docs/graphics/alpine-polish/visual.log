@@ -1,0 +1,6 @@
+PASS model=original assets, rig and launch
+PASS assist=on assets, rig and launch
+PASS portrait resize and shader programs
+PASS intentionally missing prepared mips fall back to PNG atlases and launch
+PASS intentionally missing forest/elevation/surfaces still launch with local story props
+PASS no runtime or shader errors

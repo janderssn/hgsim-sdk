@@ -57,6 +57,10 @@ try {
           frames: intervals.length,
           durationSeconds: +(duration / 1000).toFixed(2),
           dpr: devicePixelRatio,
+          adapter: (() => {
+            const gl = renderer.getContext(), extension = gl.getExtension('WEBGL_debug_renderer_info');
+            return extension ? gl.getParameter(extension.UNMASKED_RENDERER_WEBGL) : 'unavailable';
+          })(),
           canvas: { width: canvas.width, height: canvas.height },
           calls: renderer.info.render.calls,
           triangles: renderer.info.render.triangles,

@@ -7,7 +7,7 @@ export const ALPINE_SITES = Object.freeze([
     footprints: [[0, 0, 3.0, .8], [0, 2.2, 2.2, .9], [-4, -.45, .8, .7], [4.7, 3.7, 1.8, .9]] }),
   Object.freeze({ id: 'landing-refuge', x: -76, z: -360, yaw: .15, radiusX: 25, radiusZ: 22,
     footprints: [[0, 0, 4.8, 3.3], [-1.5, -8.6, 2.1, 1.5], [5.9, -1.05, .8, 1.2],
-      [7.2, 3, 2.2, .8], [-7.6, -3, 1.8, .9], [-5.1, 3.5, 2.3, .8], [-5.5, 1.9, .7, .7]] }),
+      [7.2, 3, 2.2, .8], [-7.6, -3, 1.8, .9], [-5.1, 3.5, 2.3, .8], [-5.5, 1.9, .7, .7], [5.15, 1.3, .85, .75]] }),
   Object.freeze({ id: 'meadow-gate', x: 184, z: -42, yaw: .20, radiusX: 12, radiusZ: 9,
     footprints: [[-4.3, 3, 1.7, .7], [-2.8, 0, .3, .3], [2.8, .2, .3, .3]] }),
   Object.freeze({ id: 'woodland-rest', x: -233, z: -646, yaw: -.40, radiusX: 12, radiusZ: 12,

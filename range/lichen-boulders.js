@@ -15,11 +15,18 @@ export function createWeatheredBoulderGeometry(THREE, seed = 0) {
         + .32 * Math.sin(x * 8 + y * 5 - z * 7 + phase);
       const radius = 1 + weather * .14;
       // Softly squared faces survive in silhouette, with no crystalline spikes.
-      const rounded = value => Math.sign(value) * Math.abs(value) ** .74;
-      const clip = (value, low, high) => Math.max(low, Math.min(high, value));
-      positions.push(clip(rounded(x) * radius, -.94, .93),
-        clip(rounded(y) * radius, -.95, .74 + x * .22 - z * .16) * .84 + x * .055,
-        clip(rounded(z) * radius, -.96, .90));
+      const rounded = value => Math.sign(value) * Math.abs(value) ** .86;
+      const point = new THREE.Vector3(rounded(x) * radius, rounded(y) * radius * .88, rounded(z) * radius);
+      // Non-orthogonal fracture planes create broken granite slabs. Vary their
+      // normals by family so the entire cluster does not look like masonry.
+      for (const [nx, ny, nz, distance] of [[.81, .22 + seed * .05, .48, .84],
+        [-.34, .13, -.92, .85], [.18 + seed * .07, .96, -.21, .68 + seed * .035]]) {
+        const fracture = new THREE.Vector3(nx, ny, nz).normalize();
+        const excess = point.dot(fracture) - distance;
+        if (excess > 0) point.addScaledVector(fracture, -excess);
+      }
+      point.y = Math.max(-.81, point.y);
+      positions.push(point.x, point.y + point.x * .055, point.z);
       const shade = .92 + .08 * Math.sin(x * 8.1 + y * 5.6 + z * 7.2);
       colors.push(.86 * shade, .83 * shade, .77 * shade);
     }
@@ -36,7 +43,9 @@ export function createWeatheredBoulderGeometry(THREE, seed = 0) {
   for (let face = 0; face < indices.length / 3; face++) {
     const ids = indices.slice(face * 3, face * 3 + 3);
     va.fromArray(positions, ids[0] * 3); vb.fromArray(positions, ids[1] * 3); vc.fromArray(positions, ids[2] * 3);
-    const normal = vb.sub(va).cross(vc.sub(va)).normalize(); faceNormals.push(normal);
+    // vb is reused for the next face. Retain each face's own direction so
+    // creases, sun lighting and upward-facing moss follow the actual rock.
+    const normal = vb.sub(va).cross(vc.sub(va)).normalize(); faceNormals.push(normal.clone());
     ids.forEach(id => adjacent[id].push(face));
   }
   const splitPositions = [], splitColors = [], splitNormals = [], splitIndices = [], splitVertices = new Map();
@@ -69,18 +78,17 @@ export function createLichenBoulders(THREE, scene, { groundHeight, siteAt = () =
   material.onBeforeCompile = (shader, renderer) => {
     originalCompile?.call(material, shader, renderer);
     if (maps.color && shader.uniforms.surfaceGranitePaint) shader.uniforms.surfaceGranitePaint.value = maps.color;
-    shader.fragmentShader = shader.fragmentShader.replace('stoneWeights, 0.055', 'stoneWeights, 0.62')
-      .replace('0.19, normal, normalScale * 0.25', '0.62, normal, normalScale * 0.90')
-      .replace('surfaceDetail * 0.38', 'surfaceDetail * 0.85');
+    shader.fragmentShader = shader.fragmentShader.replace('stoneWeights, 0.055', 'stoneWeights, 0.44')
+      .replace('0.19, normal, normalScale * 0.25', '0.44, normal, normalScale * 0.55')
+      .replace('surfaceDetail * 0.38', 'surfaceDetail * 0.65');
     shader.vertexShader = `varying vec3 vBoulderWorld; varying vec3 vBoulderUp;\n${shader.vertexShader}`;
     shader.vertexShader = shader.vertexShader.replace('#include <project_vertex>', `
       vec4 boulderPosition = vec4(transformed, 1.0);
       #ifdef USE_INSTANCING
         boulderPosition = instanceMatrix * boulderPosition;
-        vBoulderUp = normalize(mat3(modelMatrix) * mat3(instanceMatrix) * objectNormal);
-      #else
-        vBoulderUp = normalize(mat3(modelMatrix) * objectNormal);
       #endif
+      // Reuse StandardMaterial's inverse-transpose scale correction.
+      vBoulderUp = inverseTransformDirection(transformedNormal, viewMatrix);
       vBoulderWorld = (modelMatrix * boulderPosition).xyz;
       #include <project_vertex>`);
     shader.fragmentShader = `varying vec3 vBoulderWorld; varying vec3 vBoulderUp;
@@ -104,11 +112,13 @@ export function createLichenBoulders(THREE, scene, { groundHeight, siteAt = () =
       float lichen = smoothstep(.60, .68, colony);
       float moss = smoothstep(.22, .72, vBoulderUp.y) * smoothstep(.65, .75, boulderNoise(p * 3.2 + 41.0));
       float mineralLuminance = dot(diffuseColor.rgb, vec3(.2126, .7152, .0722));
+      // Retain mineral fissures while avoiding the scan's bark-like black seams.
+      diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.34, .32, .285), .19);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.72, .38, .065) * (mineralLuminance + .12), lichen * .84);
       diffuseColor.rgb = mix(diffuseColor.rgb, vec3(.20, .28, .07) * (mineralLuminance + .24), moss * .65);
     `);
   };
-  material.customProgramCacheKey = () => `${originalKey?.() || 'standard'}|fractured-scanned-lichen-v3`;
+  material.customProgramCacheKey = () => `${originalKey?.() || 'standard'}|fractured-scanned-lichen-v4`;
   // Blocks frame the launch preparation shelf and the outside of the ridge;
   // the actual run, cliff standing shelf, and central flight corridor are open.
   const clusters = [[-36, -624, 1.35], [-29, -628, 1.25], [-43, -625, 2.7], [-45, -614, 3.6], [-39, -607, 2.8], [-22, -605, 2.3],

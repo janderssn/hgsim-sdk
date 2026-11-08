@@ -18,20 +18,30 @@ const FAR_LEVELS = { high: { radius: 110, inner: 20, capacity: 6000 },
   medium: { radius: 75, inner: 20, capacity: 2800 }, low: { radius: 40, inner: 12, capacity: 600 } };
 const unit = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 const LEVELS = {
-  high: { radius: 35, grass: 3600, flowers: 180, pebbles: 120, ferns: 80, shrubs: 180, litter: 240, deadwood: 24, seeds: 120, density: 1 },
-  medium: { radius: 25, grass: 1500, flowers: 80, pebbles: 60, ferns: 40, shrubs: 90, litter: 120, deadwood: 12, seeds: 60, density: .84 },
-  low: { radius: 15, grass: 350, flowers: 16, pebbles: 24, ferns: 0, shrubs: 0, litter: 32, deadwood: 0, seeds: 8, density: .58 },
+  high: { radius: 35, grass: 3000, flowers: 180, pebbles: 120, ferns: 80, shrubs: 600, litter: 240, deadwood: 24, seeds: 220, density: 1 },
+  medium: { radius: 25, grass: 1200, flowers: 80, pebbles: 60, ferns: 40, shrubs: 260, litter: 120, deadwood: 12, seeds: 100, density: .84 },
+  low: { radius: 15, grass: 250, flowers: 16, pebbles: 24, ferns: 0, shrubs: 40, litter: 32, deadwood: 0, seeds: 8, density: .58 },
 };
 const KINDS = ['grass', 'flowers', 'pebbles', 'ferns', 'shrubs', 'litter', 'deadwood', 'seeds'];
 // Layer-specific distance bands keep dense low herbs close without a hard budget
 // boundary. The same radius is used by placement and the smooth GPU growth fade.
-const RANGE_SCALE = [1, .7, 1, .72, .52, .7, 1, 1];
-const CANDIDATES = [36, 5, 1, 2, 8, 8, 1, 2];
+const RANGE_SCALE = [1, .7, 1, .72, .7, .7, 1, 1];
+const CANDIDATES = [36, 5, 1, 2, 24, 8, 1, 4];
 
 function hash(x, z, salt = 0) {
   let n = Math.imul(x | 0, 374761393) ^ Math.imul(z | 0, 668265263) ^ Math.imul(salt | 0, 1442695041);
   n = Math.imul(n ^ (n >>> 13), 1274126177);
   return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+}
+
+// Small perennial colonies provide coherent height/colour drifts inside the
+// terrain's larger ecological patches. This is static world space, never camera noise.
+function botanicalPatch(x, z, metres = 11) {
+  const px = x / metres, pz = z / metres, ix = Math.floor(px), iz = Math.floor(pz);
+  const tx = px - ix, tz = pz - iz, u = tx * tx * (3 - 2 * tx), v = tz * tz * (3 - 2 * tz);
+  const a = hash(ix, iz, 180) * (1 - u) + hash(ix + 1, iz, 180) * u;
+  const b = hash(ix, iz + 1, 180) * (1 - u) + hash(ix + 1, iz + 1, 180) * u;
+  return a * (1 - v) + b * v;
 }
 
 function pebbleGeometry(THREE) {
@@ -54,7 +64,7 @@ function pebbleGeometry(THREE) {
   return geometry;
 }
 
-function coverMaterial(THREE, supplied, wind, uniforms, rangeScale = 1, nearBlend = null) {
+function coverMaterial(THREE, supplied, wind, uniforms, rangeScale = 1, nearBlend = null, floral = false, leafDetail = false) {
   const material = supplied?.clone() ?? new THREE.MeshStandardMaterial({
     color: 0xffffff, roughness: .97, metalness: 0, side: THREE.DoubleSide,
   });
@@ -69,15 +79,21 @@ function coverMaterial(THREE, supplied, wind, uniforms, rangeScale = 1, nearBlen
     shader.uniforms.coverCamera = uniforms.camera;
     shader.uniforms.coverRadius = uniforms.radius;
     if (nearBlend) { shader.uniforms.coverInnerStart = nearBlend.start; shader.uniforms.coverInnerEnd = nearBlend.end; }
-    shader.vertexShader = `uniform float coverTime;\nuniform vec2 coverCamera;\nuniform float coverRadius;\n${nearBlend ? 'uniform float coverInnerStart;\nuniform float coverInnerEnd;\n' : ''}${shader.vertexShader}`;
+    shader.vertexShader = `${floral || leafDetail ? 'attribute float flowerKind;\n' : ''}${leafDetail ? 'varying vec2 coverLeafUv;\nvarying float coverLeafKind;\n' : ''}uniform float coverTime;\nuniform vec2 coverCamera;\nuniform float coverRadius;\n${nearBlend ? 'uniform float coverInnerStart;\nuniform float coverInnerEnd;\n' : ''}${shader.vertexShader}`;
     shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
       #include <begin_vertex>
+      ${leafDetail ? 'coverLeafUv = uv; coverLeafKind = flowerKind;' : ''}
       vec2 coverOrigin = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz;
       float coverDrawRadius = coverRadius * ${rangeScale.toFixed(3)};
       float coverFadeWidth = min(10.0, coverDrawRadius * 0.28);
       float coverFade = 1.0 - smoothstep(coverDrawRadius - coverFadeWidth, coverDrawRadius, distance(coverOrigin, coverCamera));
       ${nearBlend ? 'coverFade *= smoothstep(coverInnerStart, coverInnerEnd, distance(coverOrigin, coverCamera));' : ''}
-      float coverTip = pow(clamp(position.y / 0.65, 0.0, 1.0), 2.0);
+      ${floral ? `// Adjacent colonies favour one species, while a narrow transition mixes both.
+      float flowerField = sin(coverOrigin.x * .13 + sin(coverOrigin.y * .09) * 1.4) * sin(coverOrigin.y * .14 + .6);
+      float flowerSpecies = smoothstep(-.25, .25, flowerField);
+      float flowerGrowth = flowerKind < .5 ? 1.0 : flowerKind < 1.5 ? 1.0 - flowerSpecies : flowerSpecies;
+      transformed *= flowerGrowth;` : ''}
+      float coverTip = pow(clamp(position.y / 0.65, 0.0, 1.0), 2.0)${floral ? ' * flowerGrowth' : ''};
       // A broad travelling gust is shared by all cells. Convert the prevailing
       // world wind to each instance's frame, so rotated plants still lean together.
       float coverGust = 0.65 + 0.35 * sin(coverTime * 0.7 - coverOrigin.x * 0.035 - coverOrigin.y * 0.028);
@@ -89,6 +105,27 @@ function coverMaterial(THREE, supplied, wind, uniforms, rangeScale = 1, nearBlen
       transformed += coverLocalWind * coverBreeze * coverTip * ${wind.toFixed(3)};
       transformed *= coverFade;
     `);
+    if (leafDetail && shader.fragmentShader) {
+      shader.fragmentShader = `varying vec2 coverLeafUv;\nvarying float coverLeafKind;\n${shader.fragmentShader}`;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <color_fragment>', `
+        #include <color_fragment>
+        if (coverLeafKind < 0.5) {
+          // UVs follow each leaf's midrib. Derivative filtering makes fine veins
+          // become soft pigment in the distance instead of sparkling linework.
+          float leafEdge = abs(coverLeafUv.x - 0.5) * 2.0;
+          float leafPixel = max(fwidth(coverLeafUv.x), fwidth(coverLeafUv.y));
+          float leafMidrib = 1.0 - smoothstep(0.008, 0.008 + max(fwidth(coverLeafUv.x), 0.012), abs(coverLeafUv.x - 0.5));
+          float leafVeinField = coverLeafUv.y * 12.0 - leafEdge * 3.4;
+          float leafVeins = 1.0 - smoothstep(0.04, 0.04 + max(fwidth(leafVeinField), 0.09), abs(fract(leafVeinField) - 0.5));
+          float leafMottle = sin(coverLeafUv.x * 19.0 + sin(coverLeafUv.y * 11.0) * 2.4)
+            * sin(coverLeafUv.y * 17.0 + coverLeafUv.x * 3.0);
+          float leafGrain = sin(coverLeafUv.x * 111.0 + sin(coverLeafUv.y * 73.0) * 2.1)
+            * sin(coverLeafUv.y * 137.0) * (1.0 - smoothstep(0.015, 0.06, leafPixel));
+          diffuseColor.rgb *= 0.91 + leafMottle * 0.08 + leafVeins * 0.055 + leafMidrib * 0.16 + leafGrain * 0.03;
+          diffuseColor.rgb *= mix(vec3(1.0), vec3(1.06, 0.98, 0.85), pow(leafEdge, 3.0) * 0.28);
+        }
+      `);
+    }
     if (wind && shader.fragmentShader) shader.fragmentShader = shader.fragmentShader.replace(
       '#include <lights_physical_pars_fragment>', `
       #include <lights_physical_pars_fragment>
@@ -111,7 +148,7 @@ function coverMaterial(THREE, supplied, wind, uniforms, rangeScale = 1, nearBlen
       #define RE_Direct RE_Direct_Cover
     `);
   };
-  material.customProgramCacheKey = () => `${originalCacheKey?.() || 'standard'}|painted-meadow-v3-${wind}-${rangeScale}-${!!nearBlend}`;
+  material.customProgramCacheKey = () => `${originalCacheKey?.() || 'standard'}|painted-meadow-v5-${wind}-${rangeScale}-${!!nearBlend}-${floral}-${leafDetail}`;
   return material;
 }
 
@@ -138,9 +175,9 @@ export function createGroundCover(THREE, scene, {
     createFernGeometry(THREE), createMeadowHerbGeometry(THREE, { flowers: false }),
     createLitterGeometry(THREE), createDeadwoodGeometry(THREE), createSeedGrassGeometry(THREE)];
   const winds = [.085, .035, 0, .035, .025, 0, 0, .10];
-  const ownedMaterials = KINDS.map((kind, index) => coverMaterial(THREE, materials[kind], winds[index], uniforms, RANGE_SCALE[index]));
+  const ownedMaterials = KINDS.map((kind, index) => coverMaterial(THREE, materials[kind], winds[index], uniforms, RANGE_SCALE[index], null, index === 1, index === 1 || index === 4));
   const names = ['NearMeadowGrass', 'NearMeadowFlowers', 'NearMeadowPebbles', 'NearWoodlandFerns',
-    'NearWoodlandShrubs', 'NearWoodlandLitter', 'NearWoodlandDeadwood', 'NearMeadowSeedGrass'];
+    'NearGroundHerbRugs', 'NearWoodlandLitter', 'NearWoodlandDeadwood', 'NearMeadowSeedGrass'];
   const capacities = KINDS.map(kind => LEVELS.high[kind]);
   const meshes = geometries.map((geometry, index) => {
     const mesh = new THREE.InstancedMesh(geometry, ownedMaterials[index], capacities[index]);
@@ -160,7 +197,8 @@ export function createGroundCover(THREE, scene, {
   const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion(), yaw = new THREE.Quaternion(), position = new THREE.Vector3();
   const scale = new THREE.Vector3(), color = new THREE.Color(), up = new THREE.Vector3(0, 1, 0);
   const normal = new THREE.Vector3();
-  const goldenPigment = new THREE.Color('#c3b778');
+  const goldenPigment = new THREE.Color('#b4a777');
+  const sagePigment = new THREE.Color('#85956b');
   const bounds = meshes.map(() => new THREE.Box3());
   const cellCache = new Map();
   let cellBuilds = 0;
@@ -197,6 +235,7 @@ export function createGroundCover(THREE, scene, {
       talus: unit(ecology.talus), moisture: unit(ecology.moisture), path: unit(ecology.path) };
     if (site.path > .55 || site.rock > .75) return null;
     site.style = sampleGroundStyle(x, z, site);
+    site.colony = botanicalPatch(x, z);
     return site;
   }
 
@@ -208,19 +247,20 @@ export function createGroundCover(THREE, scene, {
       normal.set(-site.dx, 1.5, -site.dz).normalize();
       rotation.setFromUnitVectors(up, normal).multiply(yaw);
     }
-    const size = batch === 0 ? .86 + hash(seedX, seedZ, salt + 3) * .38
+    const size = batch === 0 ? .77 + hash(seedX, seedZ, salt + 3) * .42
       : batch === 1 ? 1.05 + hash(seedX, seedZ, salt + 3) * .55
         : batch === 2 ? .5 + hash(seedX, seedZ, salt + 3) * 1.1
-          : batch === 4 ? 1.45 + hash(seedX, seedZ, salt + 3) * .7 : .8 + hash(seedX, seedZ, salt + 3) * .66;
-    const height = batch === 0 ? (1 - site.style.mown * .74) * (.86 + site.style.dryness * .32)
-      : batch === 7 ? 1 - site.style.mown * .72 : 1;
-    const spread = batch === 0 ? 1.05 + site.style.patch * .4 : batch === 1 ? 1.25 : batch === 4 ? 1.15 : 1;
+          : batch === 4 ? 1.05 + hash(seedX, seedZ, salt + 3) * .45 : .8 + hash(seedX, seedZ, salt + 3) * .66;
+    const height = batch === 0 ? (1 - site.style.mown * .74) * (.70 + site.colony * .54 + site.style.dryness * .12)
+      : batch === 7 ? 1 - site.style.mown * .72 : batch === 4 ? .72 + site.moisture * .24 : 1;
+    const spread = batch === 0 ? 1.00 + site.colony * .35 : batch === 1 ? 1.25 : batch === 4 ? 1.22 : 1;
     scale.set(size * spread, size * height * (.86 + hash(seedX, seedZ, salt + 4) * .24), size * spread);
     matrix.compose(position, rotation, scale);
     const shade = .83 + hash(seedX, seedZ, salt + 5) * .32;
     if (batch === 0) {
       // Botanical colour follows the very same warped pigment fields as the soil.
-      color.setRGB(...site.style.color).lerp(goldenPigment, unit((site.style.dryness - .3) * 1.4 - site.canopy * .3));
+      color.setRGB(...site.style.color).lerp(sagePigment, .18 + (1 - site.colony) * .24);
+      color.lerp(goldenPigment, unit((site.style.dryness - .28) * 1.15 - site.canopy * .3) * (.52 + site.colony * .48));
       color.multiplyScalar(shade);
     } else if (batch === 1) {
       color.setRGB(shade * .97, shade, shade * .94);
@@ -241,7 +281,7 @@ export function createGroundCover(THREE, scene, {
       const site = suitable(x, z);
       if (site && hash(cx, cz, candidate * 7 + 103) <
         (.72 + site.style.patch * .48) * (1 - (site.style.wear || 0) * .6)
-          * (1 - site.canopy * .68) * (1 - site.talus * .83) * (1 - site.path * .9)) {
+          * (1 - site.canopy * .77) * (1 - site.talus * .83) * (1 - site.path * .9)) {
         groups[0].push(placement(0, x, site, z, cx, cz, candidate * 11 + 800, hash(cx, cz, candidate * 7 + 100)));
       }
     }
@@ -254,10 +294,10 @@ export function createGroundCover(THREE, scene, {
         const site = suitable(x, z);
         if (!site || site.targetDistance < 66) continue;
         // Forest floor, meadow and disturbed stony edges grow different forms.
-        const probability = batch === 1 ? .52 * (1 - site.canopy * .9) * (1 - site.talus) * (1 - site.style.mown * .5)
+        const probability = batch === 1 ? (.14 + .82 * unit((site.colony - .24) * 1.7)) * (1 - site.canopy * .9) * (1 - site.talus) * (1 - site.style.mown * .5)
           : batch === 2 ? .64 + site.talus * .35
             : batch === 3 ? (site.canopy * .75 + site.moisture * .12) * (1 - site.talus)
-              : batch === 4 ? (site.canopy * .85 + site.moisture * .12) * (1 - site.talus * .7)
+              : batch === 4 ? (.24 + site.colony * .48 + site.canopy * .24 + site.moisture * .12) * (1 - site.talus * .85) * (1 - site.style.mown * .80)
                 : batch === 5 ? site.canopy * .95
                   : batch === 6 ? site.canopy * .18
                     : (1 - site.canopy * .85) * (.13 + site.style.dryness * .46) * (1 - site.style.mown * .92);

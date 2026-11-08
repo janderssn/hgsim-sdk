@@ -63,41 +63,71 @@ export function forestTreeBounds(profile, tree) {
 export function createForestField({ variants = 4, profiles = [], ecologyAt = () => ({}), groundHeight = terrainHeight,
   exclusionAt = () => 0, minX = -1500, minZ = -1500, size = 3000, spacing = 10.5 } = {}) {
   const trees = [], cells = new Map(), cellSize = 96;
-  const count = Math.ceil(size / spacing);
-  for (let row = 0; row < count; row++) for (let column = 0; column < count; column++) {
-    const seed = row * count + column;
-    const x = minX + (column + .12 + hash(seed, 91) * .76) * spacing;
-    const z = minZ + (row + .12 + hash(seed, 97) * .76) * spacing;
-    if (x >= minX + size || z >= minZ + size) continue;
+  function plantingAt(x, z) {
+    if (x < minX || z < minZ || x >= minX + size || z >= minZ + size) return null;
     // The glider has room to leave the ledge; meadow edges meander instead of
     // drawing two ruler-straight walls down the entire valley.
     const fieldEdge = 130 + 14 * Math.sin(Math.atan2(z, x) * 3 + .7);
-    if (Math.hypot(x - MARK.x, z - MARK.z) < fieldEdge) continue;
+    if (Math.hypot(x - MARK.x, z - MARK.z) < fieldEdge) return null;
     const run = Math.abs(x - LAUNCH.x);
     const corridorWidth = 30 + 14 * smooth(-530, -160, z) + 7 * Math.sin(z / 87) ** 2;
-    if (z > -635 && z < 70 && run < corridorWidth) continue;
-    if (run < 22 && z > -670 && z < -530) continue;
-    if (exclusionAt(x, z) > .15) continue;
-    const clearing = canopyWindowAt(x, z);
+    if (z > -635 && z < 70 && run < corridorWidth) return null;
+    if (run < 22 && z > -670 && z < -530) return null;
+    if (exclusionAt(x, z) > .15) return null;
     const ecology = ecologyAt(x, z);
-    if ((ecology.rock || 0) > .36 || (ecology.path || 0) > .5 || slopeAt(x, z) > .88) continue;
+    if ((ecology.rock || 0) > .36 || (ecology.path || 0) > .5 || slopeAt(x, z) > .88) return null;
+    return { fieldEdge, run, corridorWidth, ecology };
+  }
+  function appendTree(tree) {
+    tree.bounds = forestTreeBounds(profiles[tree.variant], tree);
+    trees.push(tree);
+    const key = `${Math.floor(tree.x / cellSize)},${Math.floor(tree.z / cellSize)}`;
+    if (!cells.has(key)) cells.set(key, { trees: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity });
+    const cell = cells.get(key); cell.trees.push(tree);
+    cell.minX = Math.min(cell.minX, tree.bounds.minX); cell.maxX = Math.max(cell.maxX, tree.bounds.maxX);
+    cell.minY = Math.min(cell.minY, tree.bounds.minY); cell.maxY = Math.max(cell.maxY, tree.bounds.maxY);
+    cell.minZ = Math.min(cell.minZ, tree.bounds.minZ); cell.maxZ = Math.max(cell.maxZ, tree.bounds.maxZ);
+  }
+  const count = Math.ceil(size / spacing);
+  for (let row = 0; row < count; row++) for (let column = 0; column < count; column++) {
+    const seed = row * count + column;
+    const sourceX = minX + (column + .025 + hash(seed, 91) * .95) * spacing;
+    const sourceZ = minZ + (row + .025 + hash(seed, 97) * .95) * spacing;
+    // A smooth domain warp breaks planting rows into uneven interlocking stands.
+    // It preserves world anchoring while locally gathering or opening the crowns.
+    const x = sourceX + (noise(sourceX / 83 + 5, sourceZ / 97 - 8) - .5) * 19;
+    const z = sourceZ + (noise(sourceX / 91 - 9, sourceZ / 79 + 4) - .5) * 19;
+    const planting = plantingAt(x, z);
+    if (!planting) continue;
+    const { fieldEdge, run, corridorWidth, ecology } = planting;
+    const clearing = canopyWindowAt(x, z);
     const warp = x + 95 * Math.sin(z / 310) + 65 * (noise(x / 270, z / 270) - .5);
     const broad = noise(warp / 410 + 11, z / 360 - 6);
     const local = noise(x / 125 - 8, z / 150 + 3);
     const border = smooth(180, 650, Math.abs(x)) * .19;
-    const density = smooth(.29, .58, broad * .68 + local * .32 + border);
+    // Broad stands, narrow sinuous openings and smaller regeneration pockets
+    // produce identifiable canopy masses instead of uniformly stippled hills.
+    const stand = noise(x / 230 + 41, z / 260 - 23);
+    const clearingVein = noise((x + 70 * Math.sin(z / 130)) / 105 + 29, z / 119 + 17);
+    const gap = smooth(.52, .66, clearingVein) * (1 - smooth(.47, .65, stand));
+    const density = smooth(.32, .63, broad * .62 + local * .38 + border) * (1 - gap * .88);
     if (hash(seed, 103) > density * .96 * (1 - clearing * .92)) continue;
-    const mature = .78 + hash(seed, 109) * .38 + density * .1;
+    const cohort = noise(x / 77 - 18, z / 93 + 32);
+    const mature = .54 + smooth(.23, .76, cohort) * .76 + (hash(seed, 109) - .5) * .28;
     // Deciduous crowns thrive at moist woodland edges; fir and young trees
     // break the repeated conifer silhouette deeper in the stand.
     const corridorEdge = z > -650 && z < 90 ? 1 - smooth(corridorWidth, corridorWidth + 70, run) : 0;
     const meadowEdge = 1 - smooth(fieldEdge, fieldEdge + 90, Math.hypot(x - MARK.x, z - MARK.z));
-    const edge = Math.max(1 - smooth(.35, .82, density), corridorEdge, meadowEdge, clearing);
+    const siteEdge = Math.max(exclusionAt(x - 12, z), exclusionAt(x + 12, z), exclusionAt(x, z - 12), exclusionAt(x, z + 12));
+    const edge = Math.max(1 - smooth(.35, .82, density), corridorEdge, meadowEdge, clearing, siteEdge);
     const grove = noise(x / 147 + 19, z / 173 - 11);
     const moisture = ecology.moisture ?? (.3 + noise(x / 180 - 3, z / 210 + 8) * .5);
     const species = hash(seed, 113);
-    const broadleafChance = .18 + edge * .30 + smooth(.38, .68, grove) * .18;
-    const variant = Math.min(variants - 1, species < broadleafChance ? 3 : species < broadleafChance + .18 ? 1 : species < broadleafChance + .43 - edge * .12 ? 2 : 0);
+    // Most species selection belongs to the grove, with only occasional mixed
+    // neighbours. This makes gold stands read as forms at flight distance.
+    const deciduousGrove = smooth(.44, .62, grove);
+    const broadleafChance = .035 + deciduousGrove * (.70 + edge * .14);
+    const variant = Math.min(variants - 1, species < broadleafChance ? 3 : species < broadleafChance + .10 + (1 - cohort) * .16 + edge * .06 ? 1 : species < broadleafChance + .37 + edge * .24 ? 2 : 0);
     const scale = mature * (variant === 1 ? .86 : 1);
     const tree = { x, y: groundHeight(x, z) - .08, z, size: scale,
       yaw: hash(seed, 127) * Math.PI * 2, variant,
@@ -106,14 +136,33 @@ export function createForestField({ variants = 4, profiles = [], ecologyAt = () 
       crownTint: forestCanopyTint({ family: profiles[variant]?.family || (variant === 3 ? 'ash' : variant === 2 ? 'fir' : 'pine'), edge, moisture, grove, accent: noise(x / 73 + 31, z / 89 + 4), variation: hash(seed, 137) }),
       crownRadius: scale * (profiles[variant]?.radius || (variant === 3 ? 6.5 : 5.7)),
       height: scale * (profiles[variant]?.height || (variant === 1 ? 17 : 26)) };
-    tree.bounds = forestTreeBounds(profiles[variant], tree);
-    trees.push(tree);
-    const key = `${Math.floor(x / cellSize)},${Math.floor(z / cellSize)}`;
-    if (!cells.has(key)) cells.set(key, { trees: [], minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity });
-    const cell = cells.get(key); cell.trees.push(tree);
-    cell.minX = Math.min(cell.minX, tree.bounds.minX); cell.maxX = Math.max(cell.maxX, tree.bounds.maxX);
-    cell.minY = Math.min(cell.minY, tree.bounds.minY); cell.maxY = Math.max(cell.maxY, tree.bounds.maxY);
-    cell.minZ = Math.min(cell.minZ, tree.bounds.minZ); cell.maxZ = Math.max(cell.maxZ, tree.bounds.maxZ);
+    appendTree(tree);
+  }
+  // Edge regeneration sits beneath mature boughs, filling the open trunk layer
+  // in small groups. These are real, seeded trees using the same clearance,
+  // culling, canopy coverage and shadow paths as the overstorey.
+  const overstoreyCount = trees.length;
+  for (let index = 0; index < overstoreyCount; index++) {
+    const parent = trees[index];
+    if (parent.variant === 1 || parent.edge < .30 || hash(parent.seed, 149) > .55) continue;
+    const companions = hash(parent.seed, 151) < .45 ? 2 : 1;
+    for (let companion = 0; companion < companions; companion++) {
+      const seed = count * count + parent.seed * 2 + companion;
+      const angle = hash(seed, 157) * Math.PI * 2;
+      const radius = parent.crownRadius * (.45 + hash(seed, 163) * .65);
+      const x = parent.x + Math.cos(angle) * radius, z = parent.z + Math.sin(angle) * radius;
+      if (!plantingAt(x, z) || canopyWindowAt(x, z) > .7) continue;
+      const variant = Math.min(variants - 1, hash(seed, 167) < .72 ? 2 : 1);
+      const scale = parent.size * (.23 + hash(seed, 173) * .19);
+      const { edge, grove, moisture } = parent;
+      appendTree({ x, y: groundHeight(x, z) - .08, z, size: scale,
+        yaw: angle + 1.7, variant, seed, parentSeed: parent.seed, understory: true,
+        shade: .93 + hash(seed, 179) * .10, edge, grove, moisture,
+        crownTint: forestCanopyTint({ family: profiles[variant]?.family || (variant === 2 ? 'fir' : 'pine'),
+          edge, grove, moisture, variation: hash(seed, 181) }),
+        crownRadius: scale * (profiles[variant]?.radius || 5.7),
+        height: scale * (profiles[variant]?.height || (variant === 1 ? 17 : 26)) });
+    }
   }
   // Rasterize actual crowns, rather than reusing the placement noise as a
   // second, disagreeing definition of forest. Bilinear CPU queries and the

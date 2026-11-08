@@ -241,8 +241,11 @@ export function addSailFlutter(wing) {
   const uniforms = { uFlutterTime: { value: 0 }, uFlutterAmp: { value: 0 } };
   wing.traverse(o => {
     if (!o.isMesh || !o.userData?.isSail) return;
-    const material = o.material.clone(); o.material = material;
-    material.onBeforeCompile = shader => {
+    const previous = o.material;
+    const originalCompile = previous.onBeforeCompile, originalKey = previous.customProgramCacheKey.call(previous);
+    const material = previous.clone(); o.material = material;
+    material.onBeforeCompile = (shader, renderer) => {
+      originalCompile.call(material, shader, renderer);
       shader.uniforms.uFlutterTime = uniforms.uFlutterTime; shader.uniforms.uFlutterAmp = uniforms.uFlutterAmp;
       shader.vertexShader = 'uniform float uFlutterTime; uniform float uFlutterAmp;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
         float flutterFront = 2.42 - .63 * abs(position.x);
@@ -250,7 +253,7 @@ export function addSailFlutter(wing) {
         flutterAft = flutterAft * flutterAft * flutterAft;
         transformed.y += uFlutterAmp * flutterAft * (sin(uFlutterTime * 17. + position.z * 7. + position.x * 2.3) + .6 * sin(uFlutterTime * 29. + position.x * 5.1 - position.z * 4.));`);
     };
-    material.customProgramCacheKey = () => 'sail-flutter';
+    material.customProgramCacheKey = () => originalKey + '|sail-flutter-v2';
   });
   return { update(dt, { speed = 0, stall = 0 } = {}) { uniforms.uFlutterTime.value += dt; const fast = clamp((speed - 12) / 28, 0, 1); uniforms.uFlutterAmp.value = .003 + .012 * fast * fast + .035 * clamp(stall, 0, 1); } };
 }

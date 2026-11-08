@@ -18,6 +18,15 @@ test('woodland clearance, deterministic placement and actual canopy coverage agr
     assert.ok(Math.hypot(tree.x, tree.z) > 115, 'landing meadow remains open');
     assert.ok(field.coverageAt(tree.x, tree.z) > .4, 'every actual crown contributes to its shared coverage');
   }
+  const parents = new Map(field.trees.filter(tree => !tree.understory).map(tree => [tree.seed, tree]));
+  const saplings = field.trees.filter(tree => tree.understory);
+  assert.ok(saplings.length > 20 && saplings.length < field.trees.length * .25, 'regeneration forms a bounded lower woodland layer');
+  for (const sapling of saplings) {
+    const parent = parents.get(sapling.parentSeed);
+    assert.ok(parent, 'each sapling belongs to an existing canopy group');
+    assert.ok(sapling.height < parent.height * .6, 'regeneration fills beneath the mature boughs');
+    assert.ok(Math.hypot(sapling.x - parent.x, sapling.z - parent.z) < parent.crownRadius * 1.2, 'saplings gather near canopy edges');
+  }
   assert.equal(field.coverageAt(-10000, 0), 0);
   assert.equal(field.coverageAt(0, -560), 0);
   assert.equal(new Set(field.cells.flatMap(cell => cell.trees)).size, field.trees.length);
@@ -51,11 +60,25 @@ test('composed sites reserve tree-free space and grove pigments keep warm edges 
   for(const tree of field.trees) {
     assert.ok(exclusionAt(tree.x,tree.z)<=.15);
     assert.equal(tree.crownTint.length,3);
-    assert.ok(tree.crownTint.every(channel=>Number.isFinite(channel)&&channel>.5&&channel<2.3));
+    assert.ok(tree.crownTint.every(channel=>Number.isFinite(channel)&&channel>.4&&channel<2.3));
   }
   const gold = forestCanopyTint({family:'ash',edge:1,moisture:.2,grove:.8,accent:.5});
   const cool = forestCanopyTint({family:'fir',edge:0,moisture:.9,grove:.5});
   assert.ok(gold[0]/gold[2]>3,'warm edge grove has deliberate golden pigment');
   assert.ok(cool[2]/cool[0]>.9,'moist interior retains cool teal foliage');
   assert.ok(gold[0]/gold[1]>cool[0]/cool[1]+.3,'palette families remain visibly distinct');
+});
+
+test('neighboring trees form coherent species and age stands instead of independent speckle', () => {
+  const field = createForestField({ minX: -1200, minZ: -1000, size: 1000 });
+  let nearPairs = 0, farPairs = 0, sameNear = 0, sameFar = 0, ageNear = 0, ageFar = 0;
+  for (let i = 0; i < field.trees.length; i += 11) for (let j = i + 1; j < field.trees.length; j += 7) {
+    const a = field.trees[i], b = field.trees[j], distance = Math.hypot(a.x - b.x, a.z - b.z);
+    const sameFamily = (a.variant === 3) === (b.variant === 3);
+    if (distance < 45) { nearPairs++; sameNear += sameFamily; ageNear += Math.abs(a.size - b.size); }
+    else if (distance > 300 && distance < 500) { farPairs++; sameFar += sameFamily; ageFar += Math.abs(a.size - b.size); }
+  }
+  assert.ok(nearPairs > 100 && farPairs > 100);
+  assert.ok(sameNear / nearPairs > sameFar / farPairs + .12, 'nearby crowns belong to recognizable broadleaf/conifer stands');
+  assert.ok(ageNear / nearPairs < ageFar / farPairs * .7, 'local regeneration cohorts retain a shared height character');
 });

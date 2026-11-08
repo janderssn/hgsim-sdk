@@ -59,16 +59,19 @@ function assertStreamBounds(meshes) {
 test('a dense meadow uses bounded shared draws for expressive grass fans, herbs and seed heads', () => {
   const { cover, meshes, nearMeshes, distantMesh } = meadow();
   cover.update(new THREE.Vector3(210, 6, 210), 1);
-  assert.equal(cover.stats.draws, 5, 'unused woodland batches add no meadow draws');
-  assert.ok(cover.stats.tufts >= 2500 && cover.stats.tufts <= 3600);
+  assert.equal(cover.stats.draws, 6, 'low herb rugs share one opaque meadow batch');
+  assert.ok(cover.stats.tufts >= 2300 && cover.stats.tufts <= 3000);
   assert.ok(cover.stats.flowers > 40 && cover.stats.pebbles > 40);
-  assert.ok(cover.stats.seeds > 40);
-  assert.ok(cover.stats.triangles < 740000, 'fuller silhouettes and mid-distance strokes retain a bounded triangle budget');
+  assert.ok(cover.stats.seeds > 100 && cover.stats.shrubs > 300, 'oat stalks and dense basal rugs fill different height layers');
+  assert.ok(cover.stats.triangles < 1200000, 'fuller silhouettes and mid-distance strokes retain a bounded triangle budget');
   const grass = meshes[0].geometry;
-  assert.equal(grass.index.count / 3, 135, 'five curved spans preserve the arch with fewer triangles per clump');
+  assert.equal(grass.index.count / 3, 231, 'twenty-one curved blades make three overlapping crowns');
   assert.ok(grass.attributes.color && grass.attributes.normal);
   assert.ok(grass.boundingBox.max.y < .75, 'grass has a plausible meadow scale');
   assert.ok(grass.boundingBox.max.x - grass.boundingBox.min.x > 1.2, 'clumps have visible spreading mass rather than isolated needles');
+  const rug = meshes[4].geometry;
+  assert.ok(rug.boundingBox.max.y < .22 && rug.boundingBox.max.x - rug.boundingBox.min.x > .9,
+    'basal foliage spreads over bare soil without becoming another tall flower clump');
   assert.equal(nearMeshes.length, 8);
   assert.ok(distantMesh && distantMesh.frustumCulled, 'mid-distance fans use their refreshed stream bounds for frustum culling');
   for (const mesh of meshes) {
@@ -197,7 +200,7 @@ test('altitude suppresses invisible detail, restores cached buffers and allows q
   assert.ok(meshes.every(mesh => !mesh.visible));
   position.y = 5;
   cover.update(position, 7);
-  assert.ok(cover.stats.tufts > 50 && cover.stats.tufts <= 350);
+  assert.ok(cover.stats.tufts > 50 && cover.stats.tufts <= 250);
   assert.equal(cover.stats.radius, 15);
   cover.dispose();
 });
@@ -211,8 +214,8 @@ test('all quality levels reuse fixed capacity, shrink at the edge in the GPU and
     cover.setQuality(quality);
     cover.update(new THREE.Vector3(-220, 7, 180), 12);
     assert.deepEqual(meshes.map(mesh => mesh.instanceMatrix), buffers);
-    const nearLimits = { low: [350, 16, 24, 0, 0, 32, 0, 8], medium: [1500, 80, 60, 40, 90, 120, 12, 60],
-      high: [3600, 180, 120, 80, 180, 240, 24, 120] }[quality];
+    const nearLimits = { low: [250, 16, 24, 0, 40, 32, 0, 8], medium: [1200, 80, 60, 40, 260, 120, 12, 100],
+      high: [3000, 180, 120, 80, 600, 240, 24, 220] }[quality];
     assert.equal(nearMeshes.length, nearLimits.length);
     nearMeshes.forEach((mesh, index) => assert.ok(mesh.count >= (index < 3 ? 1 : 0) && mesh.count <= nearLimits[index], mesh.name));
     const distantLimit = { low: 600, medium: 2800, high: 6000 }[quality];
@@ -250,11 +253,12 @@ test('actual tree coverage replaces meadow flora with layered woodland plants an
   assert.ok(woods.cover.stats.tufts < open.cover.stats.tufts * .4, 'closed canopy has sparse grass');
   assert.ok(woods.cover.stats.flowers < open.cover.stats.flowers * .2, 'few meadow blooms reach the darker woodland floor');
   assert.ok(woods.cover.stats.seeds < open.cover.stats.seeds * .3, 'oat stems favour the sunny meadow');
-  for (const kind of ['ferns', 'shrubs', 'litter', 'deadwood']) {
+  for (const kind of ['ferns', 'litter', 'deadwood']) {
     assert.ok(woods.cover.stats[kind] > 0, `${kind} ground the woodland`);
     assert.equal(open.cover.stats[kind], 0, `${kind} follow the actual forest rather than appearing in every meadow`);
   }
-  assert.ok(woods.cover.stats.draws <= 9 && woods.cover.stats.triangles < 350000);
+  assert.ok(woods.cover.stats.shrubs > 300 && open.cover.stats.shrubs > 300, 'low herb rugs bridge meadow and woodland');
+  assert.ok(woods.cover.stats.draws <= 9 && woods.cover.stats.triangles < 520000);
   for (const mesh of woods.meshes) {
     assert.ok(mesh.geometry.attributes.position.array.every(Number.isFinite));
     assert.ok(mesh.geometry.attributes.normal.array.every(Number.isFinite));
@@ -264,7 +268,8 @@ test('actual tree coverage replaces meadow flora with layered woodland plants an
   assert.deepEqual(snapshot(woods.meshes), original);
   assert.deepEqual(woods.meshes.map(mesh => mesh.instanceMatrix.version), versions, 'woodland wind does not stream buffers each frame');
   woods.cover.setQuality('low');
-  assert.equal(woods.cover.stats.ferns + woods.cover.stats.shrubs + woods.cover.stats.deadwood, 0);
+  assert.equal(woods.cover.stats.ferns + woods.cover.stats.deadwood, 0);
+  assert.ok(woods.cover.stats.shrubs > 0 && woods.cover.stats.shrubs <= 40, 'low quality retains a small inexpensive basal layer');
   open.cover.dispose(); woods.cover.dispose();
 });
 

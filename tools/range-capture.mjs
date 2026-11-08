@@ -16,9 +16,9 @@ try {
     height: { type: 'string', default: '800' },
   } });
   const views = values.view.split(',');
-  if (views.some(view => !['flight', 'departure', 'approach', 'launch', 'meadow', 'woodland', 'staging', 'refuge'].includes(view))
+  if (views.some(view => !['flight', 'aircraft', 'departure', 'approach', 'launch', 'meadow', 'woodland', 'staging', 'refuge'].includes(view))
     || !['high', 'medium', 'low'].includes(values.quality)) {
-    throw new Error('Use --view flight|departure|approach|launch|meadow|woodland|staging|refuge (comma-separated for a gallery).');
+    throw new Error('Use --view flight|aircraft|departure|approach|launch|meadow|woodland|staging|refuge (comma-separated for a gallery).');
   }
   const width = Number(values.width), height = Number(values.height);
   if (![width, height].every(value => Number.isInteger(value) && value >= 240 && value <= 4096)) {
@@ -60,13 +60,13 @@ try {
   const reports = [];
   for (const view of views) {
     const output = views.length > 1 ? path.join(values.out, view + '.jpg') : values.out;
-    if (view === 'flight') await page.eval('rangeDemo.startAt({x:0,z:-470,agl:75,heading:0,kmh:48,pathDeg:-3});rangeDemo.advance(.75,null,{render:false});rangeDemo.player.visible=true;1');
+    if (['flight', 'aircraft'].includes(view)) await page.eval('rangeDemo.startAt({x:0,z:-470,agl:75,heading:0,kmh:48,pathDeg:-3});rangeDemo.advance(.75,null,{render:false});rangeDemo.player.visible=true;1');
     if (view === 'departure') await page.eval('rangeDemo.startAt({x:0,z:-540,agl:75,heading:0,kmh:48,pathDeg:-3});rangeDemo.advance(.75,null,{render:false});rangeDemo.player.visible=true;1');
     if (view === 'approach') await page.eval('rangeDemo.startAt({x:-58,z:-430,agl:45,heading:.12,kmh:60,pathDeg:-18});rangeDemo.advance(.75,null,{render:false});rangeDemo.player.visible=true;1');
     // Inspection views share production culling, streaming and finishing.
     const frame = await page.eval(`(() => {
     const d = rangeDemo;
-    d.player.visible = ['flight', 'departure', 'approach'].includes(${JSON.stringify(view)});
+    d.player.visible = ['flight', 'aircraft', 'departure', 'approach'].includes(${JSON.stringify(view)});
     document.querySelector('.hud').style.display = 'none';
     document.getElementById('toast').style.display = 'none';
     if (['departure', 'approach'].includes(${JSON.stringify(view)})) {
@@ -75,6 +75,12 @@ try {
       const p = d.player.position;
       d.camera.position.set(p.x, p.y + 6, p.z - 18);
       d.camera.lookAt(p.x, p.y - 1.8, p.z + 18);
+    } else if (${JSON.stringify(view)} === 'aircraft') {
+      const p = d.player.position;
+      // Equipment inspection crops the tips; departure retains the complete
+      // aircraft silhouette with the unmodified gameplay chase camera.
+      d.camera.position.set(p.x + 3.1, p.y - .25, p.z - 2.7);
+      d.camera.lookAt(p.x, p.y - .7, p.z + .25);
     } else if (${JSON.stringify(view)} === 'launch') {
       const z = d.LAUNCH.z, y = d.deckY(z);
       d.camera.position.set(78, y + 13, z + 88);

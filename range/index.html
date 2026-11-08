@@ -77,9 +77,10 @@
     .touch button { pointer-events: auto; touch-action: none; min-height: 44px; padding: 8px 12px; background: rgba(16,20,24,.55); backdrop-filter: blur(6px); }
     .touch button.down { background: rgba(242,140,40,.6); }
     .touch .touch-action { width: 96px; height: 96px; border-radius: 50%; font-size: 15px; background: rgba(242,140,40,.45); border-color: var(--accent); }
-    .touch-row { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; max-width: 46vw; }
+    .touch-row { order: -1; display: flex; flex-direction: column; gap: 6px; }   /* (a column above the big button, clear of the middle of the screen) */
     .touch-row button[hidden] { display: none; }
-    .touch-row button { min-height: 40px; padding: 6px 10px; font-size: 11px; }
+    .touch-row button { width: 96px; min-height: 38px; padding: 4px 8px; font-size: 11px; line-height: 1.2; }
+    body.touching .card p.keys { display: none; }
     .hud:has(.panel:not(.hidden)) .touch-buttons { display: none; }   /* (the panel open: its own controls, then Hide) */
     @media (max-width: 760px), (max-height: 480px) {
       .readout { left: 12px; top: 10px; gap: 12px; }
@@ -89,6 +90,24 @@
       .panel { right: 8px; top: 8px; width: min(290px, calc(100vw - 16px)); max-height: calc(100vh - 16px); }
       .card { min-width: 0; width: calc(100vw - 32px); max-width: 400px; padding: 16px; }
     }
+    /* A phone on its side: the result card goes under the readouts, compact, and between the stick and the buttons. */
+    @media (max-height: 480px) {
+      .card, .hud:has(.panel:not(.hidden)) .card { top: 52px; left: 50%; transform: translate(-50%, 0); max-height: calc(100vh - 60px); overflow: auto; padding: 8px 14px; width: min(440px, calc(100vw - 32px)); max-width: none; }
+      .card.on { animation: popTop .3s ease-out; }
+      body.touching .card { width: min(440px, calc(100vw - 340px)); }
+      .card h2 { font-size: 18px; margin: 0; } .card .stars { font-size: 16px; margin: 0 0 4px; }
+      .card table { font-size: 12px; margin-bottom: 4px; } .card td { padding: 1px 6px; }
+      .card .pts { font-size: 22px; } .card p { font-size: 11px; margin-top: 4px; }
+    }
+    /* Shorter still (a phone browser with its bars showing): the small buttons in two columns, the big one smaller. */
+    @media (max-height: 300px) {
+      .touch-buttons { right: 8px; bottom: 8px; gap: 6px; }
+      .touch-row { display: grid; grid-template-columns: repeat(2, 80px); }
+      .touch-row button { width: 80px; min-height: 32px; }
+      .touch .touch-action { width: 72px; height: 72px; font-size: 13px; }
+      body.touching .card { width: min(440px, calc(100vw - 360px)); }
+    }
+    @keyframes popTop { from { transform: translate(-50%, 0) scale(.92); opacity: 0; } }
     @media (max-width: 480px) {
       .panel-show { right: 8px; top: 8px; padding: 6px 9px; font-size: 16px; }
       .panel-show span { display: none; }

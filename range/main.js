@@ -348,7 +348,7 @@ function showCard(r) {
       <tr><td>Notes</td><td>${r.notes.join(' · ') || '—'}</td></tr>
     </table>
     <div class="pts">${crash ? '0' : r.points} pts</div>
-    <p>${why}${tip}</p><p>Space · launch again &nbsp;·&nbsp; C · other launch &nbsp;·&nbsp; 1 · start over the field</p>`;
+    <p>${why}${tip}</p><p class="keys">Space · launch again &nbsp;·&nbsp; C · other launch &nbsp;·&nbsp; 1 · start over the field</p>`;
 }
 function updateBest() { $('best').textContent = `Best round: ${best ? best + ' pts' : '—'} · rounds flown ${rounds}`; }
 const hud = createHud();

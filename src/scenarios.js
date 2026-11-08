@@ -10,7 +10,11 @@
  *
  *   const run = startScenario('ramp-calm', { preset: 'falcon-170', pilot: 'you' });   // live, one frame at a time:
  *   run.step(dt, { roll, pitch, stand, go, jump, push });   // your controls (ignored for a scripted pilot)
- *   run.glider, run.launch, run.site, run.phase ('launch' | 'flight' | 'done'), run.samples, run.result once run.done
+ *   run.glider, run.launch, run.site, run.phase ('launch' | 'flight' | 'tumble' | 'done'), run.samples, run.result once run.done
+ *
+ * Nothing is cut short: a launch that goes wrong, or a crash, is played out as the rigid-body tumble (tumble.js) until the wreck
+ * comes to rest (phase 'tumble', samples with the wreck's position and quaternion q). The outcome is what happened when it went
+ * wrong; the result comes once the wreck is still.
  *
  * The world of every scenario is one of SITES: a flat field, or a ramp, a cliff or a slope 60 m up on a ridge with the field below.
  * Frame as everywhere in hgsim: x east, y up, z north; every launch and every final heads north (+z), into a wind from the north.
@@ -18,6 +22,7 @@
 import { createWorld } from './world.js';
 import { createGlider } from './glider.js';
 import { createWind } from './wind.js';
+import { createTumble, stepTumble } from './tumble.js';
 import { barForSpeed } from './launch.js';
 import { clamp, finite, DEG } from './math.js';
 
@@ -210,7 +215,7 @@ export function startScenario(id, { preset = 'intermediate', vg = null, config =
   if (config && Object.keys(config).length) glider.tune(config);
   const you = pilot === 'you', notes = {}, samples = [];
   const ctx = { glider, world, notes, note: (k, v) => { notes[k] = v; }, hold: v => holdSpeed(glider, v), feet: 0 };
-  let phase, handle = null, script = null, t = 0, nextSample = 0, liftoff = null, result = null, maxRoll = 0, maxNose = -Infinity;
+  let phase, handle = null, script = null, t = 0, nextSample = 0, liftoff = null, result = null, maxRoll = 0, maxNose = -Infinity, wreck = null, ending = null;
   if (sc.kind === 'launch') {
     glider.reset({ ...place.start, y: place.terrain(place.start.x, place.start.z) + glider.config.contactHeight, heading: 0 });
     handle = glider.launch({ site: place.site, manual: sc.manual, config: launchConfig });
@@ -228,11 +233,26 @@ export function startScenario(id, { preset = 'intermediate', vg = null, config =
       bar: finite(s.bar), feet: feetNow(), stalled: !!s.stalled, upright: finite(s.upright), groundSpeed: finite(phase === 'launch' ? l?.groundSpeed : s.groundSpeed),
       yaw: finite(l?.yaw), lift: finite(l?.lift, 1), launchPhase: l?.phase ?? null, controls: { ...controls } });
   };
-  const finish = (outcome, extra = {}) => { phase = 'done'; result = { scenario: sc.id, kind: sc.kind, preset: glider.preset?.id ?? null, vg: glider.vg, outcome, ...extra, metrics: measure(sc, samples, { ...extra, notes, liftoff, maxRoll, maxNose, glider }), samples }; };
+  const finish = (outcome, extra = {}) => { phase = 'done'; result = { scenario: sc.id, kind: sc.kind, preset: glider.preset?.id ?? null, vg: glider.vg, outcome, ...extra, metrics: measure(sc, samples, { ...extra, notes, liftoff, maxRoll, maxNose, glider }), samples };
+    if (wreck) result.metrics.impactMs = +wreck.impact.toFixed(1); };
+  // It went wrong: the glider and pilot carry on as one body from exactly this state, and the run ends when the wreck is still.
+  const crash = (outcome, extra, body) => { wreck = body; ending = { outcome, extra }; phase = 'tumble'; };
+  const fromFlight = () => {
+    const st = glider.state, horizontal = st.airspeed * Math.cos(st.pathAngle || 0), drop = glider.config.contactHeight - 0.65;
+    return createTumble({ x: st.x, y: st.y - drop, z: st.z, pitch: -st.pitch, heading: st.heading, roll: st.visualBank ?? st.bank, ground: world.heightAt, wind: { x: air.x, z: air.z },
+      velocity: [Math.sin(st.heading) * horizontal + finite(st.windX), st.verticalSpeed, Math.cos(st.heading) * horizontal + finite(st.windZ)], yawRate: finite(st.headingRate) });
+  };
+  const sampleWreck = () => {
+    const last = samples.at(-1) ?? {}, v = wreck.v;
+    samples.push({ ...last, t: +t.toFixed(3), phase: 'tumble', x: wreck.x, y: wreck.y, z: wreck.z, q: [...wreck.q], airspeed: Math.hypot(v[0], v[1], v[2]), verticalSpeed: v[1],
+      feet: wreck.y - world.heightAt(wreck.x, wreck.z), controls: {} });
+  };
 
   const run = {
     scenario: sc, glider, world, wind: air, site: place,
     get launch() { return handle; },
+    /** The wreck (tumble.js) once something went wrong, else null: x, y, z and the quaternion q to draw it with. */
+    get wreck() { return wreck; },
     get phase() { return phase; },
     get t() { return t; },
     get done() { return phase === 'done'; },
@@ -243,11 +263,17 @@ export function startScenario(id, { preset = 'intermediate', vg = null, config =
       for (let left = Math.min(dt, 0.25); left > 1e-9 && phase !== 'done'; left -= 1 / 60) {
         const h = Math.min(left, 1 / 60); t += h; air.update(h); ctx.feet = feetNow();
         let input;
+        if (phase === 'tumble') {
+          wreck.wind = { x: air.x, z: air.z }; stepTumble(wreck, h);
+          if (t >= nextSample) { sampleWreck(); nextSample += SAMPLE; }
+          if (wreck.done) { sampleWreck(); finish(ending.outcome, ending.extra); break; }
+          continue;
+        }
         if (phase === 'launch') {
           input = you ? controls : script(t, handle.state, { stallSpeed: glider.performance.stallSpeed() });
           handle.step(h, input);
           const l = handle.state; maxRoll = Math.max(maxRoll, Math.abs(l.roll)); maxNose = Math.max(maxNose, finite(l.noseCmd));
-          if (handle.failed) { if (t >= nextSample) sample(input); finish(handle.failed, { at: t }); break; }
+          if (handle.failed) { sample(input); crash(handle.failed, { at: t }, handle.tumble({ ground: world.heightAt })); continue; }
           if (handle.airborne) { liftoff = { t, distance: l.liftDistance ?? l.distance, airspeed: glider.state.airspeed, reason: l.reason, groundSpeed: l.groundSpeed }; phase = 'flight';
             script = afterLiftoff(glider, handle.barHold, t); }
         } else {
@@ -255,8 +281,12 @@ export function startScenario(id, { preset = 'intermediate', vg = null, config =
           glider.step(h, input);
           // (just off a launch the feet may brush the ground for a moment: the end of the run, not a landing)
           const contact = glider.contact({ tolerance: liftoff && t - liftoff.t < 1.2 ? 0.3 : 0 });
-          if (contact && sc.kind === 'launch') { finish(glider.land(null, contact).judged === 'crash' ? 'crash' : 'sank back', { at: t }); break; }
-          if (contact) { const landed = glider.land(null, contact); finish(landed.judged, { at: t, landing: landed, touchdown: contact }); break; }
+          if (contact) {
+            const landed = glider.land(null, contact), extra = sc.kind === 'launch' ? { at: t } : { at: t, landing: landed, touchdown: contact }, outcome = sc.kind === 'launch' && landed.judged !== 'crash' ? 'sank back' : landed.judged;
+            sample(input);
+            if (landed.judged === 'crash') { crash(outcome, extra, fromFlight()); continue; }
+            finish(outcome, extra); break;
+          }
           if (sc.kind === 'launch' && liftoff && t - liftoff.t > 6) { finish('flying', { at: t }); break; }
         }
         if (t >= nextSample) { sample(input); nextSample += SAMPLE; }

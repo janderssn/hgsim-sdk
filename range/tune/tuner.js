@@ -228,7 +228,14 @@ export async function mountTuner(kind) {
     const s = run.glider.state, samples = run.samples;
     let x = s.x, y = s.y, z = s.z, heading = s.heading;
     const scrubbing = scrub !== null && run.phase === 'done' && scrub < samples.length - 1;
-    if (scrubbing) {
+    if (scrubbing && samples[scrub].q) {   // (the wreck, as the tumble had it)
+      const sm = samples[scrub]; x = sm.x; y = sm.y; z = sm.z;
+      player.position.set(x, y, z); player.quaternion.set(...sm.q); rig?.update(0, { crashed: 1 });
+      $('#clock').textContent = `${sm.t.toFixed(1)} s`;
+    } else if (!scrubbing && run.wreck) {   // (it went wrong: the glider and pilot as one body until the wreck is still)
+      const w = run.wreck; x = w.x; y = w.y; z = w.z;
+      player.position.set(x, y, z); player.quaternion.set(...w.q); rig?.update(dt, { crashed: 1 });
+    } else if (scrubbing) {
       const sm = samples[scrub]; x = sm.x; y = sm.y; z = sm.z; heading = sm.heading;
       player.position.set(x, y - (sm.feet < 8 ? 2.3 - 0.65 : 0) * clamp(1 - sm.feet / 8, 0, 1), z);
       player.rotation.set(-(sm.phase === 'launch' ? 0 : sm.pitch), heading, sm.bank, 'YXZ');

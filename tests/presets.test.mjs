@@ -123,5 +123,9 @@ test('scenarios are repeatable, and a "you" run takes your controls', () => {
   for (let i = 0; i < 120; i++) run.step(1 / 60, { roll: 1 });
   assert.ok(run.glider.state.bank > 0.5, 'your weight shift banks it');
   assert.throws(() => runScenario('nope'), /unknown scenario "nope"/);
+  // Nothing is cut short: a launch that goes wrong plays out as the tumble until the wreck is still.
+  const over = runScenario('ramp-sloppy', { preset: 't2c-144' }), wreck = over.samples.filter(s => s.phase === 'tumble');
+  assert.equal(over.outcome, 'wingdrop');
+  assert.ok(wreck.length > 5 && wreck.at(-1).q.length === 4 && over.metrics.impactMs > 0, 'the wreck is played out to rest');
   for (const sc of SCENARIOS) assert.ok(sc.name && sc.look && ['launch', 'flight', 'landing'].includes(sc.kind), sc.id);
 });

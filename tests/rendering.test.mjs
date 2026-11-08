@@ -49,7 +49,7 @@ test('sustained slow frames reduce work and dispose obsolete shadow targets once
   assert.equal(sun.shadow.mapSize.x, 512);
   frames(100, .1);
   assert.equal(calls.disposed, 2);
-  assert.deepEqual(calls.ratios, [1.5, 1, .75]);
+  assert.deepEqual(calls.ratios, [1.5, 1, .6]);
   assert.deepEqual(calls.levels, ['high', 'medium', 'low']);
 });
 
@@ -113,4 +113,70 @@ test('resize adapts physical resolution and resets stale timing samples', () => 
   assert.equal(quality.level, 'high');
   assert.equal(quality.pixelRatio, 1);
   assert.deepEqual(calls.sizes.at(-1), [1280, 720]);
+});
+
+test('manual high detail stays selected under load and across viewport changes', () => {
+  const { quality, sun, calls, frames } = setup();
+  assert.equal(quality.mode, 'auto');
+  assert.equal(quality.setMode('high'), true);
+  frames(300, .2);
+  assert.equal(quality.mode, 'high');
+  assert.equal(quality.level, 'high');
+  assert.equal(sun.shadow.mapSize.x, 2048);
+
+  quality.resize(1280, 720, 2);
+  frames(300, .2);
+  assert.equal(quality.mode, 'high');
+  assert.equal(quality.level, 'high');
+  assert.equal(quality.pixelRatio, 1.5);
+  assert.deepEqual(calls.levels, ['high'], 'selecting the current level or resizing must not notify it again');
+});
+
+test('manual levels apply once and repeated or invalid selections do not invalidate resources', () => {
+  const { quality, sun, renderer, calls } = setup();
+  sun.shadow.map = { dispose() { calls.disposed++; } };
+  sun.shadow.mapPass = { dispose() { calls.disposed++; } };
+  assert.equal(quality.setMode('low'), true);
+  assert.equal(quality.mode, 'low');
+  assert.equal(quality.level, 'low');
+  assert.equal(quality.pixelRatio, .6);
+  assert.equal(sun.shadow.mapSize.x, 512);
+  assert.equal(calls.disposed, 2);
+
+  renderer.shadowMap.needsUpdate = false;
+  sun.shadow.needsUpdate = false;
+  const allocations = { ratios: [...calls.ratios], sizes: [...calls.sizes], levels: [...calls.levels] };
+  for (const mode of ['low', 'invalid', 'HIGH', '', null, undefined]) {
+    assert.equal(quality.setMode(mode), false);
+  }
+  assert.deepEqual(calls.ratios, allocations.ratios);
+  assert.deepEqual(calls.sizes, allocations.sizes);
+  assert.deepEqual(calls.levels, allocations.levels);
+  assert.equal(calls.disposed, 2);
+  assert.equal(renderer.shadowMap.needsUpdate, false);
+  assert.equal(sun.shadow.needsUpdate, false);
+  assert.equal(quality.mode, 'low');
+
+  quality.setMode('medium');
+  assert.equal(sun.shadow.mapSize.x, 1024);
+  quality.setMode('high');
+  assert.deepEqual(calls.levels, ['high', 'low', 'medium', 'high']);
+  assert.deepEqual(calls.ratios, [1.5, .6, 1, 1.5]);
+});
+
+test('returning to auto keeps the chosen level and adapts only from fresh samples', () => {
+  const { quality, calls, frames } = setup();
+  frames(9, .1); // A partial old observation must not survive a mode switch.
+  quality.setMode('medium');
+  frames(300, .2); // Manual frames must not build an automatic downgrade backlog.
+  assert.equal(quality.setMode('auto'), true);
+  assert.equal(quality.mode, 'auto');
+  assert.equal(quality.level, 'medium');
+  assert.deepEqual(calls.levels, ['high', 'medium']);
+
+  frames(12, .1);
+  assert.equal(quality.level, 'medium', 'one fresh slow window is insufficient');
+  frames(12, .1);
+  assert.equal(quality.level, 'low');
+  assert.deepEqual(calls.levels, ['high', 'medium', 'low']);
 });

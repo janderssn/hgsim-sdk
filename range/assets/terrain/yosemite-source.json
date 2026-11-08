@@ -1,0 +1,43 @@
+{
+  "name": "Yosemite Valley \u2014 USGS-derived geological backdrop",
+  "width": 513,
+  "height": 513,
+  "bounds": {
+    "minX": -7000.0,
+    "minZ": -7000.0,
+    "width": 14000.0,
+    "depth": 14000.0
+  },
+  "minimum": -22.991888479329873,
+  "maximum": 1528.5545105532246,
+  "spacingMetres": 27.34375,
+  "verticalOffsetMetres": 1210.0,
+  "sourceLatitude": 37.755,
+  "sourceLongitude": -119.59,
+  "southOffsetMetres": 1000.0,
+  "worldAlignment": "+X south; +Z east; source absolute elevations minus 1210 m",
+  "heightEncoding": "uint16 little-endian normalized from minimum to maximum",
+  "normalEncoding": "RGBA8; RGB world-space normal * .5 + .5; A macro sky visibility; Y up; row0=zMin",
+  "sourceUrl": "https://raw.githubusercontent.com/jaanga/terrain-usgs-data-1second/gh-pages/images/n37w120.png",
+  "sourceSha256": "459d97eaed45dd38ce2a5dbeadcfaa1b71fa4818ffe755fb29cd2f0ecff7c091",
+  "sourceEncoding": "Signed 24-bit little-endian RGB metres; -32767 is nodata",
+  "sourceBounds": {
+    "west": -120,
+    "east": -119,
+    "south": 37,
+    "north": 38
+  },
+  "worldCenterLatitude": 37.74601688825009,
+  "worldCenterLongitude": -119.59,
+  "sourceCropPixels": {
+    "left": 1125,
+    "right": 1828,
+    "top": 623,
+    "bottom": 1206
+  },
+  "sourceDataset": "USGS National Map 1 arc-second elevation; public domain; Jaanga redistribution",
+  "sourceAttributionUrl": "https://github.com/jaanga/terrain-usgs-data-1second/blob/gh-pages/readme.md",
+  "sourceLicenseUrl": "https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits",
+  "nodataSampleFraction": 0.09074777044408726,
+  "nodataFill": "Harmonic interpolation constrained by valid USGS sample boundaries; not measured elevations in the masked areas"
+}

@@ -1,0 +1,39 @@
+{
+  "source_type": "Original AI-generated artwork, not photographic or measured geological data",
+  "generator": "OpenAI image_gen",
+  "generated_on": "2026-11-07",
+  "source_file": "docs/concept/granite-macro.png",
+  "source_sha256": "313cdc1458d495c7b16577961319d7494bb56d8bf411f80a58208fc06957800b",
+  "intent": "Seamless broad fractured Yosemite-style granite, diffuse flat lighting, 15\u201340m plates and branching geological joints",
+  "runtime_scale_metres": 384,
+  "runtime_scale_metres_by_surface": {
+    "mountain_faces": 384,
+    "local_launch_cliffs": 32
+  },
+  "normal_source": "Approximate grayscale height proxy from generated albedo; not captured surface normals",
+  "normal_convention": "OpenGL tangent space +Y; gray height gradient in image rows corrected for UV-up convention",
+  "processor": "ImageMagick 7.1.1-43",
+  "rebuild": "bash tools/build-granite-macro.sh",
+  "files": [
+    {
+      "file": "granite-macro-color.webp",
+      "bytes": 490296,
+      "sha256": "d6bb66a9afac4b1a025ce8a188ec4c0e28d167f7a55afc54e88e0473683a0701",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "color_space": "sRGB"
+    },
+    {
+      "file": "granite-macro-normal.webp",
+      "bytes": 1087272,
+      "sha256": "279e456aad6da066e5c816eab92d36eed05db33c8693642b64177d1f2ddf1e30",
+      "dimensions": [
+        1024,
+        1024
+      ],
+      "color_space": "linear data"
+    }
+  ]
+}

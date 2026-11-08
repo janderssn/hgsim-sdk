@@ -1,0 +1,17 @@
+{
+  "url": "http://127.0.0.1:4281/range/",
+  "warmupSeconds": 15,
+  "fps": 3.48,
+  "meanMs": 287.61,
+  "p95Ms": 300,
+  "frames": 35,
+  "durationSeconds": 10.07,
+  "dpr": 1,
+  "canvas": {
+    "width": 576,
+    "height": 238
+  },
+  "calls": 83,
+  "triangles": 207538,
+  "quality": "low"
+}

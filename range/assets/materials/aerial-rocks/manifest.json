@@ -1,0 +1,74 @@
+{
+  "asset": "Aerial Rocks 02",
+  "author": "Rob Tuytel",
+  "original_asset": "https://polyhaven.com/a/aerial_rocks_02",
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "source_repository": "https://github.com/mikatomik/Godot-4-Overgrown-Subway-Demo",
+  "source_commit": "b3d0d0f8f13561aa9edc787a9fa0322939784ab6",
+  "retrieved": "2026-11-07",
+  "provenance": "https://github.com/playcanvas/engine/blob/4b305e9b9c2cac2397b65f3ef3915a84a7c7508e/examples/assets/textures/terrain/polyhaven.credits.txt",
+  "poly_haven_license_source": "https://github.com/Poly-Haven/polyhaven.com/blob/b1a6aa13afc03ae00860f6ac5fe6d5daf8e95356/public/locales/en/license.json",
+  "assets": [
+    {
+      "role": "color",
+      "original": {
+        "filename": "aerial_rocks_02_diff_2k.png",
+        "url": "https://raw.githubusercontent.com/mikatomik/Godot-4-Overgrown-Subway-Demo/b3d0d0f8f13561aa9edc787a9fa0322939784ab6/subway/textures/cliff/aerial_rocks_02_diff_2k.png",
+        "git_blob_sha1": "800ea40ca1f042233fbcf9e88be4b34777bd88b3",
+        "sha256": "6d0319b0ebc97dae5e7ebeb02fe9252bdc78654b46b276907222a12935c07b18",
+        "bytes": 8482497,
+        "width": 2048,
+        "height": 2048
+      },
+      "runtime": {
+        "filename": "color.webp",
+        "sha256": "eb5c5ddcbb04f49f660b5c862a8383c0f0c2200f832904b08b0fc888f7f99913",
+        "bytes": 1567396,
+        "width": 2048,
+        "height": 2048,
+        "transform": "RGB 2048x2048 unchanged dimensions, WebP quality 90 / method 6; sample as sRGB color."
+      }
+    },
+    {
+      "role": "normal",
+      "original": {
+        "filename": "aerial_rocks_02_nor_gl_2k.png",
+        "url": "https://raw.githubusercontent.com/mikatomik/Godot-4-Overgrown-Subway-Demo/b3d0d0f8f13561aa9edc787a9fa0322939784ab6/subway/textures/cliff/aerial_rocks_02_nor_gl_2k.png",
+        "git_blob_sha1": "d28bad52ed70bfe61d7b613a1b78749d8acefa88",
+        "sha256": "53d4c2cac90801132a99054bd7d6132b230ddf9b12cc20c515caa7da0da6f01a",
+        "bytes": 8796036,
+        "width": 2048,
+        "height": 2048
+      },
+      "runtime": {
+        "filename": "normal.webp",
+        "sha256": "bc2331e4403ffac7f06b4e16c8e8d8c07200b883dbe92d23b8ed71bf64c06091",
+        "bytes": 2133844,
+        "width": 1024,
+        "height": 1024,
+        "transform": "OpenGL tangent-space normal: signed-vector area average 2048\u21921024, normalize vectors, RGB8 WebP lossless / method 6; linear data, positive-green/+Y convention retained."
+      }
+    },
+    {
+      "role": "roughness",
+      "original": {
+        "filename": "aerial_rocks_02_rough_2k.png",
+        "url": "https://raw.githubusercontent.com/mikatomik/Godot-4-Overgrown-Subway-Demo/b3d0d0f8f13561aa9edc787a9fa0322939784ab6/subway/textures/cliff/aerial_rocks_02_rough_2k.png",
+        "git_blob_sha1": "24658733496057291fdbc418cd8b9667f6f12e6b",
+        "sha256": "2f5f3f21d17a82378f29ea3501b5f5d5bc827493bc309e5f7ab1c0795880fdb2",
+        "bytes": 2352937,
+        "width": 2048,
+        "height": 2048
+      },
+      "runtime": {
+        "filename": "roughness.webp",
+        "sha256": "e764ff092948993f6c12a2b01f9e44e61a8dfc74cc0993c675974d46e833a44a",
+        "bytes": 620776,
+        "width": 1024,
+        "height": 1024,
+        "transform": "Linear scalar area average 2048\u21921024, grayscale WebP lossless / method 6; sample red channel as linear data."
+      }
+    }
+  ]
+}

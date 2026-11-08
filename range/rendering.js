@@ -3,7 +3,7 @@
 const LEVELS = [
   { name: 'high', pixelRatio: 1.5, shadowSize: 2048, pixels: 4_000_000 },
   { name: 'medium', pixelRatio: 1, shadowSize: 1024, pixels: 2_000_000 },
-  { name: 'low', pixelRatio: .75, shadowSize: 512, pixels: 1_000_000 },
+  { name: 'low', pixelRatio: .6, shadowSize: 512, pixels: 1_000_000 },
 ];
 
 const positive = (value, fallback) => Number.isFinite(value) && value > 0 ? value : fallback;
@@ -14,11 +14,14 @@ const positive = (value, fallback) => Number.isFinite(value) && value > 0 ? valu
  * for inactive pages, and reset() after a pause so hidden-tab timing is ignored.
  * onChange(level) runs once initially and after quality changes, allowing scene
  * geometry to follow the same budget without rebuilding it on every frame.
+ * setMode() lets the user hold a chosen detail level; returning to auto retains
+ * that level until fresh frame observations justify a change.
  */
 export function createRenderQuality({ renderer, sun, width, height, pixelRatio = 1, onChange }) {
   let viewportWidth = positive(width, 1), viewportHeight = positive(height, 1);
   let deviceRatio = positive(pixelRatio, 1), levelIndex = 0;
   let appliedWidth, appliedHeight, appliedRatio;
+  let mode = 'auto';
   let elapsed = 0, changedAt = -Infinity, windowTime = 0, windowFrames = 0;
   let slowWindows = 0, fastWindows = 0;
 
@@ -59,6 +62,7 @@ export function createRenderQuality({ renderer, sun, width, height, pixelRatio =
   }
 
   function sample(frameSeconds, active = true) {
+    if (mode !== 'auto') return false;
     if (!active) { reset(); return false; }
     if (!Number.isFinite(frameSeconds) || frameSeconds <= 0) return false;
     // Measure elapsed time, including GPU queue stalls. One long interval closes
@@ -92,11 +96,27 @@ export function createRenderQuality({ renderer, sun, width, height, pixelRatio =
     return true;
   }
 
+  function setMode(nextMode) {
+    if (nextMode === mode) return false;
+    const nextIndex = LEVELS.findIndex(level => level.name === nextMode);
+    if (nextMode !== 'auto' && nextIndex < 0) return false;
+
+    mode = nextMode;
+    reset();
+    if (nextIndex >= 0 && nextIndex !== levelIndex) {
+      levelIndex = nextIndex;
+      apply();
+      onChange?.(LEVELS[levelIndex].name);
+    }
+    return true;
+  }
+
   apply();
   onChange?.(LEVELS[levelIndex].name);
   return {
     sample,
     reset,
+    setMode,
     resize(width, height, pixelRatio = deviceRatio) {
       viewportWidth = positive(width, 1);
       viewportHeight = positive(height, 1);
@@ -104,6 +124,7 @@ export function createRenderQuality({ renderer, sun, width, height, pixelRatio =
       apply();
       reset();
     },
+    get mode() { return mode; },
     get level() { return LEVELS[levelIndex].name; },
     get pixelRatio() { return appliedRatio; },
   };

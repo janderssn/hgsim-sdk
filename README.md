@@ -142,7 +142,24 @@ Controls held during the run retain their launch trim through lift-off and relea
 A fresh input or reversal then takes over the airborne bar. This prevents a held S
 key from accidentally releasing the launch trim on the next frame.
 
-Rendering starts at full detail. After sustained slow frames it reduces resolution, shadow detail and how far grass is drawn, and it restores detail cautiously after a healthy interval. The terrain mesh always stays at full detail. A coarser mesh would draw the ground metres above or below where the glider touches it on the slopes. Grass is grouped into tiles so that off-screen tiles are skipped. The world and the flight physics never change with quality. Camera state is separate from the simulation, and the HUD updates only the values that changed.
+Rendering starts at full detail. After sustained slow frames it reduces resolution, shadow detail, vegetation detail and post-processing work, and it restores detail cautiously after a healthy interval. The terrain mesh always stays at full detail. A coarser mesh would draw the ground metres above or below where the glider touches it on the slopes. Grass is grouped into tiles so that off-screen tiles are skipped. The world and the flight physics never change with quality. Camera state is separate from the simulation, and the HUD updates only the values that changed.
+
+## Alpine visuals and asset authoring
+
+The range combines a real USGS Yosemite backdrop, a photographic HDR sky,
+scanned PBR surfaces, original detailed spruce trees and modelled launch props.
+The concept art was generated before modelling. [Art direction, screenshots and
+asset provenance](docs/art-direction.md) document the implementation.
+
+All runtime assets are local. Blender and Python are needed only to rebuild the
+committed mesh and texture libraries. Licenses and pinned source checksums live
+beside the assets. Peripheral relief and a launch hillside change the surrounding terrain; the
+field, forward approach, launch deck and cliff caps keep their elevations.
+Drawing and collision continue to share the same full-detail terrain.
+
+Rendering adapts automatically. Use `?quality=high`, `medium` or `low` for a fixed
+level. High/medium include contact occlusion and HDR output; low uses direct
+rendering. The glider's existing 19-bone rig and flight model are preserved.
 
 ## Tests and checks
 
@@ -171,4 +188,4 @@ The range's sounds are synthesized, except the crash. It is mixed from seven rec
 
 ## Origin
 
-This was extracted from Above at commit `fbea2b6`, on branch `claude/flight-physics-landing-a61a59`. Its behaviour is unchanged.
+This was extracted from Above at commit `fbea2b6`, on branch `claude/flight-physics-landing-a61a59`. The range has since gained independent simulation timing and an authored alpine environment.

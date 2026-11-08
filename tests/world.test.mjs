@@ -13,7 +13,7 @@ assert.ok(deckLine(lip + 20) < deckY(lip + 20), 'its line carries on down');
 // Underfoot: the deck on the deck, nothing of it beside it or beyond the lip; the rocks are solid, their rings narrowing upward.
 assert.equal(groundUnder(LAUNCH.x, lip), deckY(lip));
 assert.ok(groundUnder(LAUNCH.x + 6, lip) < deckY(lip) - 2, 'beside the deck is a drop');
-assert.ok(rockTop(CLIFF.x, CLIFF.cz) > terrainHeight(CLIFF.x, CLIFF.cz) + 40, 'the cliff rock stands high');
+assert.ok(rockTop(CLIFF.x, CLIFF.cz) > terrainHeight(CLIFF.x, CLIFF.cz) + 20, 'the cliff cap remains an exposed ledge above its joined shoulder');
 assert.ok(Math.abs(rockTop(CLIFF.x, CLIFF.cz) - (CLIFF.top - .5)) < 1e-9, 'its top is flat at the top ring');
 assert.equal(rockTop(CLIFF.x + 300, CLIFF.cz), -Infinity, 'no rock far off');
 for (const r of ROCKS) assert.ok(rockRing(r, 0).rx < rockRing(r, 1).rx && rockRing(r, 0).y > rockRing(r, 1).y, 'rings widen as they fall');

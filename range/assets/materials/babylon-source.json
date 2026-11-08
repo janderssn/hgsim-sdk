@@ -1,0 +1,78 @@
+{
+  "repository": "https://github.com/BabylonJS/Assets",
+  "commit": "3798844710bb7e76199ee38b175176c0fe4e9e62",
+  "license": "CC-BY-4.0",
+  "copyright": "Babylon.js contributors",
+  "license_notice": "babylon/LICENSE",
+  "files": [
+    {
+      "file": "babylon/LICENSE",
+      "source_url": "https://raw.githubusercontent.com/BabylonJS/Assets/3798844710bb7e76199ee38b175176c0fe4e9e62/LICENSE",
+      "sha256": "7e7170e3cebf88a9f60c7b8421418323c09304da1af4d5e90f4da1dc1c8a2661",
+      "bytes": 18650,
+      "transforms": []
+    },
+    {
+      "file": "babylon/README.md",
+      "source_url": "https://raw.githubusercontent.com/BabylonJS/Assets/3798844710bb7e76199ee38b175176c0fe4e9e62/README.md",
+      "sha256": "168b688c6848e22134ee9fc6f9ec325ca0b4d4f9be6e4ec86b411edf62b226f0",
+      "bytes": 1093,
+      "transforms": []
+    },
+    {
+      "file": "babylon/grass.png",
+      "source_url": "https://raw.githubusercontent.com/BabylonJS/Assets/3798844710bb7e76199ee38b175176c0fe4e9e62/textures/grass.png",
+      "sha256": "d4fe021bfb80d380912f77db43571e2b09999cd9f400efdd0a215d8a033b7240",
+      "bytes": 2589839,
+      "transforms": [],
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "babylon/grassn.png",
+      "source_url": "https://raw.githubusercontent.com/BabylonJS/Assets/3798844710bb7e76199ee38b175176c0fe4e9e62/textures/grassn.png",
+      "sha256": "fed440859677f9bfb1556b78817302f69cc93db3df45f5684519e0e0f80b1da4",
+      "bytes": 156287,
+      "transforms": [],
+      "dimensions": [
+        256,
+        256
+      ]
+    },
+    {
+      "file": "babylon/rockyGround_basecolor.png",
+      "source_url": "https://raw.githubusercontent.com/BabylonJS/Assets/3798844710bb7e76199ee38b175176c0fe4e9e62/textures/rockyGround_basecolor.png",
+      "sha256": "e0f9375b366c3bd3375581a329af36fe70ded07ffee8e1156aa6a210c16f486b",
+      "bytes": 1819556,
+      "transforms": [],
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "babylon/rockyGround_metalRough.png",
+      "source_url": "https://raw.githubusercontent.com/BabylonJS/Assets/3798844710bb7e76199ee38b175176c0fe4e9e62/textures/rockyGround_metalRough.png",
+      "sha256": "9c92d4710faa18a7e0f547ba0ac7a312732087656b079d9548062f1df09674e8",
+      "bytes": 625737,
+      "transforms": [],
+      "dimensions": [
+        1024,
+        1024
+      ]
+    },
+    {
+      "file": "babylon/rockyGround_normal.png",
+      "source_url": "https://raw.githubusercontent.com/BabylonJS/Assets/3798844710bb7e76199ee38b175176c0fe4e9e62/textures/rockyGround_normal.png",
+      "sha256": "66fccd4db45e00fcc713907208b42aa9b64f4f26db35e9b5251b36756558b7a1",
+      "bytes": 2488211,
+      "transforms": [],
+      "dimensions": [
+        1024,
+        1024
+      ]
+    }
+  ]
+}

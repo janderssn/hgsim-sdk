@@ -10,7 +10,7 @@ const root = path.dirname(fileURLToPath(import.meta.url));
 const flights = path.join(root, 'work', 'flights');
 const watched = ['src', 'range'].map(d => path.join(root, d));
 const port = Number(process.argv[2] || process.env.PORT || 4180), host = process.env.HOST || '127.0.0.1', saveFlights = process.env.SAVE_FLIGHTS !== 'off';
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json', '.glb': 'model/gltf-binary', '.png': 'image/png', '.webp': 'image/webp', '.jpg': 'image/jpeg', '.hdr': 'application/octet-stream', '.bin': 'application/octet-stream', '.svg': 'image/svg+xml', '.mp3': 'audio/mpeg', '.ogg': 'audio/ogg', '.wav': 'audio/wav' };
 
 /** Saves one recorded flight. Same-origin JSON only, so no other site can write here through the browser. */
 function saveFlight(req, res) {

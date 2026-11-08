@@ -32,6 +32,13 @@ import { createHud } from './hud.js';
 import { interpolateMotion } from './motion.js';
 import { createChaseCamera } from './camera.js';
 import { getAirframePose } from './airframe-pose.js';
+import { createAtmosphere, loadAlpineHeightfield, ALPINE_LIGHTING } from './atmosphere.js';
+import { loadHDRLighting } from './lighting.js';
+import { createSurfaceMaterials } from './surface-materials.js';
+import { createEnvironmentModels } from './environment-models.js';
+import { finishGlider } from './glider-finish.js';
+import { createGroundCover } from './ground-cover.js';
+import { createRenderFinish } from './render-finish.js';
 
 // ?model=original flies the older, simpler flight model (src/flight-classic.js), for a side-by-side comparison.
 const MODEL = new URLSearchParams(location.search).get('model') === 'original' ? 'original' : 'force';
@@ -46,20 +53,96 @@ const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 
 /* ---------- scene ---------- */
 const renderer = new THREE.WebGLRenderer({ canvas: $('world'), antialias: true, powerPreference: 'high-performance' });
-renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.04;
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-const scene = new THREE.Scene(); scene.background = new THREE.Color(0xa9c6d8); scene.fog = new THREE.FogExp2(0xb8cfdc, .00028);
-const camera = new THREE.PerspectiveCamera(56, innerWidth / innerHeight, .4, 9000);
-scene.add(new THREE.HemisphereLight(0xcfe3f5, 0x6f7a55, 1.05));
-const sun = new THREE.DirectionalLight(0xffe4c0, 3); sun.position.set(-900, 1300, 700); sun.castShadow = true;
-Object.assign(sun.shadow.camera, { left: -420, right: 420, top: 420, bottom: -420, near: 10, far: 4000 }); sun.shadow.bias = -.0002; sun.shadow.normalBias = 1;
+const scene = new THREE.Scene();
+const sunDirection = new THREE.Vector3(.59047, .68207, .43144).normalize();
+const lighting = ALPINE_LIGHTING;
+renderer.toneMappingExposure = lighting.exposure;
+scene.fog = new THREE.FogExp2(lighting.fogColor, lighting.fogDensity);
+const camera = new THREE.PerspectiveCamera(56, innerWidth / innerHeight, .4, 16000);
+scene.add(new THREE.HemisphereLight(lighting.skyColor, lighting.groundColor, lighting.hemisphereIntensity));
+const sun = new THREE.DirectionalLight(lighting.sunColor, lighting.sunIntensity); sun.position.copy(sunDirection).multiplyScalar(2000); sun.castShadow = true;
+// Concentrate texels around the aircraft and nearby receivers for grounded feet,
+// wire shadows and timber joints rather than a blurred 840 m shadow square.
+Object.assign(sun.shadow.camera, { left: -130, right: 130, top: 130, bottom: -130, near: 10, far: 4000 });
+sun.shadow.bias = -.00001; sun.shadow.normalBias = .045;
 scene.add(sun, sun.target);
 
-const { birds, setQuality: setSceneQuality, updateDetail } = buildScenery(THREE, scene);
+const [surfaces, environmentAsset, hdr, heightfield] = await Promise.all([
+  createSurfaceMaterials(THREE, { anisotropy: renderer.capabilities.getMaxAnisotropy() }).catch(error => {
+    console.warn('Procedural surface fallback:', error.message);
+    return { setQuality() {} };
+  }),
+  new GLTFLoader().loadAsync('./assets/alpine/environment.glb').catch(error => {
+    console.warn('Procedural environment fallback:', error.message);
+    return null;
+  }),
+  loadHDRLighting(THREE, renderer, {
+    backgroundUrl: new URL('./assets/lighting/sunflowers_puresky_4k.hdr', import.meta.url).href,
+  }).catch(error => {
+    console.warn('Photographic lighting unavailable:', error.message);
+    return null;
+  }),
+  loadAlpineHeightfield(),
+]);
+if (hdr) {
+  if (hdr.sunDirection) sunDirection.fromArray(hdr.sunDirection).normalize();
+  if (hdr.sunColor) sun.color.setHex(hdr.sunColor);
+  // Rough landscape surfaces use diffuse SH from the photographed sky;
+  // reserve filtered reflection lookups for the aircraft and metal fittings.
+  hdr.lightProbe.intensity = .7;
+  scene.add(hdr.lightProbe);
+  scene.background = hdr.background;
+  scene.backgroundIntensity = 1;
+}
+function reflectSky(material) {
+  if (!hdr || !material || material.metalness < .3) return;
+  material.envMap = hdr.environment;
+  material.envMapIntensity = .7;
+}
+environmentAsset?.scene.traverse(object => {
+  if (!object.isMesh) return;
+  for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+    if (material.metalness >= .3) reflectSky(material);
+  }
+});
+reflectSky(surfaces.metal);
+const atmosphere = createAtmosphere(THREE, scene, {
+  sunDirection, sky: !hdr, terrain: heightfield, material: surfaces.mountain,
+});
+surfaces.setMountainTerrain?.(atmosphere.terrainNormal, {
+  ...atmosphere.terrainBounds, treeLine: 1050, snowLine: 1700,
+});
+let models;
+try {
+  models = createEnvironmentModels(THREE, environmentAsset?.scene);
+} catch (error) {
+  console.warn('Procedural environment fallback:', error.message);
+  models = createEnvironmentModels(THREE);
+}
+const { birds, setQuality: setSceneQuality, updateDetail, forestShadowMap, forestBounds } =
+  buildScenery(THREE, scene, { models, materials: surfaces, sunDirection });
+surfaces.setForestShadowMap?.(forestShadowMap, forestBounds);
+const renderFinish = createRenderFinish(THREE, renderer, scene, camera);
+const groundCover = createGroundCover(THREE, scene, { terrainHeight, groundUnder, rockTop, materials: { pebbles: surfaces.granite } });
+scene.userData.visuals = { direction: 'alpine', models: models.source, surfaces: !!surfaces.terrain, terrain: !!heightfield, hdr: !!hdr };
+let gliderFinish = null;
 const quality = createRenderQuality({
   renderer, sun, width: innerWidth, height: innerHeight,
-  pixelRatio: devicePixelRatio, onChange: setSceneQuality,
+  pixelRatio: devicePixelRatio,
+  onChange(level) {
+    setSceneQuality(level);
+    atmosphere.setQuality(level);
+    renderFinish.setQuality(level);
+    surfaces.setQuality(level);
+    groundCover.setQuality(level);
+    gliderFinish?.setQuality(level);
+  },
 });
+
+// A fixed detail setting is useful for comparing assets at a consistent quality.
+quality.setMode(new URLSearchParams(location.search).get('quality') || 'auto');
 
 // The resting wing, bar on the ground, for the pose while standing at a launch.
 const REST = createLaunch();
@@ -108,6 +191,9 @@ let wing = new THREE.Group(), pilot = new THREE.Group(), rig = null, flutter = n
 }
 try {
   const gltf = await new GLTFLoader().loadAsync('./assets/hang-glider.glb');
+  gliderFinish = finishGlider(THREE, gltf.scene);
+  gliderFinish.materials.forEach(reflectSky);
+  gliderFinish.setQuality(quality.level);
   const modelWing = gltf.scene.getObjectByName('Wing'), modelPilot = gltf.scene.getObjectByName('Pilot');
   if (modelWing && modelPilot) { player.remove(wing, pilot); wing = modelWing; pilot = modelPilot; player.add(gltf.scene); rig = createPilotRig(THREE, pilot); flutter = addSailFlutter(wing); }
 } catch (error) { console.warn('procedural glider fallback:', error.message); }
@@ -480,15 +566,21 @@ function renderFrame(dt, alpha) {
     player.position.y -= (footWorld.y - terrainHeight(pos.x, pos.z)) * eased;
   } else if (grounded && !rig) { player.updateMatrixWorld(true); footBox.setFromObject(pilot); player.position.y -= (footBox.min.y - terrainHeight(pos.x, pos.z)) * eased; }
   updateCamera(dt);
-  updateDetail(camera.position);
   indicators.update(wind, elapsed, camera.position);
   birds.forEach((b, i) => { const a = elapsed * (.12 + i * .01) + i * 1.9, r = 60 + i * 11; b.position.set(THERMAL.x + Math.cos(a) * r, terrainHeight(THERMAL.x, THERMAL.z) + 170 + i * 22 + Math.sin(a * 2) * 6, THERMAL.z + Math.sin(a) * r); b.rotation.set(0, -a, -.2); });
-  sun.target.position.set(pos.x, pos.y, pos.z); sun.position.set(pos.x - 900, pos.y + 1300, pos.z + 700);
+  sun.target.position.set(pos.x, pos.y, pos.z); sun.position.copy(sunDirection).multiplyScalar(2000).add(pos);
   updateHud();
   { const f = mode === 'gliding', g = terrainHeight(pos.x, pos.z); cues.update({ flying: f, x: pos.x, z: pos.z, ground: g, feet: pos.y - g - 2.3, speedRatio: speed / stallSpeed(0), bar: soaring.bar || 0, sink: -verticalSpeed, landable: slopeAt(pos.x, pos.z) < .42, speed, dropToImpact: f && verticalSpeed < -3 ? dropToImpact({ x: pos.x, feetY: pos.y - 2.3, z: pos.z, vx: Math.sin(heading) * Math.cos(soaring.pathAngle || 0) * speed + (soaring.windX || 0), vy: verticalSpeed, vz: Math.cos(heading) * Math.cos(soaring.pathAngle || 0) * speed + (soaring.windZ || 0), terrainHeight }) : null }); }
   { const flying = mode === 'gliding', cg = Math.cos(soaring.pathAngle || 0); streaks.update(camera.position, { x: Math.sin(heading) * cg, y: Math.sin(soaring.pathAngle || 0), z: Math.cos(heading) * cg }, flying ? speed : 0, dt);
     audio.update({ mode: flying ? 'gliding' : 'foot', paused: false, speed, verticalSpeed, lift: flying ? soaring.lift : 0, thermalLift: flying ? soaring.thermalLift : 0, ridgeLift: flying ? soaring.ridgeLift : 0, clearance: pos.y - terrainHeight(pos.x, pos.z), skim: flying ? clamp(soaring.skimAssist || 0, 0, 1) : 0, stalled: flying && !!soaring.stalled, stallWarning: flying && !!soaring.stallWarning, pullUp: flying && !!soaring.pullUp, bank, walking: false, sprinting: false, biome: 'alpine', nearSea: 0, altitude: pos.y }, dt); }
-  renderer.render(scene, camera);
+  drawScene();
+}
+// Inspection captures and the game share the same detail/finishing path.
+function drawScene() {
+  updateDetail(camera.position, camera);
+  atmosphere.update(camera.position);
+  groundCover.update(camera.position, elapsed);
+  renderFinish.render();
 }
 const simulationLoop = createSimulationLoop({ step: stepSimulation, render: renderFrame });
 let previousFrame = null;
@@ -517,5 +609,5 @@ standAt(LAUNCH.x, LAUNCH.z, LAUNCH.heading); syncWindPanel(); syncTunePanel(); u
 { const other = new URLSearchParams(location.search); if (REAL_LAUNCH) other.delete('launch'); else other.set('launch', 'real'); const q = other.toString();
   $('launchName').textContent = REAL_LAUNCH ? 'Realistic launch: you balance, run and jump' : 'Easy launch: it runs itself'; $('launchSwitch').textContent = REAL_LAUNCH ? 'Switch to easy launches' : 'Switch to realistic launches'; $('launchSwitch').href = location.pathname + (q ? '?' + q : ''); }
 $('loading').hidden = true; $('world').focus();
-window.rangeDemo = window.microDemo = { get quality() { return quality.level; }, pad: gamepad.state, model: MODEL, audio, get rig() { return rig; }, camera, player, scene, renderer, deckY, get soaring() { return soaring; }, get launchSite() { return launchSite; }, get takeoff() { return takeoff; }, get runUp() { return runUp; }, get tumble() { return tumble; }, get wreck() { return wreck; }, standAtCliff, CLIFF, measure() { player.updateMatrixWorld(true); const g = terrainHeight(pos.x, pos.z), pb = new THREE.Box3().setFromObject(pilot), wb = new THREE.Box3().setFromObject(wing); return { mode, bodyAboveGround: +(pos.y - g).toFixed(2), pilotLowAboveGround: +(pb.min.y - g).toFixed(2), wingLowAboveGround: +(wb.min.y - g).toFixed(2), pilotLowBelowBody: +(pos.y - pb.min.y).toFixed(2), wingLowBelowBody: +(pos.y - wb.min.y).toFixed(2), upright: +pilotUpright.toFixed(2) }; }, startAt({ x, z, agl = 12, heading: h = 0, kmh = 0, pathDeg = 0 }) { tumble = wreck = null; pilotStand = false; runOut = null; takeoff = null; rigSnap = true; pos.set(x, terrainHeight(x, z) + agl, z); heading = h; soaring = createSoaringState({ x, y: pos.y, z, heading: h }); if (kmh) { soaring.airspeed = kmh / 3.6; soaring.pathAngle = pathDeg * Math.PI / 180; soaring.verticalSpeed = soaring.airspeed * Math.sin(soaring.pathAngle); soaring.alpha = -1.5 * Math.PI / 180; } speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0; mode = 'gliding'; result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; beginRound('final'); resetMotion(); snapCamera(); }, recorder, getState: () => ({ mode, position: pos.toArray(), speed, heading, bank, verticalSpeed, airspeed: soaring.airspeed, pathAngle: soaring.pathAngle, clearance: pos.y - terrainHeight(pos.x, pos.z), wind: { x: wind.x, z: wind.z, speed: wind.speed }, result, rounds, best }), setKey: (code, down) => down ? keys.add(code) : keys.delete(code), launch, overhead, wind, tune: tuneSoaring, terrainHeight, MARK, LAUNCH };
+window.rangeDemo = window.microDemo = { get quality() { return quality.level; }, setQuality: level => quality.setMode(level), pad: gamepad.state, model: MODEL, audio, get rig() { return rig; }, camera, player, scene, renderer, render: drawScene, deckY, get soaring() { return soaring; }, get launchSite() { return launchSite; }, get takeoff() { return takeoff; }, get runUp() { return runUp; }, get tumble() { return tumble; }, get wreck() { return wreck; }, standAtCliff, CLIFF, measure() { player.updateMatrixWorld(true); const g = terrainHeight(pos.x, pos.z), pb = new THREE.Box3().setFromObject(pilot), wb = new THREE.Box3().setFromObject(wing); return { mode, bodyAboveGround: +(pos.y - g).toFixed(2), pilotLowAboveGround: +(pb.min.y - g).toFixed(2), wingLowAboveGround: +(wb.min.y - g).toFixed(2), pilotLowBelowBody: +(pos.y - pb.min.y).toFixed(2), wingLowBelowBody: +(pos.y - wb.min.y).toFixed(2), upright: +pilotUpright.toFixed(2) }; }, startAt({ x, z, agl = 12, heading: h = 0, kmh = 0, pathDeg = 0 }) { tumble = wreck = null; pilotStand = false; runOut = null; takeoff = null; rigSnap = true; pos.set(x, terrainHeight(x, z) + agl, z); heading = h; soaring = createSoaringState({ x, y: pos.y, z, heading: h }); if (kmh) { soaring.airspeed = kmh / 3.6; soaring.pathAngle = pathDeg * Math.PI / 180; soaring.verticalSpeed = soaring.airspeed * Math.sin(soaring.pathAngle); soaring.alpha = -1.5 * Math.PI / 180; } speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0; mode = 'gliding'; result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; beginRound('final'); resetMotion(); snapCamera(); }, recorder, getState: () => ({ mode, position: pos.toArray(), speed, heading, bank, verticalSpeed, airspeed: soaring.airspeed, pathAngle: soaring.pathAngle, clearance: pos.y - terrainHeight(pos.x, pos.z), wind: { x: wind.x, z: wind.z, speed: wind.speed }, result, rounds, best }), setKey: (code, down) => down ? keys.add(code) : keys.delete(code), launch, overhead, wind, tune: tuneSoaring, terrainHeight, MARK, LAUNCH };
 requestAnimationFrame(frame);

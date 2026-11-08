@@ -32,6 +32,7 @@ import { createHud } from './hud.js';
 import { interpolateMotion } from './motion.js';
 import { createChaseCamera } from './camera.js';
 import { getAirframePose } from './airframe-pose.js';
+import { createLab } from './lab.js';
 
 // ?model=original flies the older, simpler flight model (src/models/classic.js), for a side-by-side comparison.
 const MODEL = new URLSearchParams(location.search).get('model') === 'original' ? 'original' : 'force';
@@ -182,7 +183,7 @@ const nextSite = () => SITE_ORDER[(SITE_ORDER.indexOf(launchSite) + 1) % SITE_OR
 /** Stand at a launch site (ramp, cliff or slope; by default the current one), the wing resting, ready to launch. */
 function standAtSite(name = launchSite) {
   launchSite = name; runOut = null; takeoffLook = null; rigSnap = true; recorder.end({ outcome: 'abandoned' });
-  round.standAt(site()); syncRound();
+  round.standAt(site()); syncRound(); lab?.newRound();
   pos.set(soaring.x, soaring.y, soaring.z); heading = soaring.heading; pitch = .05; bank = 0; speed = verticalSpeed = 0;
   resetMotion(); snapCamera();
 }
@@ -245,7 +246,7 @@ function overhead() { if (reloadIfStale()) return;
   runOut = null; takeoffLook = null; rigSnap = true;
   const d = wind.direction;                                 // start 260 m upwind of the mark, flying downwind past it
   const x = MARK.x - Math.sin(d) * 260, z = MARK.z - Math.cos(d) * 260;
-  round.startAt({ x, y: terrainHeight(x, z) + 110, z, heading: wrapAngle(d + .35), airspeed: 22 }); syncRound();
+  round.startAt({ x, y: terrainHeight(x, z) + 110, z, heading: wrapAngle(d + .35), airspeed: 22 }); syncRound(); lab?.newRound();
   pos.set(soaring.x, soaring.y, soaring.z); heading = soaring.heading; speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0;
   result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; rounds++; beginRound('overhead'); resetMotion(); snapCamera();
 }
@@ -472,7 +473,7 @@ function stepSimulation(dt) {
   elapsed += dt;
   gamepad.poll();
   wind.update(dt);
-  const controls = controlsNow();
+  const controls = controlsNow(); lastControls = controls;
   if (runUp) {
     stepRunUp(dt, controls);
   } else if (tumble) {
@@ -490,6 +491,7 @@ function stepSimulation(dt) {
   }
   updateFeel(dt);
   if (mode === 'landed' || mode === 'crashed') settle = Math.min(1, settle + dt / .8);
+  lab?.afterTick(dt);
 }
 
 function renderFrame(dt, alpha) {
@@ -556,14 +558,15 @@ function renderFrame(dt, alpha) {
   { const f = mode === 'gliding', g = terrainHeight(pos.x, pos.z); cues.update({ zone: flareGuide ? flareGuide.at(speed) : undefined, flying: f, x: pos.x, z: pos.z, ground: g, feet: pos.y - g - 2.3, speedRatio: speed / glider.performance.stallSpeed(), bar: soaring.bar || 0, sink: -verticalSpeed, landable: slopeAt(pos.x, pos.z) < .42, speed, dropToImpact: f && verticalSpeed < -3 ? dropToImpact({ x: pos.x, feetY: pos.y - 2.3, z: pos.z, vx: Math.sin(heading) * Math.cos(soaring.pathAngle || 0) * speed + (soaring.windX || 0), vy: verticalSpeed, vz: Math.cos(heading) * Math.cos(soaring.pathAngle || 0) * speed + (soaring.windZ || 0), terrainHeight }) : null }); }
   { const flying = mode === 'gliding', cg = Math.cos(soaring.pathAngle || 0); streaks.update(camera.position, { x: Math.sin(heading) * cg, y: Math.sin(soaring.pathAngle || 0), z: Math.cos(heading) * cg }, flying ? speed : 0, dt);
     audio.update({ mode: flying ? 'gliding' : 'foot', paused: false, speed, verticalSpeed, lift: flying ? soaring.lift : 0, thermalLift: flying ? soaring.thermalLift : 0, ridgeLift: flying ? soaring.ridgeLift : 0, clearance: pos.y - terrainHeight(pos.x, pos.z), skim: flying ? clamp(soaring.skimAssist || 0, 0, 1) : 0, stalled: flying && !!soaring.stalled, stallWarning: flying && !!soaring.stallWarning, pullUp: flying && !!soaring.pullUp, bank, walking: false, sprinting: false, biome: 'alpine', nearSea: 0, altitude: pos.y }, dt); }
-  renderer.render(scene, camera);
+  if (lab?.drawsViews) lab.render(); else renderer.render(scene, camera);
+  lab?.afterRender();
 }
 const simulationLoop = createSimulationLoop({ step: stepSimulation, render: renderFrame });
 let previousFrame = null;
 function frame(now) {
   if (!document.hidden) {
     quality.sample(previousFrame === null ? 0 : (now - previousFrame) / 1000);
-    simulationLoop.frame(now);
+    if (lab?.holding) lab.frame(now); else simulationLoop.frame(now);
   }
   previousFrame = now;
   requestAnimationFrame(frame);
@@ -576,6 +579,47 @@ addEventListener('visibilitychange', () => {
   resetMotion();
 });
 
+/**
+ * One tick of the game as the renderer sees it, copied: where the glider is and how it is flying, the run-up, the take-off and its
+ * look, a tumble or a wreck, the run-out and the camera's knocks. The lab records one each tick, and draws any of them again through
+ * this same renderer (restoreFrame, then renderFrame), so a replay is the game itself.
+ */
+function captureFrame() {
+  const copyLaunch = l => l ? { ...l, flight: l.flight ? { ...l.flight } : l.flight } : null;
+  return {
+    motion: captureMotion(), pos: pos.toArray(), heading, pitch, bank, speed, verticalSpeed, mode, settle, impact, elapsed, pilotStand, launchSite, pilotShift,
+    soaring: { ...soaring }, runUp: runUp ? { launch: copyLaunch(runUp.launch) } : null,
+    takeoff: takeoff ? { ...takeoff, launch: copyLaunch(takeoff.launch), bar: takeoff.bar ? { ...takeoff.bar } : undefined } : null,
+    tumble: tumble ? { ...tumble, q: [...tumble.q], v: [...tumble.v] } : null, wreck: wreck ? { ...wreck, q: [...wreck.q] } : null,
+    runOut: runOut ? { ...runOut } : null, result, controls: { ...lastControls },
+  };
+}
+function restoreFrame(f) {
+  pos.fromArray(f.pos); heading = f.heading; pitch = f.pitch; bank = f.bank; speed = f.speed; verticalSpeed = f.verticalSpeed; mode = f.mode;
+  settle = f.settle; impact = f.impact; elapsed = f.elapsed; pilotStand = f.pilotStand; launchSite = f.launchSite; pilotShift = f.pilotShift;
+  soaring = f.soaring; runUp = f.runUp; takeoff = f.takeoff; tumble = f.tumble; wreck = f.wreck; runOut = f.runOut; result = f.result;
+}
+/** Starts a round in the air from a flight state (a scenario's start), as starting over the field does. */
+function startInAir(init, start = 'final') {
+  if (reloadIfStale()) return;
+  runOut = null; takeoffLook = null; rigSnap = true;
+  round.startAt(init); syncRound(); lab?.newRound();
+  pos.set(soaring.x, soaring.y, soaring.z); heading = soaring.heading; speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0;
+  result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; rounds++; beginRound(start); resetMotion(); snapCamera();
+}
+let lastControls = {};
+const lab = createLab({
+  THREE, scene, renderer, camera, player, get rig() { return rig; }, glider, round, world, wind, terrainHeight, groundUnder, MARK, LAUNCH_SITES, presetSelect,
+  standAtSite, launch, startInAir, toast, hideCard, captureFrame, restoreFrame,
+  get mode() { return mode; }, get site() { return launchSite; },
+  setPilot(fn) { pilotOverride = fn; },
+  stepOnce() { stepSimulation(1 / 60); },
+  render(dt, alpha, snap = false) { if (snap) rigSnap = true; renderFrame(dt, alpha); },
+  /** Draws a recorded moment: between two recorded ticks, alpha of the way, through the game's own renderer. */
+  renderAt(prev, next, alpha, dt, snap = false) { if (snap) rigSnap = true; restoreFrame(next); previousMotion = prev.motion; renderFrame(dt, alpha); },
+  resumeLive(frame) { if (frame) restoreFrame(frame); soaring = glider.state; syncRound(); previousMotion = captureMotion(); simulationLoop.reset(); },
+  keys,
+});
 standAtSite('ramp'); syncWindPanel(); syncTunePanel(); drawPolar(true); updateBest();
 { const other = new URLSearchParams(location.search); if (MODEL === 'original') other.delete('model'); else other.set('model', 'original'); const q = other.toString();
   $('modelName').textContent = MODEL === 'original' ? 'Original physics' : 'Force model'; $('modelSwitch').textContent = MODEL === 'original' ? 'Switch to force model' : 'Switch to original physics'; $('modelSwitch').href = location.pathname + (q ? '?' + q : '');
@@ -585,5 +629,5 @@ standAtSite('ramp'); syncWindPanel(); syncTunePanel(); drawPolar(true); updateBe
 { const other = new URLSearchParams(location.search); if (REAL_LAUNCH) other.set('launch', 'easy'); else other.delete('launch'); const q = other.toString();
   $('launchName').textContent = REAL_LAUNCH ? 'Realistic launch: you balance, run and jump' : 'Easy launch: it runs itself'; $('launchSwitch').textContent = REAL_LAUNCH ? 'Switch to easy launches' : 'Switch to realistic launches'; $('launchSwitch').href = location.pathname + (q ? '?' + q : ''); }
 $('loading').hidden = true; $('world').focus();
-window.rangeDemo = window.microDemo = { get quality() { return quality.level; }, pad: gamepad.state, model: MODEL, audio, get rig() { return rig; }, camera, player, scene, renderer, deckY, get soaring() { return soaring; }, get launchSite() { return launchSite; }, get takeoff() { return takeoff; }, get runUp() { return runUp; }, get tumble() { return tumble; }, get wreck() { return wreck; }, standAtSite, standAtCliff: () => standAtSite('cliff'), standAtSlope: () => standAtSite('slope'), CLIFF, SLOPE, measure() { player.updateMatrixWorld(true); const g = terrainHeight(pos.x, pos.z), pb = new THREE.Box3().setFromObject(pilot), wb = new THREE.Box3().setFromObject(wing); return { mode, bodyAboveGround: +(pos.y - g).toFixed(2), pilotLowAboveGround: +(pb.min.y - g).toFixed(2), wingLowAboveGround: +(wb.min.y - g).toFixed(2), pilotLowBelowBody: +(pos.y - pb.min.y).toFixed(2), wingLowBelowBody: +(pos.y - wb.min.y).toFixed(2), upright: +pilotUpright.toFixed(2) }; }, startAt({ x, z, agl = 12, heading: h = 0, kmh = 0, pathDeg = 0 }) { runOut = null; takeoffLook = null; rigSnap = true; pos.set(x, terrainHeight(x, z) + agl, z); heading = h; round.startAt({ x, y: pos.y, z, heading: h }); syncRound(); if (kmh) { soaring.airspeed = kmh / 3.6; soaring.pathAngle = pathDeg * Math.PI / 180; soaring.verticalSpeed = soaring.airspeed * Math.sin(soaring.pathAngle); soaring.alpha = -1.5 * Math.PI / 180; } speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0; result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; beginRound('final'); resetMotion(); snapCamera(); }, recorder, round, getState: () => ({ mode, position: pos.toArray(), speed, heading, bank, verticalSpeed, airspeed: soaring.airspeed, pathAngle: soaring.pathAngle, clearance: pos.y - terrainHeight(pos.x, pos.z), wind: { x: wind.x, z: wind.z, speed: wind.speed }, result, rounds, best }), setKey: (code, down) => down ? keys.add(code) : keys.delete(code), launch, overhead, wind, tune: patch => glider.tune(patch), glider, world, terrainHeight, MARK, LAUNCH };
+window.rangeDemo = window.microDemo = { get quality() { return quality.level; }, pad: gamepad.state, model: MODEL, audio, get rig() { return rig; }, camera, player, scene, renderer, deckY, get soaring() { return soaring; }, get launchSite() { return launchSite; }, get takeoff() { return takeoff; }, get runUp() { return runUp; }, get tumble() { return tumble; }, get wreck() { return wreck; }, standAtSite, standAtCliff: () => standAtSite('cliff'), standAtSlope: () => standAtSite('slope'), CLIFF, SLOPE, measure() { player.updateMatrixWorld(true); const g = terrainHeight(pos.x, pos.z), pb = new THREE.Box3().setFromObject(pilot), wb = new THREE.Box3().setFromObject(wing); return { mode, bodyAboveGround: +(pos.y - g).toFixed(2), pilotLowAboveGround: +(pb.min.y - g).toFixed(2), wingLowAboveGround: +(wb.min.y - g).toFixed(2), pilotLowBelowBody: +(pos.y - pb.min.y).toFixed(2), wingLowBelowBody: +(pos.y - wb.min.y).toFixed(2), upright: +pilotUpright.toFixed(2) }; }, startAt({ x, z, agl = 12, heading: h = 0, kmh = 0, pathDeg = 0 }) { runOut = null; takeoffLook = null; rigSnap = true; pos.set(x, terrainHeight(x, z) + agl, z); heading = h; round.startAt({ x, y: pos.y, z, heading: h }); syncRound(); lab?.newRound(); if (kmh) { soaring.airspeed = kmh / 3.6; soaring.pathAngle = pathDeg * Math.PI / 180; soaring.verticalSpeed = soaring.airspeed * Math.sin(soaring.pathAngle); soaring.alpha = -1.5 * Math.PI / 180; } speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0; result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; beginRound('final'); resetMotion(); snapCamera(); }, recorder, round, lab, getState: () => ({ mode, position: pos.toArray(), speed, heading, bank, verticalSpeed, airspeed: soaring.airspeed, pathAngle: soaring.pathAngle, clearance: pos.y - terrainHeight(pos.x, pos.z), wind: { x: wind.x, z: wind.z, speed: wind.speed }, result, rounds, best }), setKey: (code, down) => down ? keys.add(code) : keys.delete(code), launch, overhead, wind, tune: patch => glider.tune(patch), glider, world, terrainHeight, MARK, LAUNCH };
 requestAnimationFrame(frame);

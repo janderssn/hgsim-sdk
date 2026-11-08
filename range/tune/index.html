@@ -2,18 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tuning · hgsim</title>
-  <link rel="icon" href="../assets/icon-180.png">
-  <link rel="stylesheet" href="./tune.css">
+  <title>Lab · hgsim</title>
+  <!-- The tuning pages are now the lab, in the range itself: L there, or ?lab=launch|flight|landing. -->
+  <script>location.replace('../?lab=' + (/(launch|flight|landing)/.exec(location.pathname + location.search)?.[1] ?? 'launch') + location.search.replace(/^\?/, '&'));</script>
 </head>
-<body class="hub">
-  <header><h1>Tuning</h1><nav><a href="../">Range</a></nav>
-    <p>Each page flies short, repeatable scenarios on any wing, seen from the side, the top, behind and in front, with the numbers, the traces and the feel values that shape them. A scripted pilot flies each the same way every time, or you fly it.</p></header>
-  <ul class="pages">
-    <li><a href="./launch/"><b>Launch</b><span>The pickup, the balance on the shoulders, the run and the lift-off: ramp, cliff and slope, calm, breezy, gusty and cross.</span></a></li>
-    <li><a href="./flight/"><b>Flight</b><span>Pitch, speed, roll and the stall: a held dive, a release, reversals, turns, a spiral, straight and turning stalls.</span></a></li>
-    <li><a href="./landing/"><b>Landing</b><span>The final and the flare: at the cue, early, late, none, fast, eased out; calm, windy and gusty.</span></a></li>
-  </ul>
-</body>
+<body><a href="../?lab=launch">Open the lab</a></body>
 </html>

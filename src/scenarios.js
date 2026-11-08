@@ -237,13 +237,17 @@ export function flyScenario(id, { round, pilot = 'script', place = null } = {}) 
     get t() { return t; },
     get done() { return done; },
     get result() { return result; },
-    /** Puts the round at the scenario's start: standing at the site with the launch begun, or in the air. */
-    start() {
+    /**
+     * Puts the round at the scenario's start: standing at the site with the launch begun, or in the air. host: a game's own way to
+     * do it ({ standAt(place), startAt(state) }), so its presentation starts the round as it would any other.
+     */
+    start(host = null) {
       if (sc.kind === 'launch') {
-        round.standAt({ ...where.site, start: { heading: 0, ...where.start } }).launch();
+        if (host?.standAt) host.standAt(where); else round.standAt({ ...where.site, start: { heading: 0, ...where.start } }).launch();
         script = launchPilot(sc.pilot);
       } else {
-        round.startAt(sc.start(glider, where));
+        const init = sc.start(glider, where);
+        if (host?.startAt) host.startAt(init); else round.startAt(init);
         script = sc.kind === 'landing' ? landingPilot(sc.pilot) : sc.pilot;
       }
       sample();

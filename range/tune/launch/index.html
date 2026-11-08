@@ -2,16 +2,9 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Launch tuning · hgsim</title>
-  <link rel="icon" href="../../assets/icon-180.png">
-  <link rel="stylesheet" href="../tune.css">
+  <title>Lab · hgsim</title>
+  <!-- The tuning pages are now the lab, in the range itself: L there, or ?lab=launch|flight|landing. -->
+  <script>location.replace('../../?lab=' + (/(launch|flight|landing)/.exec(location.pathname + location.search)?.[1] ?? 'launch') + location.search.replace(/^\?/, '&'));</script>
 </head>
-<body>
-  <script type="importmap">{"imports":{"three":"../../vendor/three.module.js"}}</script>
-  <script type="module">
-    import { mountTuner } from '../tuner.js';
-    mountTuner('launch');
-  </script>
-</body>
+<body><a href="../../?lab=launch">Open the lab</a></body>
 </html>

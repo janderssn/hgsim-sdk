@@ -90,6 +90,16 @@ try {
   // On a phone: nothing until the screen is touched, then a stick that balances the wing and a button that launches; a key
   // press puts them away again. The panel starts hidden on a small screen.
   await page.viewport(812, 375, true); await page.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+  // The lab: a landing scenario flown by its scripted pilot in the range, recorded, then stepped back through the same renderer.
+  check(await open('wind=4&from=180&lab=landing&scenario=land-cue&glider=falcon-170'), 'the range loads with the lab open');
+  let outcome = null;
+  for (let i = 0; i < 160 && !outcome; i++) { await sleep(250); outcome = await page.eval(`document.querySelector('.lab-outcome')?.textContent ?? null`); }
+  const labClockBefore = await page.eval(`document.getElementById('labClock').textContent`);
+  await page.eval(`for (let i = 0; i < 60; i++) document.getElementById('labBack').click(); 1`); await sleep(300);
+  const stepped = { a: labClockBefore, b: await page.eval(`document.getElementById('labClock').textContent`) };
+  check(outcome === 'soft' && parseFloat(stepped.a) - parseFloat(stepped.b) > .9, 'the lab flies a scenario in the range and steps back through its recording', JSON.stringify({ outcome, ...stepped }));
+  await page.eval(`localStorage.clear(); 1`);
+
   check(await open('wind=4&from=180'), 'the range loads on a phone');
   const touch = (type, points) => page.send('Input.dispatchTouchEvent', { type, touchPoints: points.map(([x, y], i) => ({ x, y, id: i + 1 })) });
   const touchState = () => page.eval(`JSON.stringify({ shown: document.body.classList.contains('touching'), panel: !document.getElementById('panel').classList.contains('hidden'), label: document.querySelector('.touch-action').textContent, phase: rangeDemo.runUp?.launch.phase ?? null, shift: rangeDemo.runUp?.launch.shift ?? 0 })`).then(JSON.parse);

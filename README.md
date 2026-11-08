@@ -179,7 +179,22 @@ glider.flareZone().at(airspeed);   // { low, high }: heights of the feet to flar
 
 `npm run polars` prints the presets side by side, VG off and on. In the range, the panel's Glider section picks a preset (also `?glider=t2c-144`) and sets the VG (key **V**). Its polar and pitch stability charts redraw as you tune or pull the VG.
 
-### Scenarios and the tuning pages
+### Rounds
+
+A round is one go of a glider from the ground or the air to the end, the whole lifecycle in one place (`src/round.js`): standing at a launch, the launch run, the take-off with its bar hand-over, the flight, a scrape, the touchdown and its score, and a crash carried on as the tumble until the wreck is still. The range draws its rounds, and the scenarios fly theirs headless; both step the same code.
+
+```js
+import { createRound } from 'hgsim';
+
+const round = createRound({ glider, target: { x: 0, z: 0, radius: 60 } });   // also realistic, ground, solid, landable, bodyPose
+round.standAt(site).launch();           // or round.startAt({ x, y, z, heading, airspeed })
+round.step(dt, { roll, pitch, nose, push, go, jump });   // each tick
+round.phase;                            // 'ready', 'launch', 'flight', 'tumble', 'landed', 'crashed'
+round.on(e => e.type);                  // 'launch', 'liftoff', 'failed', 'scrape', 'crash', 'touchdown'
+round.state();                          // plain data, to record and draw again
+```
+
+### Scenarios and the lab
 
 Scenarios are short, repeatable test flights for tuning how a wing feels (`src/scenarios.js`). Each sets up a site, a wind and a start, flies one thing and reports what happened as plain numbers, so the same scenario can be flown on every wing and compared.
 
@@ -187,14 +202,15 @@ Scenarios are short, repeatable test flights for tuning how a wing feels (`src/s
 - **Flight:** a hands-off glide, a dive held and let go, a bar tap, roll reversals at trim and near the stall, a 360, a spiral, straight, turning and whip stalls.
 - **Landing:** a final flared at the cue, too early, too late or not at all, a fast final, an eased-out flare, and calm, windy and gusty days.
 
-A scripted pilot flies each the same way every time. The launch pilot balances, runs with the nose down and lets it up to fly off, and its skill can be turned down. The landing pilot flares from the wing's own measured cue. Everything else is the physics.
+A scripted pilot flies each the same way every time. The launch pilot balances, runs with the nose down and lets it up to fly off, and its skill can be turned down. The landing pilot flares from the wing's own measured cue. Everything else is the physics, and nothing is cut short: a launch that goes wrong, or a crash, plays out as the tumble.
 
 ```js
-import { SCENARIOS, runScenario, startScenario } from 'hgsim';
+import { runScenario, startScenario, flyScenario } from 'hgsim';
 
-runScenario('ramp-sloppy', { preset: 't2c-144' });   // { outcome: 'wingdrop', metrics: { maxRollDeg, ... }, samples }
+runScenario('ramp-hands-off', { preset: 't2c-144' });   // { outcome: 'wingdrop', metrics: { maxRollDeg, ... }, samples }
 runScenario('dive-hold', { preset: 't2c-144', vg: 1, config: { cd0: 0.02 } }).metrics.topKmh;
 const run = startScenario('land-cue', { preset: 'falcon-170', pilot: 'you' });   // live: run.step(dt, { roll, pitch })
+const flight = flyScenario('land-cue', { round, place });   // the same scenario on a round your game steps and draws
 ```
 
 ```bash
@@ -203,14 +219,15 @@ npm run scenarios -- landing --wings eras      # one kind, the eras from the Rog
 npm run scenarios -- dive-hold --wings t2c-144,sport-2 --vg both
 ```
 
-The tuner flies the same scenarios in the browser at `http://127.0.0.1:4180/range/tune/`, in three modes: launch, flight and landing. It is laid out like a replay app: the 3D stage fills the window, with floating panels over it and a timeline along the bottom.
+The lab flies the same scenarios in the range itself: in its world, its wind and its renderer, so what you tune is what you play. Press **L** in the range, or open `http://127.0.0.1:4180/range/?lab=launch` (or `flight`, `landing`).
 
-- **Views:** the game view, a chase camera behind the glider, or the side, top, behind and in-front views, one at a time or all four. Double-click a view to fill the stage with it; Esc goes back. The mouse wheel zooms.
-- **Fly or watch:** Play lets the scripted pilot fly it. Fly (F) hands it to you in the game view: W/S the bar (or the nose on a launch), A/D the weight shift, Space to start the run and to jump.
-- **Timeline:** every frame is recorded. Play replays the recording at ¼× to 2×; the step buttons, or , and . (Shift for ten frames), move one frame at a time, and drag the timeline to scrub. The traces of the run sit in lanes lined up with the playhead, the compared run behind them in blue.
-- **Notes:** N pins a note to the moment and the view you are looking at. Notes show as pins on the timeline and over the view at that moment, and the Notes tab lists them; click one to jump back to it. Each note is also saved to `work/notes/` for review, with the moment's numbers and, for a run you flew yourself, the whole recorded flight with your inputs.
-- **Inspector:** Result (the outcome and its numbers), Feel (the values that shape it, in groups, changed live; Copy values copies them relative to the preset), Compare (the same scenario on another wing, a pinned run, or every wing at once) and Notes.
-- **URL options:** `glider`, `vg`, `scenario`, `compare`, `view`.
+- **Scenarios:** pick one on the left; a scripted pilot flies it. Fly (F) hands it to you. R runs it again. Any round you fly is recorded too.
+- **Replay:** every tick is recorded as the renderer sees it, and replayed through the same renderer. P pauses, plays and replays at ¼× to 2×; the step buttons, or , and . (Shift for ten), move one frame at a time; drag the timeline to scrub. The traces of the round sit in lanes under the playhead.
+- **Views:** the game's own camera, or the side, top, behind and in-front views, one at a time or all four (G, Q). Double-click a view to fill the screen with it; Esc goes back; the mouse wheel zooms. Grids every 10 m follow the glider in these views.
+- **Compare:** another wing flies the same scenario headless on the same ground: a blue dashed line in the world, blue traces on the timeline, and its numbers beside yours.
+- **Notes:** N pins a note to the moment and the view you are looking at. Notes show as pins on the timeline and over the view at that moment, and the Notes tab lists them; click one to jump back. Each note is also saved to `work/notes/` for review, with the moment's numbers and, for a round you flew, the whole round with your inputs.
+- **Feel:** the range's own side panel (Tab) tunes the wing live as before.
+- **URL options:** `lab` (launch, flight, landing), `scenario`, `compare`, with the range's own (`glider`, `wind`, ...).
 
 ### Flight models
 
@@ -238,7 +255,8 @@ Any other object with the same shape drops in. `examples/extend.mjs` flies a poi
 | `recorder.js` | Records each round as samples and marked moments. `tools/flight-report.mjs` reads them back. |
 | `config.js` | `defineConfig` and `overridesOf`. |
 | `presets.js`, `polar.js` | The glider presets and `defineWing` (a wing from ballpark speeds and a character), and the polar and pitch stability of any glider (`polarOf`, `pitchStabilityOf`). |
-| `scenarios.js` | Repeatable test flights for tuning the feel: `SCENARIOS`, `SITES`, `runScenario`, `startScenario`, and the scripted launch and landing pilots. |
+| `round.js` | A round: the whole lifecycle of a go, from standing at a launch to the end (`createRound`). |
+| `scenarios.js` | Repeatable test flights for tuning the feel: `SCENARIOS`, `SITES`, `runScenario`, `startScenario`, `flyScenario`, and the scripted launch and landing pilots. |
 | `assists/` | The optional terrain-skimming assist, which keeps a low glider off the ground, and its drawn bank. |
 | `three/` (`hgsim/three`) | Three.js presentation: `createPilotRig` poses the pilot on the skinned glider model, and `createLandingCues` draws the shadow, height gauge and FLARE prompt. Each takes `THREE` as an argument. |
 
@@ -283,7 +301,7 @@ Open `http://127.0.0.1:4180/range/` after `npm start`.
 | `assist=on` | Terrain skimming. |
 | `glider` | A glider preset, such as `t2c-144` or `rogallo-1975`. The default is `intermediate`. |
 
-The side panel sets the wind and the main feel numbers live. Tab hides it. Its Tuning pages link opens the launch, flight and landing tuning pages.
+The side panel sets the wind and the main feel numbers live. Tab hides it. Its Lab link (or L) opens the lab: scenarios, replay, views and notes in the range itself.
 
 ### Controls
 
@@ -314,7 +332,8 @@ The open range reloads itself when `src/` or `range/` changes. It waits until yo
 
 | File | What it holds |
 |---|---|
-| `range/main.js` | Composes the range on one `createWorld` and one `createGlider`, and owns its launch, flight, landing and crash transitions. |
+| `range/main.js` | Composes the range on one `createWorld`, one `createGlider` and one `createRound`, and draws the round: the launch, the flight, the landing and a crash. |
+| `range/lab.js` | The lab: scenarios flown in the range, every tick recorded and replayed through the same renderer, the other views, the comparison and the notes. |
 | `range/simulation-loop.js`, `motion.js` | Fixed simulation ticks and interpolated drawing snapshots. |
 | `range/controls.js` | Keyboard/gamepad normalization and continuous bar control through lift-off. |
 | `range/camera.js`, `hud.js` | Chase-camera smoothing and change-only HUD updates. |

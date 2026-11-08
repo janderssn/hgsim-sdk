@@ -21,6 +21,7 @@
 import { clamp, finite, smoothstep, wrapAngle as angle, DEG } from './math.js';
 import { skimGuidance } from './assists/terrain-skimming.js';
 import { LANDING_RULES } from './landing.js';
+import { applyGroundBounce, tryWheelScrape } from './contact.js';
 
 export const GLIDER_DEFAULTS = Object.freeze({
   gravity: 9.81,
@@ -308,7 +309,7 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
     const v = state.airspeed, gamma = state.pathAngle, bank = state.bank;
     const air = world.airAt(state.x, state.y, state.z);
     const surface = Math.max(air.groundHeight, world.surfaceAt(state.x, state.z));
-    const clearance = state.y - surface, feet = clearance - cfg.footHeight;
+    const clearance = state.y - surface, feet = finite(input.contactClearance, clearance - cfg.footHeight);
     // How fast the ground comes up to the feet (m/s, + closing), smoothed: a landing approach closes on the ground, a take-off
     // climbs away from it.
     if (Number.isFinite(state.lastFeet)) state.groundClosing = finite(state.groundClosing) + ((state.lastFeet - feet) / step - finite(state.groundClosing)) * (1 - Math.exp(-step / 0.25));
@@ -382,7 +383,7 @@ export function stepFlight(state, input = {}, dt = 0, world, cfg = GLIDER_DEFAUL
     state.stalled = alpha > cfg.stallAlpha;
 
     // Forces.
-    const wingHeight = clearance - cfg.footHeight + cfg.wingAboveBody;
+    const wingHeight = feet + cfg.wingAboveBody;
     const sigma = groundEffectFactor(wingHeight, cfg);
     state.groundEffect = 1 - sigma;
     state.alphaRateSmooth = finite(state.alphaRateSmooth) + (Math.max(0, alphaRate) - finite(state.alphaRateSmooth)) * (1 - Math.exp(-step / 0.15));
@@ -509,13 +510,13 @@ export function performance(cfg = GLIDER_DEFAULTS) {
  * Returns true when it scraped; the flight then carries on.
  */
 export function scrapeGround(state, contact, groundHeight, rules = LANDING_RULES, cfg = GLIDER_DEFAULTS) {
+  const y = groundHeight + cfg.footHeight;
+  if (contact.part === 'wheel') return tryWheelScrape(state, contact, y, stallSpeed(contact.bank, cfg), rules, cfg.scrapeSink);
+  if (contact.part !== undefined) return false;
   const sink = Math.max(0, finite(contact.verticalSpeed));
   if (!(sink < cfg.scrapeSink) || Math.abs(finite(contact.groundSpeed)) < rules.roughTouchdown.ground || !(finite(contact.slope, 1) < rules.maxTouchdownSlope) || Math.abs(finite(contact.bank)) > rules.maxTouchdownBank) return false;
-  state.airspeed = Math.max(rules.roughTouchdown.ground * 0.9, state.airspeed - (0.5 + sink * 1.5));
-  const up = Math.max(0.3, sink * 0.3);
-  state.pathAngle = Math.asin(clamp(up / state.airspeed, 0, 0.3));
-  state.verticalSpeed = up; state.y = groundHeight + cfg.footHeight + 0.02;
-  return true;
+  const airspeed = Math.max(rules.roughTouchdown.ground * 0.9, state.airspeed - (0.5 + sink * 1.5));
+  return applyGroundBounce(state, airspeed, sink, finite(contact.airframeY, y));
 }
 
 /** The force model, as a flight model for createGlider (see models.js for the interface). */

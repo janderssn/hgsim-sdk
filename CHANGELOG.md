@@ -4,6 +4,12 @@ All notable changes to the hgsim SDK. The format follows [Keep a Changelog](http
 
 The public API is what `hgsim` and `hgsim/three` export, as declared in `types/`.
 
+## [0.3.0]
+
+- Added swept contact detection for posed feet, bars and tires, and an optional measured clearance for both flight models.
+- Added wheel rollout eligibility, rolling resistance, wheel-only scrape recovery and zero-point wheel rollout scoring.
+- Exposed pilot foot and bar samples and an optional base-bar wheel attachment in `hgsim/three`. Sail flutter composes with existing material shaders.
+
 ## [0.2.0]
 
 ### Added

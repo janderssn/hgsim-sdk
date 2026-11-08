@@ -1,5 +1,7 @@
 # hgsim
 
+Hosts that animate their own glider can use `hgsim/three` to sample the posed feet, base bar and optional tires. Pass the measured clearance to `glider.step(dt, { contactClearance })` and use `sweepFlightContact` to find the first contact between fixed ticks. `canRollOnWheels` and `advanceWheelRoll` let a host drive a tire-supported rollout on its own terrain. Pass `part: 'wheel', rolledOut: true` when the glider stops to record a zero-point wheel rollout. The default headless contact path remains available through `glider.contact()`.
+
 The hang-glider simulation from **Above**, and the landing range used to tune it.
 
 <p>

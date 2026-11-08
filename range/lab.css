@@ -1,61 +1,67 @@
-/* The lab, over the range: a view switcher at the top, the scenarios on the left, and the dock along the bottom (the timeline with its
-   transport, and the result, comparison and notes beside it). Same palette as the range. */
-#lab { position: fixed; inset: 0; pointer-events: none; z-index: 5; font: 13px/1.4 "Segoe UI", system-ui, sans-serif; color: #f4f1ea; }
+/* The lab, over the range: one slim bar along the bottom, with the scenario list and the details opening above it when asked for.
+   Selected things are simply lighter; colour is kept for data (the traces) and outcomes. */
+#lab { position: fixed; inset: 0; pointer-events: none; z-index: 5; font: 13px/1.4 "Segoe UI", system-ui, sans-serif; color: #eceae4; }
 #lab[hidden], #lab [hidden] { display: none !important; }
-.lab-float { position: absolute; pointer-events: auto; background: rgba(16, 20, 24, .82); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, .12); border-radius: 12px; box-shadow: 0 10px 34px rgba(0, 0, 0, .35); }
+.lab-float { position: absolute; pointer-events: auto; background: rgba(18, 22, 26, .78); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, .08); border-radius: 10px; }
 #lab button, #lab select, #lab input { font: inherit; color: inherit; }
-#lab button { cursor: pointer; background: rgba(255, 255, 255, .08); border: 0; border-radius: 7px; padding: 5px 10px; }
-#lab button:hover { background: rgba(255, 255, 255, .16); }
-#lab select { background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); border-radius: 7px; padding: 4px 6px; }
+#lab button { cursor: pointer; background: none; border: 0; border-radius: 6px; padding: 4px 9px; color: rgba(236, 234, 228, .75); }
+#lab button:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+#lab button.on { background: rgba(255, 255, 255, .16); color: #fff; }
+#lab select { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .1); border-radius: 6px; padding: 3px 6px; color: rgba(236, 234, 228, .85); }
 #lab select option { background: #1c242b; }
-.lab-seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 9px; background: rgba(0, 0, 0, .25); }
-#lab .lab-seg button { background: none; color: rgba(244, 241, 234, .6); font-weight: 600; padding: 4px 10px; }
-#lab .lab-seg button.on { background: rgba(255, 255, 255, .12); color: #f4f1ea; box-shadow: inset 0 -2px #f28c28; }
-.lab-dim { color: rgba(244, 241, 234, .6); }
+.lab-seg { display: inline-flex; gap: 1px; }
+.lab-dim { color: rgba(236, 234, 228, .55); }
+.lab-icon { display: inline-grid !important; place-items: center; width: 30px; height: 28px; padding: 0 !important; }
+.lab-icon svg { width: 16px; height: 16px; fill: currentColor; }
 
-#labViews { top: 12px; left: 50%; transform: translateX(-50%); }
-#labPanes { position: absolute; inset: 0; pointer-events: none; }
-#labPanes b { position: absolute; display: none; padding: 1px 7px; border-radius: 5px; background: rgba(15, 20, 24, .55); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: rgba(244, 241, 234, .7); }
-#labPanes[data-mode="quad"] b { display: block; }
-#labPanes b[data-pane="side"] { left: 12px; top: 56px; } #labPanes b[data-pane="top"] { left: calc(50% + 12px); top: 56px; }
-#labPanes b[data-pane="rear"] { left: 12px; top: calc(50% + 10px); } #labPanes b[data-pane="front"] { left: calc(50% + 12px); top: calc(50% + 10px); }
-#labPanes[data-mode="quad"]::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px; background: rgba(0, 0, 0, .5); }
-#labPanes[data-mode="quad"]::before { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: 2px; background: rgba(0, 0, 0, .5); }
-#labFlag { position: absolute; left: 50%; top: 60px; transform: translateX(-50%); max-width: 60%; padding: 6px 12px; border-radius: 8px; background: #ffd36b; color: #2a1f00; font-weight: 600; }
+/* the bar */
+#labBar { left: 50%; bottom: 10px; transform: translateX(-50%); width: min(1100px, calc(100vw - 20px)); height: 40px; display: flex; align-items: center; gap: 6px; padding: 0 6px; }
+.lab-pick { max-width: 190px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: #eceae4 !important; }
+.lab-pick i { font-style: normal; opacity: .5; font-size: 10px; }
+.lab-transport { display: flex; }
+#lab .lab-fly { color: rgba(239, 75, 83, .85); }
+#lab .lab-fly.on { background: rgba(239, 75, 83, .22); color: #ff8a8f; }
+.lab-speeds button { padding: 4px 6px !important; font-size: 12px; }
+#labTrack { flex: 1; min-width: 60px; height: 28px; cursor: ew-resize; }
+#labClock { min-width: 58px; text-align: right; font-variant-numeric: tabular-nums; color: rgba(236, 234, 228, .6); }
+.lab-chip { font-weight: 700; text-transform: uppercase; letter-spacing: .05em; font-size: 11px; background: rgba(255, 255, 255, .07) !important; }
+#labShow { left: 10px; bottom: 10px; padding: 6px 12px; font-weight: 600; }
+#labNoteBox { position: absolute; left: 50%; bottom: calc(100% + 8px); transform: translateX(-50%); width: min(600px, 90vw); display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: 9px; background: #ffd36b; color: #2a1f00; }
+#labNoteBox span { font-weight: 700; white-space: nowrap; }
+#labNoteBox input { flex: 1; border: 0; border-radius: 6px; padding: 5px 8px; background: rgba(255, 255, 255, .75); color: #1a1408; outline: none; }
 
-#labScenarios { left: 12px; top: 120px; width: 210px; max-height: calc(100vh - 360px); display: flex; flex-direction: column; padding: 8px; overflow: hidden; }
-#labList { overflow-y: auto; margin-top: 8px; }
-#labList button { display: block; width: 100%; text-align: left; background: none !important; color: rgba(244, 241, 234, .65); padding: 6px 10px; }
-#labList button:hover { color: #f4f1ea; background: rgba(255, 255, 255, .08) !important; }
-#labList button.on { color: #f4f1ea; background: rgba(255, 255, 255, .1) !important; box-shadow: inset 3px 0 #f28c28; }
-
-#labDock { left: 12px; right: 12px; bottom: 12px; height: 220px; display: flex; gap: 12px; padding: 8px 12px 10px; }
-.lab-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.lab-bar { display: flex; align-items: center; gap: 10px; }
-#labTitle { min-width: 180px; font-weight: 700; }
-.lab-transport { display: flex; gap: 4px; margin: 0 auto; }
-#lab .lab-play { background: #f28c28; color: #1a1208; font-weight: 800; min-width: 40px; }
-#labFly.on { background: rgba(226, 50, 59, .3); box-shadow: inset 0 0 0 1px #e2323b; }
-#labClock { min-width: 130px; text-align: right; font-variant-numeric: tabular-nums; color: rgba(244, 241, 234, .6); }
-#labLook { margin: 3px 0 6px; color: rgba(244, 241, 234, .6); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#labTimeline { flex: 1; width: 100%; min-height: 0; border-radius: 8px; background: rgba(0, 0, 0, .3); cursor: ew-resize; }
-.lab-side { width: 330px; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+/* above the bar, on demand */
+#labPop { left: calc(50% - min(550px, 50vw - 10px)); bottom: 58px; width: 230px; max-height: min(420px, calc(100vh - 140px)); display: flex; flex-direction: column; padding: 6px; }
+#labPop .lab-seg { margin-bottom: 4px; }
+#labList { overflow-y: auto; }
+#labList button { display: block; width: 100%; text-align: left; padding: 5px 9px; }
+#labDetails { left: 50%; bottom: 58px; transform: translateX(-50%); width: min(1100px, calc(100vw - 20px)); height: min(240px, 40vh); display: flex; gap: 10px; padding: 8px 10px; }
+.lab-traces { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+#labLook { margin: 0 0 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#labTimeline { flex: 1; width: 100%; min-height: 0; cursor: ew-resize; }
+.lab-side { width: 320px; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
 .lab-side [data-tab-pane] { flex: 1; overflow-y: auto; min-height: 0; }
 .lab-side label { display: flex; align-items: center; gap: 6px; }
-.lab-outcome { display: inline-block; padding: 2px 10px; border-radius: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; background: rgba(255, 255, 255, .08); }
-.good { color: #4fbf5c; } .warn { color: #f2b100; } .bad { color: #ef4b53; }
-#lab table { width: 100%; border-collapse: collapse; margin-top: 6px; font-variant-numeric: tabular-nums; }
-#lab th, #lab td { padding: 2px 4px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, .08); }
-#lab th:first-child, #lab td:first-child { text-align: left; color: rgba(244, 241, 234, .6); }
-#lab th:nth-child(2) { color: #f28c28; } #lab th:nth-child(3) { color: #6fa8dc; }
-.lab-note { position: relative; padding: 6px 24px 6px 8px; margin-bottom: 5px; border-radius: 7px; background: rgba(255, 255, 255, .06); border-left: 3px solid transparent; cursor: pointer; }
-.lab-note.here { border-left-color: #ffd36b; }
+.lab-outcome { display: inline-block; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+.good { color: #6ccf78 !important; } .warn { color: #f2c14e !important; } .bad { color: #f07178 !important; }
+#lab table { width: 100%; border-collapse: collapse; margin-top: 4px; font-variant-numeric: tabular-nums; }
+#lab th, #lab td { padding: 2px 4px; text-align: right; border-bottom: 1px solid rgba(255, 255, 255, .06); }
+#lab th:first-child, #lab td:first-child { text-align: left; color: rgba(236, 234, 228, .55); }
+#lab th { font-weight: 600; color: rgba(236, 234, 228, .55); }
+.lab-note { position: relative; padding: 5px 24px 5px 8px; margin-bottom: 4px; border-radius: 6px; background: rgba(255, 255, 255, .05); cursor: pointer; }
+.lab-note.here { background: rgba(255, 211, 107, .1); }
 .lab-note p { margin: 2px 0 0; }
-#lab .lab-note .x { position: absolute; right: 2px; top: 2px; background: none; padding: 0 6px; }
-#labNoteBox { position: absolute; left: 50%; bottom: calc(100% + 10px); transform: translateX(-50%); width: min(620px, 90vw); display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 10px; background: #ffd36b; color: #2a1f00; pointer-events: auto; }
-#labNoteBox span { font-weight: 700; white-space: nowrap; }
-#labNoteBox input { flex: 1; border: 0; border-radius: 6px; padding: 6px 8px; background: rgba(255, 255, 255, .75); color: #1a1408; outline: none; }
+#lab .lab-note .x { position: absolute; right: 2px; top: 2px; padding: 0 6px; }
 
-/* The game's own HUD makes room for the dock. */
+/* the four views' names, and the flag of a note at this moment */
+#labPanes { position: absolute; inset: 0; pointer-events: none; }
+#labPanes b { position: absolute; display: none; padding: 1px 7px; border-radius: 5px; background: rgba(15, 20, 24, .5); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: rgba(236, 234, 228, .7); }
+#labPanes[data-mode="quad"] b { display: block; }
+#labPanes b[data-pane="side"] { left: calc(50% - 60px); top: 10px; } #labPanes b[data-pane="top"] { right: 10px; top: calc(50% - 26px); }
+#labPanes b[data-pane="rear"] { left: 10px; bottom: 60px; } #labPanes b[data-pane="front"] { right: 10px; bottom: 60px; }
+#labPanes[data-mode="quad"]::after { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: rgba(0, 0, 0, .45); }
+#labPanes[data-mode="quad"]::before { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: rgba(0, 0, 0, .45); }
+#labFlag { position: absolute; left: 50%; bottom: 60px; transform: translateX(-50%); max-width: 60%; padding: 5px 11px; border-radius: 7px; background: #ffd36b; color: #2a1f00; font-weight: 600; }
+
 body.lab-on .hud .hints { display: none; }
-@media (max-width: 1000px) { .lab-side { width: 260px; } #labTitle { display: none; } }
+@media (max-width: 900px) { .lab-speeds, #labClock { display: none !important; } .lab-side { width: 240px; } }

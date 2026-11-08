@@ -221,9 +221,10 @@ npm run scenarios -- dive-hold --wings t2c-144,sport-2 --vg both
 
 The lab flies the same scenarios in the range itself: in its world, its wind and its renderer, so what you tune is what you play. Press **L** in the range, or open `http://127.0.0.1:4180/range/?lab=launch` (or `flight`, `landing`).
 
-- **Scenarios:** pick one on the left; a scripted pilot flies it. Fly (F) hands it to you. R runs it again. Any round you fly is recorded too.
-- **Replay:** every tick is recorded as the renderer sees it, and replayed through the same renderer. P pauses, plays and replays at ¼× to 2×; the step buttons, or , and . (Shift for ten), move one frame at a time; drag the timeline to scrub. The traces of the round sit in lanes under the playhead.
-- **Views:** the game's own camera, or the side, top, behind and in-front views, one at a time or all four (G, Q). Double-click a view to fill the screen with it; Esc goes back; the mouse wheel zooms. Grids every 10 m follow the glider in these views.
+- **The bar:** the lab is one slim bar along the bottom. The scenario list and the details (the traces, the result, the comparison, the notes) open above it when asked for (T), and H folds it all down to one small button.
+- **Scenarios:** pick one from the bar; a scripted pilot flies it. Fly hands it to you. R runs it again. Any round you fly is recorded too.
+- **Replay:** every tick is recorded as the renderer sees it, and replayed through the same renderer. P pauses, plays and replays at ¼× to 2×; the step buttons, or , and . (Shift for ten), move one frame at a time; drag the track in the bar, or the traces, to scrub.
+- **Views:** the game's own camera, or the side, top, behind and in-front views, one at a time or all four (G, Q). Double-click a view to fill the screen with it; Esc goes back; the mouse wheel zooms. Grids every 10 m follow the glider in these views; the side view is a slice 40 m either side of the glider, so it shows the ground under its path.
 - **Compare:** another wing flies the same scenario headless on the same ground: a blue dashed line in the world, blue traces on the timeline, and its numbers beside yours.
 - **Notes:** N pins a note to the moment and the view you are looking at. Notes show as pins on the timeline and over the view at that moment, and the Notes tab lists them; click one to jump back. Each note is also saved to `work/notes/` for review, with the moment's numbers and, for a round you flew, the whole round with your inputs.
 - **Feel:** the range's own side panel (Tab) tunes the wing live as before.

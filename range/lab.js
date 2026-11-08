@@ -56,42 +56,52 @@ export function createLab(host) {
 
   /* ---------- the DOM ---------- */
   const root = document.createElement('div'); root.id = 'lab'; root.hidden = true;
+  // One slim bar along the bottom; the scenario list, and the traces with the result, the comparison and the notes, open above it on
+  // demand. H folds it all down to one small button.
+  const icon = d => `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${d}"/></svg>`;
+  const ICONS = { restart: 'M12 5a7 7 0 1 1-6.9 8.2h2.1A5 5 0 1 0 12 7v3L7.5 6 12 2v3z', back: 'M7 6h2v12H7zM19 6v12l-9-6z', play: 'M8 5v14l11-7z', pause: 'M7 5h3.5v14H7zM13.5 5H17v14h-3.5z',
+    fwd: 'M15 6h2v12h-2zM5 6v12l9-6z', fly: 'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z', note: 'M4 17.3V20h2.7l8.1-8.1-2.7-2.7zM18.7 7.3a1 1 0 0 0 0-1.4l-1.6-1.6a1 1 0 0 0-1.4 0l-1.3 1.3 2.7 2.7z', more: 'M4 19h3v-7H4zm6.5 0h3V6h-3zM17 19h3v-10h-3z', hide: 'M6 11h12v2H6z' };
   root.innerHTML = `
-    <nav id="labViews" class="lab-float lab-seg">${['game', 'quad', ...QUAD].map(v => `<button data-view="${v}">${VIEW_NAMES[v]}</button>`).join('')}</nav>
     <div id="labPanes">${QUAD.map(v => `<b data-pane="${v}">${VIEW_NAMES[v]}</b>`).join('')}</div>
     <div id="labFlag" hidden></div>
-    <aside id="labScenarios" class="lab-float">
+    <div id="labPop" class="lab-float" hidden>
       <nav class="lab-seg">${Object.entries(KINDS).map(([k, n]) => `<button data-kind="${k}">${n}</button>`).join('')}</nav>
       <div id="labList"></div>
-    </aside>
-    <section id="labDock" class="lab-float">
-      <div class="lab-main">
-        <div class="lab-bar">
-          <span id="labTitle">Free flight</span>
-          <span class="lab-transport">
-            <button id="labRestart" title="Run the scenario again (R)">⟲</button>
-            <button id="labBack" title="Back one frame (, ; Shift: ten)">◀▮</button>
-            <button id="labPlay" class="lab-play" title="Pause or play (P)">❚❚</button>
-            <button id="labFwd" title="Forward one frame (. ; Shift: ten)">▮▶</button>
-            <button id="labFly" title="Fly it yourself (F)">● Fly</button>
-            <button id="labNote" title="Note this moment (N)">✎ Note</button>
-          </span>
-          <span class="lab-seg lab-speeds">${[0.25, 0.5, 1, 2].map(v => `<button data-speed="${v}">${v === .25 ? '¼' : v === .5 ? '½' : v}×</button>`).join('')}</span>
-          <span id="labClock"></span>
-        </div>
-        <p id="labLook"></p>
-        <canvas id="labTimeline"></canvas>
-      </div>
+    </div>
+    <section id="labDetails" class="lab-float" hidden>
+      <div class="lab-traces"><p id="labLook" class="lab-dim"></p><canvas id="labTimeline"></canvas></div>
       <div class="lab-side">
         <nav class="lab-seg"><button data-tab="result">Result</button><button data-tab="compare">Compare</button><button data-tab="notes">Notes</button></nav>
         <div data-tab-pane="result" id="labResult"><p class="lab-dim">Pick a scenario, or fly: the round is recorded either way.</p></div>
         <div data-tab-pane="compare" hidden><label>Fly it alongside on <select id="labCompare"><option value="">nothing</option></select></label><div id="labCompareResult"></div></div>
         <div data-tab-pane="notes" hidden><div id="labNotes"></div><button id="labCopyNotes">Copy notes</button></div>
       </div>
+    </section>
+    <div id="labBar" class="lab-float">
+      <button id="labPick" class="lab-pick" title="Scenarios"><span id="labPickName">Scenarios</span> <i>▴</i></button>
+      <span class="lab-transport">
+        <button id="labRestart" class="lab-icon" title="Run it again (R)">${icon(ICONS.restart)}</button>
+        <button id="labBack" class="lab-icon" title="Back a frame (, or ←; Shift: ten)">${icon(ICONS.back)}</button>
+        <button id="labPlay" class="lab-icon lab-play" title="Pause, play or replay (P)">${icon(ICONS.pause)}</button>
+        <button id="labFwd" class="lab-icon" title="Forward a frame (. or →; Shift: ten)">${icon(ICONS.fwd)}</button>
+        <button id="labFly" class="lab-icon lab-fly" title="Fly it yourself (F in the lab)">${icon(ICONS.fly)}</button>
+        <button id="labNote" class="lab-icon" title="Note this moment (N)">${icon(ICONS.note)}</button>
+      </span>
+      <span class="lab-seg lab-speeds">${[0.25, 0.5, 1, 2].map(v => `<button data-speed="${v}">${v === .25 ? '¼' : v === .5 ? '½' : v}×</button>`).join('')}</span>
+      <canvas id="labTrack" title="Drag to scrub"></canvas>
+      <span id="labClock"></span>
+      <select id="labView" title="View (G game, Q all four)">${['game', 'quad', ...QUAD].map(v => `<option value="${v}">${VIEW_NAMES[v]}</option>`).join('')}</select>
+      <button id="labChip" class="lab-chip" hidden title="The result: details (T)"></button>
+      <button id="labMore" class="lab-icon" title="Traces and details (T)">${icon(ICONS.more)}</button>
+      <button id="labHide" class="lab-icon" title="Hide the lab (H)">${icon(ICONS.hide)}</button>
       <div id="labNoteBox" hidden><span id="labNoteAt"></span><input id="labNoteText" placeholder="What do you see here? Enter to save, Esc to cancel"></div>
-    </section>`;
+    </div>
+    <button id="labShow" class="lab-float" hidden title="Show the lab (H)">Lab</button>`;
   document.body.append(root);
-  const $ = sel => root.querySelector(sel), timeline = $('#labTimeline');
+  const $ = sel => root.querySelector(sel), timeline = $('#labTimeline'), track = $('#labTrack');
+  let folded = false;   // (H: everything but one small button out of the way)
+  const details = on => { $('#labDetails').hidden = !on; $('#labMore').classList.toggle('on', on); if (on) { $('#labPop').hidden = true; drawTimeline(); } };
+  const fold = on => { folded = on; $('#labBar').hidden = on; $('#labShow').hidden = !on; if (on) { $('#labDetails').hidden = true; $('#labPop').hidden = true; $('#labNoteBox').hidden = true; } };
   for (const p of Object.values(PRESETS)) $('#labCompare').add(new Option(p.name, p.id));
 
   /* ---------- the other views, drawn by the game's renderer ---------- */
@@ -105,7 +115,9 @@ export function createLab(host) {
   cameras.side.layers.enable(1); for (const id of ['top', 'rear', 'front']) cameras[id].layers.enable(2);
   function placeCamera(id, cam, aspect) {
     const p = host.player.position, h = host.player.rotation.y, fx = Math.sin(h), fz = Math.cos(h), z = zoom[id];
-    if (cam.isOrthographicCamera) { Object.assign(cam, { left: -z * aspect, right: z * aspect, top: z, bottom: -z, near: -3000, far: 6000 }); cam.updateProjectionMatrix(); }
+    // (the side view is a slice 40 m either side of the glider, so it shows the ground under its path and not every tree in the valley;
+    // the top view looks 300 m down onto it)
+    if (cam.isOrthographicCamera) { Object.assign(cam, { left: -z * aspect, right: z * aspect, top: z, bottom: -z, near: id === 'side' ? 160 : 1, far: id === 'side' ? 240 : 2000 }); cam.updateProjectionMatrix(); }
     else { cam.aspect = aspect; cam.updateProjectionMatrix(); }
     if (id === 'side') { cam.up.set(0, 1, 0); cam.position.set(p.x + fz * 200, p.y, p.z - fx * 200); }   // (from the glider's right)
     else if (id === 'top') { cam.up.set(fx, 0, fz); cam.position.set(p.x, p.y + 300, p.z); }
@@ -127,8 +139,7 @@ export function createLab(host) {
     r.setScissorTest(false); r.setViewport(0, 0, w, h);
   }
   function setView(v) {
-    view = v; for (const b of root.querySelectorAll('[data-view]')) b.classList.toggle('on', b.dataset.view === v);
-    $('#labPanes').dataset.mode = v;
+    view = v; $('#labView').value = v; $('#labPanes').dataset.mode = v; setQuery();
   }
   addEventListener('wheel', e => { if (!enabled || view === 'game') return; const id = view === 'quad' ? paneAt(e.clientX, e.clientY) : view; zoom[id] = clamp(zoom[id] * Math.exp(e.deltaY * .001), 2, 400); }, { passive: true });
   addEventListener('dblclick', e => { if (!enabled || e.target.closest('.lab-float')) return; if (view === 'quad') setView(paneAt(e.clientX, e.clientY)); else if (QUAD.includes(view)) setView('quad'); });
@@ -192,7 +203,7 @@ export function createLab(host) {
     flight = flyScenario(sc, { round: host.round, pilot: mode, place });
     flight.start({ standAt: () => { host.standAtSite(place.name); host.launch(); }, startAt: init => host.startInAir(init, 'final') });
     host.setPilot(mode === 'you' ? null : () => flight.input());
-    $('#labTitle').textContent = sc.name; $('#labLook').textContent = sc.look; $('#labFly').classList.toggle('on', mode === 'you');
+    $('#labPickName').textContent = sc.name; $('#labPick').title = sc.look; $('#labLook').textContent = sc.look; $('#labFly').classList.toggle('on', mode === 'you'); $('#labPop').hidden = true;
     listScenarios(); showResult(); computeCompare();
     setQuery();
   }
@@ -201,7 +212,8 @@ export function createLab(host) {
     playing = false; hold(true); index = frames.length - 1;   // (it is over: held on its last frame, to replay)
   }
   function showResult() {
-    const box = $('#labResult');
+    const box = $('#labResult'), chip = $('#labChip');
+    chip.hidden = !result; if (result) { chip.textContent = result.outcome; chip.className = `lab-chip ${outcomeClass(result.outcome)}`; }
     if (!scenario) return;
     if (!result) { box.innerHTML = `<p class="lab-dim">${pilotMode === 'you' ? 'You are flying.' : 'Flying…'}</p>`; return; }
     const m = result.metrics, c = compare?.metrics ?? {}, keys = Object.keys({ ...c, ...m }).filter(k => !Array.isArray(m[k] ?? c[k]));
@@ -234,17 +246,31 @@ export function createLab(host) {
   $('#labCompare').onchange = () => { compareWing = $('#labCompare').value; computeCompare(); setQuery(); };
 
   /* ---------- the timeline ---------- */
-  function seek(clientX) {
+  function seek(canvas, clientX) {
     if (!frames.length) return;
-    const r = timeline.getBoundingClientRect(), T = span(), t = clamp((clientX - r.left - 8) / (r.width - 16), 0, 1) * T;
+    const r = canvas.getBoundingClientRect(), T = span(), t = clamp((clientX - r.left - 8) / (r.width - 16), 0, 1) * T;
     playing = false; hold(true); index = clamp(Math.round(t / TICK), 0, frames.length - 1);
     const pin = notes.find(n => samePlace(n) && Math.abs(n.t - t) < T * .006); if (pin) index = clamp(Math.round(pin.t / TICK), 0, frames.length - 1);
     drawAt(index, 1, true);
   }
-  let dragging = false;
-  timeline.addEventListener('pointerdown', e => { dragging = true; timeline.setPointerCapture(e.pointerId); seek(e.clientX); });
-  timeline.addEventListener('pointermove', e => { if (dragging) seek(e.clientX); });
-  timeline.addEventListener('pointerup', () => { dragging = false; });
+  for (const canvas of [timeline, track]) {
+    let dragging = false;
+    canvas.addEventListener('pointerdown', e => { dragging = true; canvas.setPointerCapture(e.pointerId); seek(canvas, e.clientX); });
+    canvas.addEventListener('pointermove', e => { if (dragging) seek(canvas, e.clientX); });
+    canvas.addEventListener('pointerup', () => { dragging = false; });
+  }
+  /** The slim track in the bar: the recorded part of the round, the note pins and the playhead. */
+  function drawTrack() {
+    const r = track.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio);
+    if (!r.width) return;
+    if (track.width !== Math.round(r.width * dpr)) { track.width = r.width * dpr; track.height = r.height * dpr; }
+    const g = track.getContext('2d'); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, r.width, r.height);
+    const T = span(), X = t => 8 + (r.width - 16) * t / T, mid = r.height / 2;
+    g.fillStyle = 'rgba(255,255,255,.12)'; g.fillRect(X(0), mid - 2, X(T) - X(0), 4);
+    g.fillStyle = 'rgba(255,255,255,.4)'; g.fillRect(X(0), mid - 2, X(frames.length * TICK) - X(0), 4);
+    for (const n of notes) if (samePlace(n)) { g.fillStyle = '#ffd36b'; g.fillRect(X(n.t) - 1.5, mid - 7, 3, 14); }
+    if (frames.length) { g.fillStyle = '#fff'; g.beginPath(); g.arc(X(at() * TICK), mid, 5, 0, Math.PI * 2); g.fill(); }
+  }
   const span = () => Math.max(scenario?.seconds ?? 10, frames.length * TICK, compare ? compare.samples.at(-1).t : 0);
   function drawTimeline() {
     const r = timeline.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio);
@@ -269,9 +295,10 @@ export function createLab(host) {
     if (frames.length) { const t = at() * TICK; g.fillStyle = '#fff'; g.fillRect(X(t) - 1, 0, 2, r.height); }
   }
   function readout() {
-    const t = Math.max(0, at()) * TICK;
-    $('#labClock').textContent = `${t.toFixed(2)} s${holding ? (playing ? ' · replay' : ' · held') : ' · live'}`;
-    $('#labPlay').textContent = playing || !holding ? '❚❚' : '▶';
+    const t = Math.max(0, at()) * TICK, running = playing || !holding;
+    $('#labClock').textContent = `${t.toFixed(2)} s`; $('#labClock').title = holding ? (playing ? 'replaying' : 'held') : 'live';
+    if ($('#labPlay').dataset.running !== String(running)) { $('#labPlay').dataset.running = running; $('#labPlay').innerHTML = icon(running ? ICONS.pause : ICONS.play); }
+    drawTrack();
     const near = notes.filter(n => samePlace(n) && Math.abs(n.t - t) < .5);
     $('#labFlag').hidden = !near.length; $('#labFlag').textContent = near.map(n => n.text).join(' · ');
   }
@@ -319,7 +346,12 @@ export function createLab(host) {
   root.querySelector('#labFwd').onclick = e => step(e.shiftKey ? 10 : 1);
   root.querySelector('#labFly').onclick = () => { if (scenario) runScenario(scenario.id, pilotMode === 'you' ? 'script' : 'you'); };
   root.querySelector('#labNote').onclick = openNote;
-  for (const b of root.querySelectorAll('[data-view]')) b.onclick = () => setView(b.dataset.view);
+  $('#labView').onchange = () => setView($('#labView').value);
+  $('#labPick').onclick = () => { $('#labPop').hidden = !$('#labPop').hidden; if (!$('#labPop').hidden) details(false); };
+  $('#labMore').onclick = () => details($('#labDetails').hidden);
+  $('#labChip').onclick = () => details(true);
+  $('#labHide').onclick = () => fold(true);
+  $('#labShow').onclick = () => fold(false);
   for (const b of root.querySelectorAll('[data-kind]')) b.onclick = () => { kind = b.dataset.kind; listScenarios(); setQuery(); };
   for (const b of root.querySelectorAll('[data-speed]')) b.onclick = () => { speed = Number(b.dataset.speed); for (const c of root.querySelectorAll('[data-speed]')) c.classList.toggle('on', c === b); };
   for (const b of root.querySelectorAll('[data-tab]')) b.onclick = () => { for (const c of root.querySelectorAll('[data-tab]')) c.classList.toggle('on', c === b); for (const p of root.querySelectorAll('[data-tab-pane]')) p.hidden = p.dataset.tabPane !== b.dataset.tab; };
@@ -329,29 +361,31 @@ export function createLab(host) {
     if (e.target.closest?.('input, select, textarea')) return;
     if (e.code === 'KeyL') { show(!enabled); e.stopImmediatePropagation(); return; }
     if (!enabled) return;
-    const k = e.code, mine = { KeyP: togglePlay, Comma: () => step(e.shiftKey ? -10 : -1), Period: () => step(e.shiftKey ? 10 : 1), KeyN: openNote, KeyG: () => setView('game'), KeyQ: () => setView('quad') }[k];
+    const k = e.code, mine = { KeyP: togglePlay, Comma: () => step(e.shiftKey ? -10 : -1), Period: () => step(e.shiftKey ? 10 : 1), KeyN: openNote, KeyG: () => setView('game'), KeyQ: () => setView('quad'),
+      KeyT: () => details($('#labDetails').hidden), KeyH: () => fold(!folded) }[k];
     if (mine) { e.preventDefault(); e.stopImmediatePropagation(); mine(); return; }
     if (k === 'KeyR' && scenario) { e.stopImmediatePropagation(); runScenario(scenario.id); return; }
+    if (k === 'Escape' && (!$('#labPop').hidden || !$('#labDetails').hidden)) { $('#labPop').hidden = true; details(false); e.stopImmediatePropagation(); return; }
     if (k === 'Escape' && QUAD.includes(view)) { setView('quad'); e.stopImmediatePropagation(); return; }
     if (holding && !['Tab', 'KeyM'].includes(k)) { if (['ArrowLeft', 'ArrowRight'].includes(k)) step(k === 'ArrowLeft' ? -1 : 1); e.stopImmediatePropagation(); e.preventDefault(); }
   }, true);
 
   function show(on) {
     enabled = on; root.hidden = !on; document.body.classList.toggle('lab-on', on);
-    if (!on) { if (holding) hold(false); setView('game'); host.setPilot(null); flight = null; }
+    if (!on) { if (holding) hold(false); view = 'game'; host.setPilot(null); flight = null; }
     else listScenarios();
     setQuery();
   }
   function setQuery() {
     const p = new URLSearchParams(location.search);
-    if (enabled) { p.set('lab', kind); if (scenario) p.set('scenario', scenario.id); else p.delete('scenario'); if (compareWing) p.set('compare', compareWing); else p.delete('compare'); }
-    else { p.delete('lab'); p.delete('scenario'); p.delete('compare'); }
+    if (enabled) { p.set('lab', kind); if (scenario) p.set('scenario', scenario.id); else p.delete('scenario'); if (compareWing) p.set('compare', compareWing); else p.delete('compare'); if (view !== 'game') p.set('view', view); else p.delete('view'); }
+    else { p.delete('lab'); p.delete('scenario'); p.delete('compare'); p.delete('view'); }
     history.replaceState(null, '', '?' + p);
   }
 
-  setView('game'); showNotes();
+  showNotes();
   if (q.get('lab')) {
-    show(true);
+    show(true); setView(VIEW_NAMES[q.get('view')] ? q.get('view') : 'game');
     compareWing = PRESETS[q.get('compare')] ? q.get('compare') : ''; $('#labCompare').value = compareWing;
     const sc = SCENARIOS.find(s => s.id === q.get('scenario'));
     if (sc) { kind = sc.kind; queueMicrotask(() => runScenario(sc.id)); }

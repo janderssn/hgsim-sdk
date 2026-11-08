@@ -1,0 +1,583 @@
+{
+  "checkedAt": "2026-11-08",
+  "title": "Three.js can support a much higher visual bar.",
+  "methodology": [
+    "This is a curated twenty-project benchmark set prioritized for hgsim, not an official worldwide popularity ranking. It deliberately includes authored experiences, real-time world systems, authoring tools and appearance-ceiling renderers.",
+    "Every counted entry has primary-source Three.js evidence in code, package metadata or creator implementation documentation. Repository commits are pinned; activity dates do not imply every project first released in 2026. Historical studies are marked.",
+    "The current official gallery also includes custom renderers. Tidewater is excluded from the strict twenty because its present source uses its own WebGPU/WGSL engine. A gallery listing alone is not sufficient engine proof.",
+    "Live application hosts are outside this cloud network allowlist. Repository code, manifests, documentation and available creator captures were inspected; remote demos and hardware FPS were not independently benchmarked.",
+    "Author timing figures retain GPU, resolution, preset, reconstruction and measurement context. Progressive stills, captured splats, tiny composed scenes and logical instance counts are not moving-game frame-rate guarantees.",
+    "Code licensing and content licensing are recorded separately. Preview images are remote attributed research references, not hgsim assets or newly rendered screenshots.",
+    "Three r187 was released on 30 October 2026. Hgsim currently vendors r180 and GLSL onBeforeCompile patches; several modern WebGPU/TSL references require a deliberate migration. Better art, terrain, lit impostors and many atmosphere techniques can also be built on WebGL2."
+  ],
+  "conclusions": [
+    "The current hgsim captures are below the demonstrated browser quality bar. Natural geology, dense canopy, lit aerial impostors and coherent atmosphere must become acceptance criteria.",
+    "Nanite Forest and Bruno Simon demonstrate rich navigable worlds. Their asset design, lighting, LOD and delivery pipelines matter more than copying headline triangle or tree counts.",
+    "Hgsim needs runtime-lit tree impostors with elevation views for overhead flight. Four side views with baked BasicMaterial lighting cannot provide the required canopy or near/far consistency.",
+    "A polished 60–90 second launch-to-landing corridor should precede world expansion. Test it in motion on a named hardware GPU at fixed resolution; retain SwiftShader as a compatibility regression check."
+  ],
+  "projects": [
+    {
+      "id": "nanite-forest",
+      "rank": 1,
+      "name": "Nanite Forest",
+      "author": "Victor Zakharov",
+      "category": "Vegetation",
+      "kind": "Real-time world",
+      "renderer": "WebGPU; reduced WebGL2 fallback",
+      "activity": "Source: 7 November 2026",
+      "repo": "VictorZakharov/threejs-nanites",
+      "commit": "cde2f4d4bb3414553b9e39fd317186c97b3154ad",
+      "url": "https://victorzakharov.github.io/threejs-nanites/",
+      "evidenceUrl": "https://github.com/VictorZakharov/threejs-nanites/blob/cde2f4d4bb3414553b9e39fd317186c97b3154ad/README.md",
+      "evidence": "Source-verified Three.js forest with one million logical trees and 1.5 million bushes, GPU cluster LOD, hierarchical occlusion, lit impostors and temporal reconstruction.",
+      "capabilities": [
+        "Three ^0.186.1 / TSL / indirect drawing",
+        "Albedo and normal impostors at four elevations from 0 to 90 degrees",
+        "Per-tree crossfades, wind motion vectors and shadow-specific culling",
+        "Author: RTX 4070 Ti, 1080p High, ground 3.50 ms GPU / 3.4M submitted triangles; canopy 7.04 ms / 7.5M triangles plus 34k impostors"
+      ],
+      "lesson": "Use dense canopy masses, multiple species and forest-floor dressing as the vegetation bar. Replace side-only prelit cards with runtime-lit azimuth/elevation impostors before adding arbitrary tree counts.",
+      "caveat": "The billion/trillion headline counts are logical full-detail scene size, not triangles drawn each frame. Hardware figures are author measurements, not ours or a guarantee for hgsim.",
+      "license": "MIT code. Stanford Lucy asset is separately noncommercial; exclude it from reuse. Inspect individual assets.",
+      "image": "https://raw.githubusercontent.com/VictorZakharov/threejs-nanites/cde2f4d4bb3414553b9e39fd317186c97b3154ad/screenshots/1.jpg",
+      "imageCaption": "Author-published ground-level capture; reported RTX 4070 Ti setup. This is a reference project, not hgsim."
+    },
+    {
+      "id": "bruno-folio",
+      "rank": 2,
+      "name": "Bruno Simon — Folio 2025",
+      "author": "Bruno Simon",
+      "category": "Authored worlds",
+      "kind": "Real-time world",
+      "renderer": "WebGPU / TSL",
+      "activity": "Source: 4 November 2026",
+      "repo": "brunosimon/folio-2025",
+      "commit": "70764a94756cc4de564e493c8ba46c4b5fe03ed1",
+      "url": "https://bruno-simon.com/",
+      "evidenceUrl": "https://github.com/brunosimon/folio-2025/blob/70764a94756cc4de564e493c8ba46c4b5fe03ed1/sources/Game/Rendering.js",
+      "evidence": "A playable authored vehicle world whose Three WebGPU source integrates terrain, foliage, water, wind, day/year cycles, weather, physics and audio.",
+      "capabilities": [
+        "Three ^0.187.0, WebGPURenderer and RenderPipeline",
+        "Blender-authored assets, compressed GLBs and ETC1S/KTX2 textures",
+        "Shared weather/lighting state and quality-specific post-processing"
+      ],
+      "lesson": "Treat the launch-to-landing corridor as a deliberately authored place. Coordinate assets, motion, lighting, sound and delivery instead of assembling unrelated effects.",
+      "caveat": "Stylized, compact vehicle world. Its polish does not establish a realistic 14 km flight world at an unspecified frame rate.",
+      "license": "Actual license.md is MIT; package metadata says ISC. Audit music and other third-party assets separately.",
+      "image": "https://raw.githubusercontent.com/brunosimon/folio-2025/70764a94756cc4de564e493c8ba46c4b5fe03ed1/static/social/share-image.png",
+      "imageCaption": "Creator preview of the playable stylized world. It demonstrates integrated art direction rather than photorealism."
+    },
+    {
+      "id": "takram",
+      "rank": 3,
+      "name": "Three Geospatial — Atmosphere and Clouds",
+      "author": "Takram Design Engineering",
+      "category": "Atmosphere",
+      "kind": "Real-time renderer",
+      "renderer": "WebGL2; WebGPU atmosphere",
+      "activity": "Source: 27 May 2026",
+      "repo": "takram-design-engineering/three-geospatial",
+      "commit": "b012ad06d858fc035d88aacfd73f092f93c994e4",
+      "url": "https://takram-design-engineering.github.io/three-geospatial/",
+      "evidenceUrl": "https://github.com/takram-design-engineering/three-geospatial/blob/b012ad06d858fc035d88aacfd73f092f93c994e4/packages/clouds/README.md",
+      "evidence": "Three.js atmosphere and cloud systems with aerial perspective, volumetric clouds, cloud shadows, temporal filtering and geospatial scenes.",
+      "capabilities": [
+        "Precomputed atmospheric scattering and linked sun/sky/aerial perspective",
+        "Beer cloud shadow maps affecting scene objects",
+        "Historical author v0.0.1 Tokyo benchmark: iPad Pro M4 60 FPS Medium at 2420x1520 with upscaling; M3 Max 92–95 FPS High 4K with upscaling, 31 FPS without"
+      ],
+      "lesson": "Make the sun, terrain light, distance extinction and cloud shadows one coherent system. A photographed sky remains a compatibility fallback.",
+      "caveat": "Cloud WebGPU migration is marked WIP; WebGPU atmosphere requires Three >=0.182. Published figures are historical author measurements. LFS previews could not be downloaded here.",
+      "license": "MIT code; map imagery, tiles and service terms are separate."
+    },
+    {
+      "id": "threejs-punk",
+      "rank": 4,
+      "name": "Threejs-Punk",
+      "author": "Anderson Mancini and Sunag",
+      "category": "Authored worlds",
+      "kind": "Real-time world",
+      "renderer": "WebGPU / TSL",
+      "activity": "Source: 23 September 2026",
+      "repo": "ektogamat/threejs-conference",
+      "commit": "8cc20593b2270e2ce832e7b7b44356705daddec4",
+      "url": "https://threejspunk.vercel.app/",
+      "evidenceUrl": "https://github.com/ektogamat/threejs-conference/blob/8cc20593b2270e2ce832e7b7b44356705daddec4/README.md",
+      "evidence": "A walkable authored cyberpunk alley with wet PBR surfaces, planar reflections, GPU rain, roof-aware splashes, clouds, fog and BVH collision.",
+      "capabilities": [
+        "Three ^0.185.1 and WebGPU renderer",
+        "5,000 rain instances; 512-square collision height target",
+        "Half-resolution AO, bloom and reflection budgets; split compilation and device gates",
+        "Draco/KTX2 assets and an integrated HDR/post-processing pipeline"
+      ],
+      "lesson": "Give every expensive feature a scene purpose and an explicit budget. Model real locations and make effects interact correctly with roofs, surfaces and collision.",
+      "caveat": "A bounded night street is not an open daytime flight world. No independently reproduced FPS result; historical SSR was replaced by planar reflections.",
+      "license": "MIT code; public models, textures, audio and videos explicitly excluded from that grant.",
+      "image": "https://raw.githubusercontent.com/ektogamat/threejs-conference/8cc20593b2270e2ce832e7b7b44356705daddec4/public/preview.jpg",
+      "imageCaption": "Creator preview of the 2026 walkable scene. Night lighting and a bounded environment are important qualifications."
+    },
+    {
+      "id": "procedural-terrains",
+      "rank": 5,
+      "name": "Procedural Terrains 2.0",
+      "author": "ZyFou",
+      "category": "Terrain",
+      "kind": "Authoring tool and runtime",
+      "renderer": "WebGL2 / Three 0.185.1",
+      "activity": "Source: 27 October 2026",
+      "repo": "ZyFou/ProceduralTerrains",
+      "commit": "8349b2c8c8637f355bfe17e01c76807d41994407",
+      "url": "https://procedural-terrains.com",
+      "evidenceUrl": "https://github.com/ZyFou/ProceduralTerrains/blob/8349b2c8c8637f355bfe17e01c76807d41994407/README.md",
+      "evidence": "Interactive terrain authoring plus a plain-Three runtime with erosion, imported elevation, biome materials, streaming, clipmaps, LOD morphing, clouds and water.",
+      "capabilities": [
+        "Tile, infinite, planet and miniature modes",
+        "GPU height/normal/biome evaluation and collision-map export",
+        "Shared-border/geomorph strategies and terrain export to DCC tools"
+      ],
+      "lesson": "Author erosion, drainage, cliffs and biome structure before surface polish. Evaluate export into a shared physical terrain source first.",
+      "caveat": "Its CPU heights approximate the GPU field, and shaders own lighting/display encoding. Direct insertion would break hgsim collision and tone-mapping contracts. Preview FPS is not our measurement.",
+      "license": "MIT code; audit imported geographic imagery/assets separately.",
+      "image": "https://raw.githubusercontent.com/ZyFou/ProceduralTerrains/8349b2c8c8637f355bfe17e01c76807d41994407/docs/images/readme-infinite.png",
+      "imageCaption": "Maintainer terrain-studio capture. The displayed hardware/FPS belongs to that capture, not an independent benchmark."
+    },
+    {
+      "id": "claude-tanks",
+      "rank": 6,
+      "name": "Claude of Tanks",
+      "author": "Kevin Liu",
+      "category": "Authored worlds",
+      "kind": "Real-time game",
+      "renderer": "WebGL2 / Three 0.185.1",
+      "activity": "Source: 6 November 2026",
+      "repo": "Kevin-Liu-01/Claude-of-Tanks",
+      "commit": "baff0f69244ee690f4f36eb7b0405616509cb0a0",
+      "url": "https://cot.kevinliu.studio",
+      "evidenceUrl": "https://github.com/Kevin-Liu-01/Claude-of-Tanks/blob/baff0f69244ee690f4f36eb7b0405616509cb0a0/src/engine/renderer.ts",
+      "evidence": "A Three.js combat game with authored outdoor environments, dense overlapping canopies, dressed roads/settlements and raymarched clouds with world-anchored shadows.",
+      "capabilities": [
+        "Direct THREE.WebGLRenderer source",
+        "Volumetric cloud and shadow-cascade implementation",
+        "Terrain, vegetation and material stages in the world source"
+      ],
+      "lesson": "Aim for coherent land use, canopy coverage, grounded undergrowth and atmospheric depth. Repeated isolated tree symbols are below this bar.",
+      "caveat": "Creator captures show richer stylized game art, not an independent whole-game performance result. Do not repeat inconsistent fleet counts as verified facts.",
+      "license": "Root MIT has proprietary exceptions for world, vehicles, media and other content; reference those assets rather than copying them.",
+      "image": "https://raw.githubusercontent.com/Kevin-Liu-01/Claude-of-Tanks/baff0f69244ee690f4f36eb7b0405616509cb0a0/public/media/site50-r14/stills/s20-road-return-fire.webp",
+      "imageCaption": "Creator-published stylized outdoor combat capture. Its world/media content has separate proprietary terms."
+    },
+    {
+      "id": "ez-tree",
+      "rank": 7,
+      "name": "EZ-Tree",
+      "author": "Dan Greenheck",
+      "category": "Vegetation",
+      "kind": "Authoring tool and runtime",
+      "renderer": "Three.js / WebGL",
+      "activity": "Source: 16 July 2026",
+      "repo": "dgreenheck/ez-tree",
+      "commit": "dcf309bd86bd521083d9c70f01f2de45fdc7c457",
+      "url": "https://eztree.dev",
+      "evidenceUrl": "https://github.com/dgreenheck/ez-tree/blob/dcf309bd86bd521083d9c70f01f2de45fdc7c457/src/lib/tree.js",
+      "evidence": "Three.Group-based procedural trees with adjustable bark, branch and leaf geometry, wind, consistent-skeleton LOD generation and PNG/GLB export.",
+      "capabilities": [
+        "Shared bark/leaf materials across LODs",
+        "createGeometry(detail) for custom instancing systems",
+        "Authored presets and configurable leaf card count, size, variance and orientation"
+      ],
+      "lesson": "Evaluate a proven tree-authoring foundation for fuller, varied crowns and a consistent LOD family. Judge silhouette, canopy mass and light response rather than needle-face totals.",
+      "caveat": "A tree generator does not solve whole-forest placement, aerial impostors, overdraw or scene performance. Exporting all LODs can include unnecessary meshes.",
+      "license": "MIT code and bundled leaves per texture notice; ambientCG bark is explicitly CC0. Retain those notices."
+    },
+    {
+      "id": "poseidon",
+      "rank": 8,
+      "name": "Poseidon",
+      "author": "Owen Yuwono",
+      "category": "Water",
+      "kind": "Real-time renderer",
+      "renderer": "WebGPU / TSL",
+      "activity": "Source: 20 August 2026",
+      "repo": "owenyuwono/poseidon",
+      "commit": "671053b812fcbffe8ecc4668eaa6ab7ffeb63287",
+      "url": "https://github.com/owenyuwono/poseidon",
+      "evidenceUrl": "https://github.com/owenyuwono/poseidon/blob/671053b812fcbffe8ecc4668eaa6ab7ffeb63287/README.md",
+      "evidence": "An interactive spectral ocean: GPU FFT, three wave cascades, persistent foam, dielectric water optics and camera-centered geometry to a distant horizon.",
+      "capabilities": [
+        "JONSWAP/Horvath bands and Stockham compute FFT",
+        "Fresnel, subsurface scattering and coherent sun/sky haze",
+        "Per-frame simulation/render loop and a camera-centered radial grid"
+      ],
+      "lesson": "Use coherent multi-scale silhouette, shading and motion for water and terrain. A lake or river can enrich the valley without adding an ocean solely for spectacle.",
+      "caveat": "WebGPU-only, no WebGL fallback. No comparable hardware/FPS table was found; the author capture is not a progressive path-traced still.",
+      "license": "MIT code; separately credited sky asset/custom CC0 terms.",
+      "image": "https://raw.githubusercontent.com/owenyuwono/poseidon/671053b812fcbffe8ecc4668eaa6ab7ffeb63287/docs/img/hero-golden-hour.jpg",
+      "imageCaption": "Author golden-hour ocean capture, 2400x1350; no independent frame-rate measurement."
+    },
+    {
+      "id": "tiles",
+      "rank": 9,
+      "name": "3D Tiles Renderer — Three.js examples",
+      "author": "NASA AMMOS and contributors",
+      "category": "World streaming",
+      "kind": "Real-time renderer",
+      "renderer": "Three.js WebGL backend",
+      "activity": "Source: 7 November 2026",
+      "repo": "NASA-AMMOS/3DTilesRendererJS",
+      "commit": "30889c190c051d7a278027d5818e7d2dd6b70a6f",
+      "url": "https://nasa-ammos.github.io/3DTilesRendererJS/three/mars.html",
+      "evidenceUrl": "https://github.com/NASA-AMMOS/3DTilesRendererJS/blob/30889c190c051d7a278027d5818e7d2dd6b70a6f/example/three/mars.js",
+      "evidence": "The Three-specific Mars, terrain and photorealistic-tile examples demonstrate hierarchical loading, error-based detail, tile fades, overlays and geospatial scene streaming.",
+      "capabilities": [
+        "The selected example directly imports Three Scene and WebGLRenderer",
+        "Three, Babylon and PlayCanvas adapters are distinguished in the source",
+        "Tile cache, region loading and custom material/plugin paths"
+      ],
+      "lesson": "Stream a carefully authored/geographic region with explicit residency and geometric error budgets rather than loading the entire world before flight.",
+      "caveat": "Rendering tiles does not automatically provide exact flight collision. Google/Cesium data may require keys, payment, attribution and provider-specific terms.",
+      "license": "Apache-2.0 code; terrain/photogrammetry data and service rights are independent."
+    },
+    {
+      "id": "quick-grass",
+      "rank": 10,
+      "name": "Quick Grass",
+      "author": "SimonDev",
+      "category": "Vegetation",
+      "kind": "Real-time technique",
+      "renderer": "Three.js / WebGL",
+      "activity": "Historical source: 16 November 2023",
+      "repo": "simondevyoutube/Quick_Grass",
+      "commit": "6b56164272f213e353a4045d1439d071d5a968cd",
+      "url": "https://github.com/simondevyoutube/Quick_Grass",
+      "evidenceUrl": "https://github.com/simondevyoutube/Quick_Grass/blob/6b56164272f213e353a4045d1439d071d5a968cd/src/base/render/grass-component.js",
+      "evidence": "A Three.js grass implementation with instanced near/far geometry, wind, player bending, curved blade normals and wrapped/back-scattered lighting.",
+      "capabilities": [
+        "Six-segment near / one-segment far geometry, source cutoff 15 m",
+        "Ten-metre patches and a 100 m visibility envelope",
+        "Half-float offsets and coherent grass shading"
+      ],
+      "lesson": "A meadow needs translucent-looking light, motion, patch density and stable distance transitions. More opaque blade triangles alone will not create that finish.",
+      "caveat": "An older technical study inspired by a GDC grass presentation, not shipped Ghost of Tsushima code or a 2026 production game. No verified target-device FPS.",
+      "license": "MIT repository code; independently review referenced textures."
+    },
+    {
+      "id": "henry",
+      "rank": 11,
+      "name": "Henry Heffernan — computer-room portfolio",
+      "author": "Henry Heffernan",
+      "category": "Authored worlds",
+      "kind": "Authored baked scene",
+      "renderer": "Three.js / WebGL",
+      "activity": "Source: 24 June 2024",
+      "repo": "henryjeff/portfolio-website",
+      "commit": "c53c5a50183655eb83d70048403a5084f5d1214c",
+      "url": "https://henryheffernan.com/",
+      "evidenceUrl": "https://github.com/henryjeff/portfolio-website/blob/c53c5a50183655eb83d70048403a5084f5d1214c/src/Application/Utils/BakedModel.ts",
+      "evidence": "A detailed authored computer room and functional monitor UI; source loads baked textures and constructs Three MeshBasicMaterial for the staged environment.",
+      "capabilities": [
+        "Blender-authored room/props and baked illumination",
+        "Interactive monitor and separate functional inner-site system",
+        "Fine object placement, restrained palette and controlled camera staging"
+      ],
+      "lesson": "Use authored geometry and appropriate baked lighting for static launch equipment and hero props. Detail and composition can outperform an expensive generic PBR surface.",
+      "caveat": "Baked light and a bounded room do not establish a freely moving day/night landscape. The source snapshot is older than 2026.",
+      "license": "LICENSE.md grants MIT; package metadata says UNLICENSED. Inspect any third-party model/art rights.",
+      "image": "https://raw.githubusercontent.com/henryjeff/portfolio-website/c53c5a50183655eb83d70048403a5084f5d1214c/static/images/preview-new.jpg",
+      "imageCaption": "Creator room preview; lighting is authored/baked rather than evidence of unrestricted dynamic GI."
+    },
+    {
+      "id": "n8ao",
+      "rank": 12,
+      "name": "N8AO",
+      "author": "N8 Programs",
+      "category": "Lighting",
+      "kind": "Real-time effects",
+      "renderer": "Three.js / WebGL2",
+      "activity": "Source: 10 August 2026",
+      "repo": "N8python/n8ao",
+      "commit": "0fc15550c98119758e83ed4c2d0e87273bae9ed9",
+      "url": "https://n8python.github.io/n8ao/example/",
+      "evidenceUrl": "https://github.com/N8python/n8ao/blob/0fc15550c98119758e83ed4c2d0e87273bae9ed9/README.md",
+      "evidence": "A mature contact-occlusion pipeline with temporal stability, half-resolution reconstruction, depth-aware upsampling, optional neural denoising and GPU timing support.",
+      "capabilities": [
+        "Contact shadows across complex scene geometry",
+        "EXT_disjoint_timer_query_webgl2 timing support",
+        "Explicit quality and transparency tradeoffs"
+      ],
+      "lesson": "Compare a maintained AO implementation against the bespoke pass, especially during low-flight camera motion and through cutout foliage.",
+      "caveat": "Screen-space visibility misses hidden/offscreen geometry; transparency can need extra work. Published speedups are maintainer estimates, not hgsim guarantees.",
+      "license": "README/LICENSE say CC0; package says ISC. Resolve metadata discrepancy before redistribution."
+    },
+    {
+      "id": "spark",
+      "rank": 13,
+      "name": "Spark 2.4",
+      "author": "World Labs and Spark contributors",
+      "category": "Captured worlds",
+      "kind": "Captured-scene renderer",
+      "renderer": "Three.js / WebGL2",
+      "activity": "Source: 20 October 2026",
+      "repo": "sparkjsdev/spark",
+      "commit": "ffe210dc0a45d0515a06c9235878108112827d61",
+      "url": "https://sparkjs.dev/examples/",
+      "evidenceUrl": "https://github.com/sparkjsdev/spark/blob/ffe210dc0a45d0515a06c9235878108112827d61/README.md",
+      "evidence": "Photographic Gaussian-splat scenes mixed with Three meshes, with editing, animation, camera-relative precision, paged/streamed LOD and large-scene tooling.",
+      "capabilities": [
+        "Three WebGLRenderer plus SparkRenderer/SplatMesh source",
+        "LOD .RAD trees and residency budgets",
+        "Shader-graph color/displacement edits and skeletal animation"
+      ],
+      "lesson": "Captured detail is a valid appearance reference and possibly a bounded background technique; pair it with deliberate collision, lighting and streaming design.",
+      "caveat": "Splats are not automatic collision geometry or a fully relightable physical terrain. The dynamic-lighting example uses SDF color edits; concentrated transparent overdraw is costly.",
+      "license": "MIT code; each captured scene retains separate data rights."
+    },
+    {
+      "id": "gpu-pathtracer",
+      "rank": 14,
+      "name": "three-gpu-pathtracer",
+      "author": "Garrett Johnson",
+      "category": "Lighting",
+      "kind": "Progressive renderer",
+      "renderer": "Three >=0.187 / WebGPU",
+      "activity": "Source: 8 November 2026",
+      "repo": "gkjohnson/three-gpu-pathtracer",
+      "commit": "86c0967f837f25963a6f1eb3dc696f9dddbfdcb2",
+      "url": "https://gkjohnson.github.io/three-gpu-pathtracer/index.html",
+      "evidenceUrl": "https://github.com/gkjohnson/three-gpu-pathtracer/blob/86c0967f837f25963a6f1eb3dc696f9dddbfdcb2/src/webgpu/API.md",
+      "evidence": "Physically based progressive rendering with area lights, indirect illumination, materials, depth of field, denoising and upscaling in current Three WebGPU.",
+      "capabilities": [
+        "renderSample() progressively accumulates the image",
+        "Moving low-resolution preview and GPU-budget paths",
+        "Complex photoreal indoor/outdoor reference scenes"
+      ],
+      "lesson": "Generate trustworthy lighting/material reference images and selected static bakes; use those to judge rock reflectance and cloth before tuning the flight renderer.",
+      "caveat": "A converged still is not a moving open-world 60 FPS result. Current API requires a renderer/version migration from hgsim r180.",
+      "license": "MIT code; example models/HDRs have their own licenses.",
+      "image": "https://raw.githubusercontent.com/gkjohnson/three-gpu-pathtracer/86c0967f837f25963a6f1eb3dc696f9dddbfdcb2/docs/tropical-island.webp",
+      "imageCaption": "Progressive path-traced reference image; it is deliberately not presented as proof of 60 FPS flight gameplay."
+    },
+    {
+      "id": "erich-pathtracer",
+      "rank": 15,
+      "name": "THREE.js PathTracing Renderer",
+      "author": "Erich Loftis",
+      "category": "Lighting",
+      "kind": "Progressive / specialized renderer",
+      "renderer": "Three.js / WebGL",
+      "activity": "Source: 15 October 2026",
+      "repo": "erichlof/THREE.js-PathTracing-Renderer",
+      "commit": "f8ded116a3c674db552d4481e59c61d28cf81833",
+      "url": "https://erichlof.github.io/THREE.js-PathTracing-Renderer/Ocean_And_Sky_Rendering.html",
+      "evidenceUrl": "https://github.com/erichlof/THREE.js-PathTracing-Renderer/blob/f8ded116a3c674db552d4481e59c61d28cf81833/Ocean_And_Sky_Rendering.html",
+      "evidence": "Interactive ray/path-traced outdoor demos with procedural terrain, ocean, physical sky/clouds, global illumination, reflections, caustics and volumetric effects.",
+      "capabilities": [
+        "Direct Three imports and specialized fullscreen shaders",
+        "Raymarched/analytic geometry and light transport",
+        "Many outdoor and interior reference scenes"
+      ],
+      "lesson": "Use physically coherent sky/water/indirect-light behavior as reference, while budgeting a practical raster/hybrid game renderer.",
+      "caveat": "Specialized scene representations and progressive convergence matter. Author broad frame-rate claims were not independently repeated here.",
+      "license": "CC0 code; check individual referenced model/image assets."
+    },
+    {
+      "id": "postprocessing",
+      "rank": 16,
+      "name": "Post Processing — HDR and Sponza demos",
+      "author": "Poimandres contributors",
+      "category": "Lighting",
+      "kind": "Real-time effects",
+      "renderer": "Three.js / WebGL2",
+      "activity": "Source: 1 November 2026",
+      "repo": "pmndrs/postprocessing",
+      "commit": "a1f103559d15cf56cbcbb15d4373711b09418f3f",
+      "url": "https://pmndrs.github.io/postprocessing/public/demo/",
+      "evidenceUrl": "https://github.com/pmndrs/postprocessing/blob/a1f103559d15cf56cbcbb15d4373711b09418f3f/README.md",
+      "evidence": "A maintained Three effects framework demonstrating HalfFloat HDR buffers, consistent output color/tone mapping, grading, AO, bloom, DoF and merged passes.",
+      "capabilities": [
+        "Automatic merging of compatible EffectPass effects",
+        "Single fullscreen triangle and linear/HDR workflow",
+        "Current peer range includes Three 0.180 through 0.187"
+      ],
+      "lesson": "Adopt a consistent, measured final-image pipeline and consolidate effects rather than adding independent expensive passes.",
+      "caveat": "A renderer/effect demo cannot supply missing scene composition or production art. Example scenes/assets need separate credits.",
+      "license": "Zlib code; separate example-asset terms."
+    },
+    {
+      "id": "realism-effects",
+      "rank": 17,
+      "name": "realism-effects — SSGI and temporal rendering",
+      "author": "0beqz",
+      "category": "Lighting",
+      "kind": "Experimental effects",
+      "renderer": "Three.js / WebGL",
+      "activity": "Historical main: 3 February 2024",
+      "repo": "0beqz/realism-effects",
+      "commit": "061daeaefb7773d8a1a8e10fa95a184fbcda1fb7",
+      "url": "https://realism-effects-git-v2-obeqz.vercel.app/",
+      "evidenceUrl": "https://github.com/0beqz/realism-effects/blob/061daeaefb7773d8a1a8e10fa95a184fbcda1fb7/readme.md",
+      "evidence": "Three-based screen-space GI, reflections, denoising, temporal reprojected antialiasing and motion blur show a substantially richer indirect-light pipeline.",
+      "capabilities": [
+        "SSGI/SSR and temporal history",
+        "Reprojection/denoising and motion-vector-related effects",
+        "Source peer Three ^0.151.3"
+      ],
+      "lesson": "Judge indirect light and temporal stability together, including disocclusion at cliff edges and foliage in fast banked flight.",
+      "caveat": "Older experimental code and incompatible peer range make this a visual/algorithm reference, not an unchecked dependency. Screen-space effects have visibility and ghosting limits. The linked demo is a v2 preview; the pinned evidence is historical main.",
+      "license": "MIT code; scene assets require separate review."
+    },
+    {
+      "id": "phy",
+      "rank": 18,
+      "name": "PHY — terrain, grass and character demos",
+      "author": "lo-th and contributors",
+      "category": "Simulation",
+      "kind": "Real-time toolkit",
+      "renderer": "Three.js WebGL / WebGPU",
+      "activity": "Source: 30 July 2026",
+      "repo": "lo-th/phy",
+      "commit": "7fe6ca802f581bfdeb3835147bb1923f372cc622",
+      "url": "https://lo-th.github.io/phy/",
+      "evidenceUrl": "https://github.com/lo-th/phy/blob/7fe6ca802f581bfdeb3835147bb1923f372cc622/src/Main.js",
+      "evidence": "Three and Three WebGPU scene renderers integrated with physics, HDR presentation, island terrain, wind-animated grass and character/vehicle demos.",
+      "capabilities": [
+        "Explicit Three and three/webgpu imports",
+        "Terrain and grass demonstrations",
+        "Worker/direct physics integration across multiple engines"
+      ],
+      "lesson": "Rich presentation and trustworthy physical surfaces can coexist. Keep the flight solver independent while replacing terrain and collision representations together.",
+      "caveat": "A toolkit/demo suite is not a finished open-world quality or frame-rate proof. Some engine integrations have separate source/license constraints.",
+      "license": "MIT repository; audit each physics engine and imported assets."
+    },
+    {
+      "id": "emerald",
+      "rank": 19,
+      "name": "Emerald Bayou",
+      "author": "Vheissu",
+      "category": "World streaming",
+      "kind": "Real-time game",
+      "renderer": "Three.js / WebGL2",
+      "activity": "Source: 8 September 2026",
+      "repo": "Vheissu/emerald-bayou",
+      "commit": "e87c03688263daadb1bfbf35efaddc5ab7d53912",
+      "url": "https://vheissu.github.io/emerald-bayou/",
+      "evidenceUrl": "https://github.com/Vheissu/emerald-bayou/blob/e87c03688263daadb1bfbf35efaddc5ab7d53912/src/terrain.js",
+      "evidence": "A large browser water/terrain game with worker-built quadtree terrain, consistent vegetation placement across LOD, reflection/refraction targets, weather and wakes.",
+      "capabilities": [
+        "Three ^0.185.1 with direct terrain/water imports",
+        "Camera-centered chunk/worker residency",
+        "Author describes a roughly 25.6 km square world"
+      ],
+      "lesson": "Study cell residency, stable vegetation anchoring and coherent shore/water interaction as world-systems references.",
+      "caveat": "A promising engineering project rather than an established photoreal leader. Large advertised area does not imply uniform high-detail coverage or verified FPS.",
+      "license": "MIT code; audit the separately shipped large GLB asset pack before reuse."
+    },
+    {
+      "id": "sketchbook",
+      "rank": 20,
+      "name": "Sketchbook",
+      "author": "Jakub Blaha / swift502",
+      "category": "Simulation",
+      "kind": "Historical real-time game",
+      "renderer": "Three 0.113 / WebGL",
+      "activity": "Archived; final game update February 2023",
+      "repo": "swift502/Sketchbook",
+      "commit": "62f4b7986fd1ce1e4f91daba89ef032c20a6ce55",
+      "url": "https://jblaha.art/sketchbook/latest",
+      "evidenceUrl": "https://github.com/swift502/Sketchbook/blob/62f4b7986fd1ce1e4f91daba89ef032c20a6ce55/src/ts/world/World.ts",
+      "evidence": "A historical authored Three.js game world with character movement, cars, aircraft/helicopters, Cannon physics, ocean and cascaded sun shadows.",
+      "capabilities": [
+        "Blender/GLB scene authoring and a real third-person controller",
+        "Three WebGLRenderer, ACES, FXAA and shadow composer",
+        "Aircraft gameplay inside an authored environment"
+      ],
+      "lesson": "Use it as an earlier proven integration floor: vehicle gameplay and authored scenery can work together. The new hgsim target should exceed this old visual baseline.",
+      "caveat": "Explicitly archived and older than 2026. It is a historical comparison, not a newly released 2026 graphics leader or a current dependency recommendation.",
+      "license": "MIT repository; inspect scene and texture rights separately."
+    }
+  ],
+  "targets": [
+    {
+      "area": "Terrain and geology",
+      "current": "Rounded/repeated landforms and flat-capped launch outcrops remain visually schematic despite photographic maps.",
+      "target": "Author one coherent launch escarpment and eroded valley with intentional ridgelines, exposed strata, believable ledges, talus and material transitions. Derive render and collision from the same assets; preserve touchdown accuracy before introducing new terrain LOD.",
+      "references": [
+        "procedural-terrains",
+        "tiles",
+        "bruno-folio"
+      ]
+    },
+    {
+      "area": "Forest at flight height",
+      "current": "Side-view prelit tree cards produce sparse dark repeated silhouettes and weak overhead canopy.",
+      "target": "Use multiple species/ages, canopy masses and ecological edges. Bake azimuth plus elevation albedo/normal views, light and shadow them at runtime, and crossfade mesh/impostor transitions.",
+      "references": [
+        "nanite-forest",
+        "ez-tree",
+        "claude-tanks"
+      ]
+    },
+    {
+      "area": "Near vegetation",
+      "current": "Fine grass exists, but the ground lacks continuous undergrowth, litter and coherent translucent foliage light.",
+      "target": "Create linked meadow/forest-floor kits with grass clumps, shrubs, ferns, litter and deadwood; shared wind, wrapped/back-scattered leaf lighting, density/LOD fading and grounded contact shadows.",
+      "references": [
+        "quick-grass",
+        "nanite-forest",
+        "bruno-folio"
+      ]
+    },
+    {
+      "area": "Atmosphere and daylight",
+      "current": "A photographic sky and uniform fog are insufficient to unify aerial scenery.",
+      "target": "Connect sun radiance, sky scattering, terrain light, distance extinction and cloud shadows. Prototype temporally reconstructed volumetrics with a tuned skybox fallback; avoid unstable low-quality fog/noise.",
+      "references": [
+        "takram",
+        "claude-tanks",
+        "erich-pathtracer"
+      ]
+    },
+    {
+      "area": "Launch, equipment and glider",
+      "current": "Texture detail exceeds the underlying shape/composition of some launch elements.",
+      "target": "Art-direct the launch as a credible place with weathered structural detail, anchor hardware, footpaths and prop clusters. Judge geometry/silhouette and material response against physically lit or baked reference images. Preserve rig/bone and flight-force contracts.",
+      "references": [
+        "henry",
+        "threejs-punk",
+        "gpu-pathtracer"
+      ]
+    },
+    {
+      "area": "Final image in motion",
+      "current": "Fixed captures and a bespoke AO pass do not establish stable flight imagery.",
+      "target": "Require normal-speed launch, bank, canopy flyover, low pass and landing footage without obvious LOD pops, foliage shimmer, AO halos or tone-map discontinuities. Use a measured linear/HDR/temporal pipeline.",
+      "references": [
+        "n8ao",
+        "postprocessing",
+        "realism-effects"
+      ]
+    },
+    {
+      "area": "Performance and delivery",
+      "current": "The draft regresses in SwiftShader and eagerly loads a large asset pack; hardware GPU performance is unverified.",
+      "target": "Proposed acceptance: native 1920x1080, fixed High preset on an RTX 3060 desktop 12 GB reference GPU (proposed, not measured here), 60 FPS median and p95 <=20 ms over the same 60–90 second route after warm-up. Record GPU/CPU times, effective resolution and memory. Stream compressed GLB/KTX2 assets; no benchmark frame-rate is claimed yet.",
+      "references": [
+        "nanite-forest",
+        "bruno-folio",
+        "threejs-punk",
+        "tiles"
+      ]
+    },
+    {
+      "area": "Technology adoption",
+      "current": "R180 GLSL patches and conservative analytic collision shapes constrain integration choices.",
+      "target": "Build a small independently measurable WebGPU/TSL prototype while retaining the working WebGL2 path. Choose features by measured visual gain and cost; transfer techniques/appropriately licensed content without assuming modern libraries are drop-ins.",
+      "references": [
+        "phy",
+        "takram",
+        "nanite-forest",
+        "gpu-pathtracer"
+      ]
+    }
+  ]
+}

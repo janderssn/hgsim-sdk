@@ -6,6 +6,16 @@ and a teal harness.
 
 ![Generated concept art](concept/alpine-direction.png)
 
+## Raised quality target — 8 November 2026
+
+The current captures are a graphics baseline. The [twenty-project Three.js
+research](research/threejs-2026.md) sets a higher acceptance bar: natural geology,
+dense canopy, runtime-lit aerial impostors, coherent atmosphere, stable moving
+imagery and measured native-GPU performance. The next milestone is one convincing
+launch-to-landing corridor before further world expansion. The research includes
+primary-source evidence, attributed reference images and a filterable comparison
+board; its proposed performance target is not an achieved result.
+
 ## In the game
 
 These are Chromium canvas captures of the actual Three.js scene at fixed high

@@ -161,6 +161,10 @@ Rendering adapts automatically. Use `?quality=high`, `medium` or `low` for a fix
 level. High/medium include contact occlusion and HDR output; low uses direct
 rendering. The glider's existing 19-bone rig and flight model are preserved.
 
+[Twenty source-verified Three.js benchmarks](docs/research/threejs-2026.md) define
+the next visual target and an evidence-backed implementation order. The current
+alpine pass remains a draft baseline against that higher bar.
+
 ## Tests and checks
 
 - **`npm test`:** the unit tests in `tests/`. They cover the flight model, the launch (both modes, the nose and the cliff), landing cues, terrain skimming, the recorder, audio, the range's world, fixed-step timing, takeoff controls, interpolation, rendering quality and HUD updates.

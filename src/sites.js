@@ -8,6 +8,7 @@
  * the run. The edge is where the ground stops carrying the pilot: it drops away steeper than the edge slope (a cliff, the lip of a
  * ramp, the side of its deck), or meets water, a solid thing or the map's edge, within look metres; past look the run is open.
  */
+import { defineConfig } from './config.js';
 import { finite } from './math.js';
 
 export const SITE_DEFAULTS = Object.freeze({
@@ -23,14 +24,18 @@ export const SITE_DEFAULTS = Object.freeze({
 
 export function terrainSite(world, { x = 0, z = 0, heading = 0, ...options } = {}) {
   if (typeof world?.groundAt !== 'function') throw new TypeError('terrainSite: world must come from createWorld()');
-  const cfg = { ...SITE_DEFAULTS, ...options }, ground = (px, pz) => world.groundAt(px, pz);
+  const cfg = defineConfig(SITE_DEFAULTS, options, 'terrainSite');
+  if (cfg.step <= 0 || cfg.span <= 0) throw new RangeError('terrainSite: step and span must be positive');
+  const ground = (px, pz) => world.groundAt(px, pz);
   const fall = (px, pz, h) => (ground(px, pz) - ground(px + Math.sin(h) * cfg.span, pz + Math.cos(h) * cfg.span)) / cfg.span;
   const edgeAhead = (px, pz, h) => {
     const dx = Math.sin(h), dz = Math.cos(h);
     let prev = ground(px, pz);
     for (let d = cfg.step; d <= cfg.look; d += cfg.step) {
-      const qx = px + dx * d, qz = pz + dz * d, g = ground(qx, qz);
-      if ((prev - g) / cfg.step > cfg.edgeSlope || world.waterAt(qx, qz) !== null || !world.inBounds(qx, qz)
+      const qx = px + dx * d, qz = pz + dz * d;
+      if (!world.inBounds(qx, qz)) return Math.max(0, d - cfg.step);
+      const g = ground(qx, qz), water = world.waterAt(qx, qz);
+      if ((prev - g) / cfg.step > cfg.edgeSlope || (water !== null && water > g)
         || world.solidAt(qx, g + 1, qz)) return Math.max(0, d - cfg.step);
       prev = g;
     }

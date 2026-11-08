@@ -62,7 +62,11 @@ export const MATERIALS = Object.freeze({
   snow: Object.freeze({ name: 'snow', grip: 0.3, softness: 0.4 }),
   ice: Object.freeze({ name: 'ice', grip: 0.08, softness: 0 }),
 });
-const materialOf = m => typeof m === 'string' ? MATERIALS[m] ?? MATERIALS.grass : m && typeof m === 'object' ? { ...MATERIALS.grass, ...m } : MATERIALS.grass;
+function materialOf(material) {
+  if (typeof material === 'string' && Object.hasOwn(MATERIALS, material)) return MATERIALS[material];
+  if (material && typeof material === 'object') return { ...MATERIALS.grass, ...material };
+  return MATERIALS.grass;
+}
 
 /**
  * options: terrain(x, z), surface(x, z) (the top of whatever stands on the ground, such as trees, for the glider's clearance;

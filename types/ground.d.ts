@@ -27,6 +27,8 @@ export interface WalkerEventMap extends VehicleEventMap {
 export interface WalkerState {
   x: number; y: number; z: number; heading: number; vx: number; vy: number; vz: number;
   onGround: boolean; phase: WalkerPhase; stride: number; blocked: WalkerEventMap['blocked']['by'] | null; downFor: number; material: string;
+  /** The position that triggered blocked. Older snapshots may omit it. */
+  blockedAt?: { x: number; z: number } | null;
 }
 export interface Walker extends Vehicle<WalkerInput, WalkerEventMap> {
   readonly kind: 'walker';

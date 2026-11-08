@@ -60,10 +60,10 @@ export function createWalker({ world, at = {}, config = {} } = {}) {
   if (typeof world?.groundAt !== 'function') throw new TypeError('createWalker: world must come from createWorld()');
   const cfg = defineConfig(WALKER_DEFAULTS, config, 'walker config'), events = createEmitter(WALKER_EVENTS, 'walker');
   const s = {
-    x: 0, z: 0, heading: 0, y: 0, vx: 0, vy: 0, vz: 0, onGround: true, phase: 'stand', stride: 0, blocked: null, downFor: 0, material: 'grass',
+    x: 0, z: 0, heading: 0, y: 0, vx: 0, vy: 0, vz: 0, onGround: true, phase: 'stand', stride: 0, blocked: null, blockedAt: null, downFor: 0, material: 'grass',
   };
   const place = ({ x = s.x, z = s.z, heading = s.heading, y } = {}) => {
-    Object.assign(s, { x: finite(x), z: finite(z), heading: finite(heading), vx: 0, vy: 0, vz: 0, onGround: true, phase: 'stand', blocked: null, downFor: 0 });
+    Object.assign(s, { x: finite(x), z: finite(z), heading: finite(heading), vx: 0, vy: 0, vz: 0, onGround: true, phase: 'stand', blocked: null, blockedAt: null, downFor: 0 });
     s.y = Number.isFinite(y) ? y : world.groundAt(s.x, s.z);
     s.onGround = s.y <= world.groundAt(s.x, s.z) + 1e-6;
   };
@@ -92,10 +92,15 @@ export function createWalker({ world, at = {}, config = {} } = {}) {
   };
   // (blocked holds until the walker is half a metre from where it was stopped, so pressing on against a wall, or edging up to
   // the water, is one event and not one every few ticks)
-  let stoppedAt = null;
   const block = reason => {
-    if (reason && reason !== s.blocked) { s.blocked = reason; stoppedAt = { x: s.x, z: s.z }; events.emit('blocked', { by: reason }); }
-    else if (!reason && s.blocked && Math.hypot(s.x - stoppedAt.x, s.z - stoppedAt.z) > 0.5) { s.blocked = null; stoppedAt = null; }
+    if (reason && reason !== s.blocked) {
+      s.blocked = reason;
+      s.blockedAt = { x: s.x, z: s.z };
+      events.emit('blocked', { by: reason });
+    } else if (!reason && s.blockedAt && Math.hypot(s.x - s.blockedAt.x, s.z - s.blockedAt.z) > 0.5) {
+      s.blocked = null;
+      s.blockedAt = null;
+    }
   };
   const land = () => {
     const impact = Math.max(0, -s.vy), g = world.groundAt(s.x, s.z), w = world.waterAt(s.x, s.z);
@@ -197,8 +202,12 @@ export function createWalker({ world, at = {}, config = {} } = {}) {
     /** Stands the walker somewhere else (on the ground unless y says otherwise), at rest. */
     place(where) { place(where); return walker; },
     /** Plain data, to record, replay and restore (restore(state)). */
-    state() { return { ...s }; },
-    restore(state) { Object.assign(s, state); return walker; },
+    state() { return { ...s, blockedAt: s.blockedAt && { ...s.blockedAt } }; },
+    restore(state) {
+      const blockedAt = state.blocked ? (state.blockedAt ?? { x: state.x, z: state.z }) : null;
+      Object.assign(s, state, { blockedAt: blockedAt && { ...blockedAt } });
+      return walker;
+    },
   };
   return walker;
 }

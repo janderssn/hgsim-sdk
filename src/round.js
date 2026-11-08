@@ -138,7 +138,7 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
     get maxSpeed() { return r.maxSpeed; },
     /**
      * Listens to one event, on('touchdown', e => ...), or to all of them, on(e => ...); returns a function that stops listening.
-     * Events: 'launch', 'liftoff' { launch, dropped }, 'failed' { reason, launch }, 'scrape' { contact }, 'crash' { kind },
+     * Events: 'launch', 'airborne' { launch, dropped }, 'failed' { reason, launch }, 'scrape' { contact }, 'crash' { kind },
      * 'touchdown' { result, contact }. Each event is { type, ...its details }.
      */
     on: events.on,
@@ -173,7 +173,8 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
      * to land on), stride (the drawn stride phase, for where a failed launch's wreck starts).
      */
     step(dt, input = {}) {
-      if (!(dt > 0)) return round;
+      if (!Number.isFinite(dt) || dt < 0) throw new RangeError(`round.step: dt must be a finite number of seconds >= 0 (got ${dt})`);
+      if (dt === 0) return round;
       r.t += dt;
       if (r.phase === 'launch') {
         const l = r.launch, s = l.state;
@@ -216,7 +217,7 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
       const early = tk && tk.t < 0.25;
       // (the body, and the nose of the wing 2.5 m ahead of it, which meets a wall first)
       const hit = early ? null : (solid ? solid(s) : null) || world.solidAt(s.x, s.y - 1, s.z) || world.solidAt(s.x + Math.sin(s.heading) * 2.5, s.y, s.z + Math.cos(s.heading) * 2.5);
-      const water = world.waterAt(s.x, s.z), wet = !hit && water !== null && water > world.heightAt(s.x, s.z) && s.y < water + contactHeight();
+      const water = world.waterAt(s.x, s.z), wet = !hit && water !== null && water > world.groundAt(s.x, s.z) && s.y < water + contactHeight();
       if (hit || wet) {
         // Into a solid thing (a building, a deck, a rock) or the water: a crash at the speed it was going, the wreck on the water's top.
         if (wet) r.tumbleGround = (x, z) => Math.max(groundAt(x, z), world.waterAt(x, z) ?? -Infinity);

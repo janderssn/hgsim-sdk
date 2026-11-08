@@ -4,6 +4,13 @@ All notable changes to the hgsim SDK. The format follows [Keep a Changelog](http
 
 The public API is what `hgsim`, `hgsim/ground` and `hgsim/three` export, as declared in `types/`.
 
+## [0.4.1]
+
+- Preserve one-shot event delivery when a listener emits another event during dispatch.
+- Restore a walker's blocked position from its snapshot and handle unknown ground materials.
+- Respect platforms above water during launch and touchdown.
+- Reject invalid round time steps and launch-site sampling distances before they change state or stall the simulation.
+
 ## [0.4.0]
 
 ### Added

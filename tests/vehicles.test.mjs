@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   createWorld, createHangGlider, terrainSite, MATERIALS, makePose, lerpPose, createPoseTrack, applyPose, anglesOf,
-  quaternionFrom, createSimulationLoop, SITES,
+  quaternionFrom, createEmitter, createSimulationLoop, SITES,
 } from '../src/index.js';
 import { createWalker } from '../src/ground/index.js';
 
@@ -31,7 +31,18 @@ test('the world answers every vehicle: ground, platforms, slope, normal, materia
   assert.ok(world.inBounds(0, 0) && !world.inBounds(990, 0, 20));
   const bare = createWorld();
   assert.equal(bare.materialAt(0, 0), MATERIALS.grass); assert.equal(bare.waterAt(0, 0), null); assert.equal(bare.solidAt(0, 0, 0), null); assert.ok(bare.inBounds(1e9, 0));
+  assert.equal(createWorld({ material: () => 'constructor' }).materialAt(0, 0), MATERIALS.grass);
   assert.throws(() => createWorld({ water: 3 }), /water must be a function/);
+});
+
+test('a one-shot listener runs once even when another listener emits the same event', () => {
+  const events = createEmitter(['touchdown']);
+  let calls = 0;
+  events.once('touchdown', () => events.emit('touchdown'));
+  events.once('touchdown', () => { calls++; });
+  const event = events.emit('touchdown', { type: 'wrong' });
+  assert.equal(calls, 1);
+  assert.equal(event.type, 'touchdown');
 });
 
 test('poses: one orientation, readable angles, drawn between ticks along the short way round', () => {
@@ -57,6 +68,8 @@ test('a launch site read from the world: the fall along the run and the edge ahe
   assert.equal(site.edgeAhead(0, -5, 0), 35, 'the cliff 35 m ahead');
   assert.equal(site.edgeAhead(0, 10, Math.PI), Infinity, 'open ground the other way, within the look');
   assert.ok(site.edgeAhead(0, -150, Math.PI) <= 50, 'water is an edge');
+  assert.throws(() => terrainSite(world, { step: 0 }), RangeError);
+  assert.throws(() => terrainSite(world, { span: 0 }), RangeError);
 });
 
 test('the walker: the ground sets the pace, water, solids and walls stop it, ledges are falls', () => {
@@ -120,6 +133,43 @@ test('the hang glider is a vehicle like the walker: pose, velocity, airborne, an
   hit.startAt({ x: 0, y: 300, z: 0, heading: 0 });
   for (let i = 0; i < 60 * 20 && !what.length; i++) hit.step(1 / 60);
   assert.equal(what[0].kind, 'solid'); assert.equal(what[0].hit, 'church');
+});
+
+test('a walker restored while blocked can retreat and clear the obstacle', () => {
+  const world = createWorld({ bounds: (x, z) => z < 0.1 });
+  const { walker } = walk(world, { forward: 1 }, 1);
+  const retreat = (vehicle, steps) => {
+    for (let i = 0; i < steps; i++) vehicle.step(1 / 60, { forward: -1 });
+  };
+  retreat(walker, 12);
+  const snapshot = JSON.parse(JSON.stringify(walker.state()));
+  assert.equal(snapshot.blocked, 'bounds');
+  assert.ok(snapshot.blockedAt.z > snapshot.z);
+  const restored = createWalker({ world }).restore(snapshot);
+  const { blockedAt, ...oldSnapshot } = snapshot;
+  const legacy = createWalker({ world }).restore(oldSnapshot);
+  retreat(walker, 60);
+  retreat(restored, 60);
+  retreat(legacy, 60);
+  assert.deepEqual(restored.state(), walker.state());
+  assert.equal(restored.blocked, null);
+  assert.equal(legacy.blocked, null);
+});
+
+test('a platform above water supports both a launch run and a touchdown', () => {
+  const world = createWorld({ platform: () => 1.2, water: () => 1 });
+  assert.equal(terrainSite(world).edgeAhead(0, 0, 0), Infinity);
+  const glider = createHangGlider({ world });
+  glider.startAt({ y: 3.2, airspeed: 12, pathAngle: -0.04 }).step(1 / 60);
+  assert.equal(glider.phase, 'landed');
+  assert.equal(glider.contact.ground, 1.2);
+});
+
+test('invalid round ticks leave the current flight and its clock intact', () => {
+  const round = createHangGlider().startAt({ y: 50 });
+  const before = round.state();
+  assert.throws(() => round.step(Infinity), RangeError);
+  assert.deepEqual(round.state(), before);
 });
 
 test('one ground for every vehicle: a glider lands on a platform the walker stands on', () => {

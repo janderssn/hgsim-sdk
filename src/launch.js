@@ -75,6 +75,11 @@ export const LAUNCH = {
   yawCatch: .26,       // past this the wind is on the sail's side and takes it further round ...
   yawRun: 5,           // ... this hard (rad/s^2 per radian beyond it) ...
   yawFail: 1.1,        // ... until the wind is on top of the sail and dumps the pilot (a realistic launch; an easy one holds the nose)
+  sideHold: .03,        // the sideways pull the planted feet hold outright, as a share of the weight on them: a light wing off level
+                       // pulls at the shoulders and nothing more; past this the pilot is pulled across ...
+  sideGrip: 3,         // ... and the strides check the drift this fast (per second, all the weight on the feet: a runner cannot
+                       // plant against a pull from the side, only step under it, and less so the more of the weight the wing carries)
+  followSide: 2,       // per second: the pilot turns the run toward where they are being pulled
   followYaw: 1.3,      // per second: the pilot runs where the nose points (s.turnRate, for the game to turn the run), so a wing let
                        // go round takes the run with it, off the side of a ramp or across the slope
   yawDamp: 5,
@@ -139,7 +144,7 @@ export function barForAlpha(alpha, T = getSoaringTuning()) {
 /** A launch, with the flight state it will fly on (the same object the flight model then keeps stepping). */
 export function createLaunch(flight = createSoaringState()) {
   return { phase: 'pickup', t: 0, phaseT: 0, k: 0, groundSpeed: 0, airspeed: 0, lift: 0, tension: 0, carry: 1, normal: 1, distance: 0,
-    lifted: false, liftDistance: null, airborne: false, reason: null, failed: null, rise: 0, riseV: 0, roll: 0, rollV: 0, barHold: 0, alphaHold: 0, tilt: null,
+    lifted: false, liftDistance: null, side: 0, sideMoved: 0, airborne: false, reason: null, failed: null, rise: 0, riseV: 0, roll: 0, rollV: 0, barHold: 0, alphaHold: 0, tilt: null,
     go: false, cliff: false, jumped: false, nose: 0, noseCmd: 0, yaw: 0, yawV: 0, shift: 0, flight };
 }
 
@@ -152,7 +157,8 @@ export function createLaunch(flight = createSoaringState()) {
  * Returns the distance moved over the ground this step. Afterwards airborne says the flight carries on from s.flight, with
  * reason 'flying' (the wing carries the whole weight) or 'edge' (off the end, or a jump, below flying speed: the pilot pulls
  * in for the airspeed); failed names how the launch went wrong ('crosswind', 'wingdrop': a tip in the ground; 'turned': the wind took
- * the sail round; 'stumbled': the legs gave out, overrun or spent by a run the wing never lifted), which the games play out as a crash where it happened. turnRate (rad/s) turns the run after the wing.
+ * the sail round; 'stumbled': the legs gave out, overrun or spent by a run the wing never lifted), which the games play out as a crash where it happened. turnRate (rad/s) turns the run after the wing; sideMoved (m, + right)
+ * is how far it drifted sideways this step.
  */
 export function stepLaunch(s, dt, { headwind = 0, crosswind = 0, slope = 0, edgeAhead = Infinity, airLift = 0, x, y, z, heading, manual = false, balance = 0, nose = 0, push = 0, go = false, jump = false } = {}, cfg = LAUNCH) {
   if (s.airborne || s.failed) return 0;
@@ -185,7 +191,8 @@ export function stepLaunch(s, dt, { headwind = 0, crosswind = 0, slope = 0, edge
   f.alpha = finite(f.alpha, hold.alpha) - (tilt - finite(s.tilt, tilt)); s.tilt = tilt;
   f.alpha += (hold.alpha - f.alpha) * (1 - Math.exp(-dt / T.pitchTau));
   const qS = .5 * T.airDensity * v * v * T.wingArea, sigma = groundEffectFactor(2.3 - T.footHeight + T.wingAboveBody, T);
-  const slip = vx > .5 ? s.yaw + Math.atan2(crosswind, vx) : 0, slipLoss = Math.cos(clamp(slip, -1, 1)) ** 2;   // (sideslip: the nose off the air it meets)
+  const across = crosswind + finite(s.side);   // (the air from the side: the crosswind, and the run drifting sideways into it)
+  const slip = vx > .5 ? s.yaw + Math.atan2(across, vx) : 0, slipLoss = Math.cos(clamp(slip, -1, 1)) ** 2;   // (sideslip: the nose off the air it meets)
   const over = f.alpha - T.stallAlpha, stalled = smoothstep(cfg.runStall[0], cfg.runStall[1], over), dragging = smoothstep(-1 * Math.PI / 180, cfg.runStall[1], over);
   const L = qS * liftCoefficient(f.alpha, T) * slipLoss * (1 - cfg.runStallLift * stalled), D = qS * dragCoefficient(f.alpha, sigma, T) * (1 + cfg.runStallDrag * dragging);
   s.lift = L / W;
@@ -207,7 +214,12 @@ export function stepLaunch(s, dt, { headwind = 0, crosswind = 0, slope = 0, edge
       : clamp(Math.min((gs > target ? cfg.brakeGain : cfg.runGain) * (target - gs), cfg.strideAccel - free), -cfg.brake, cfg.accel) * share;
     const along = legs + free;
     s.groundSpeed = Math.max(0, gs + along * dt); moved = s.groundSpeed * dt; s.distance += moved;
-  }
+    // Sideways: a wing off level leans its lift toward the low tip (right wing down, roll +, pulls right, side +). The feet hold
+    // against it while they carry the weight; as the wing takes it they can hold less and the pilot is dragged across, the air
+    // then meets the sail from the side and its nose swings into it, and the run follows the nose.
+    const lean = L * Math.sin(s.roll) / m, held = cfg.sideHold * g * s.normal, pull = lean - clamp(lean, -held, held), turnIn = cfg.followSide * Math.atan2(s.side, Math.max(1, s.groundSpeed));
+    s.side += (pull - cfg.sideGrip * s.normal * s.side - turnIn * s.groundSpeed) * dt; s.sideMoved = s.side * dt; s.sideTurn = -turnIn;
+  } else { s.side = 0; s.sideMoved = 0; }
   s.airspeed = v;
   // The straps catch with a little bounce. The wing on the shoulders wants to go over: its own wobble and a crosswind under
   // the upwind tip. An easy launch balances it; a realistic one is balanced by the pilot's weight shift, and a wing that gets
@@ -235,16 +247,14 @@ export function stepLaunch(s, dt, { headwind = 0, crosswind = 0, slope = 0, edge
     s.roll += s.rollV * dt;
     // Yaw: the nose weathervanes toward the air it meets (stiffer the faster it goes), the gusts push it about, a weight shift
     // swings it with the roll, and the pilot's arms hold it down the run.
-    const q = clamp((v / 9.7) ** 2, 0, 1.6), into = vx > .5 ? -Math.atan2(crosswind, vx) : 0;
+    const q = clamp((v / 9.7) ** 2, 0, 1.6), into = vx > .5 ? -Math.atan2(across, vx) : 0;
     const caught = Math.max(0, Math.abs(s.yaw) - cfg.yawCatch) * Math.sign(s.yaw);
     s.yawV += (cfg.yawAero * q * (into - s.yaw) - (manual ? cfg.yawHold : cfg.yawHoldEasy) * s.yaw + (.4 + .6 * loose) * cfg.gustYaw * airOver * gustB
       + loose * q * (manual ? cfg.yawRun * caught : 0)
       + q * cfg.noseYaw * Math.max(0, f.alpha - (T.stallAlpha - cfg.noseYawFrom)) * (s.yaw * 6 + .25 * gustB) - cfg.yawDamp * s.yawV) * dt;   // (nose too high: it wanders)
     s.yaw += s.yawV * dt;
     if (!manual) { s.yaw = clamp(s.yaw, -cfg.yawLimit, cfg.yawLimit); if (Math.abs(s.yaw) >= cfg.yawLimit) s.yawV = 0; }
-    // The run goes where the nose points, and a wing off level pulls it toward the low tip: the lift leans with the sail, as in
-    // a banked turn in flight (the more of the weight the wing carries, the harder), so the pilot keeps it level to run straight.
-    s.turnRate = running ? (s.normal > .05 ? s.yaw * cfg.followYaw * clamp(gs / 2, 0, 1) : 0) - L * Math.sin(s.roll) / (m * Math.max(2, gs)) : 0;
+    s.turnRate = running ? (s.normal > .05 ? s.yaw * cfg.followYaw * clamp(gs / 2, 0, 1) : 0) + finite(s.sideTurn) : 0;
     if (manual && Math.abs(s.yaw) > cfg.yawFail) { s.failed = 'turned'; return moved; }
     s.noseWarn = manual && running && f.alpha > T.stallAlpha + cfg.noseWarn;
     s.warn = manual && (Math.abs(s.roll) > cfg.warnRoll || Math.abs(s.yaw) > cfg.yawCatch * .7) ? -Math.sign(Math.abs(s.roll) > cfg.warnRoll ? s.roll : s.yaw) : 0;   // (the shift that answers it: +1 right, D; -1 left, A)

@@ -197,7 +197,7 @@ function stepRunUp(dt) {
   const airLift = sampleSoaringAir(pos.x, pos.y, pos.z, flightEnvironment).lift, run = windOnRun(wind, heading);
   const controls = readFlightControls(keys, gamepad.state);
   const moved = stepLaunch(s, dt, { ...run, slope, edgeAhead, airLift, x: pos.x, y: pos.y, z: pos.z, heading, manual: REAL_LAUNCH, nose: controls.nose, balance: controls.roll, push: controls.push, go: !!s.go, jump: !!runUp.jump }); runUp.jump = false;
-  pos.x += Math.sin(heading) * moved; pos.z += Math.cos(heading) * moved; heading += (s.turnRate || 0) * dt; speed = s.airspeed; pos.y = here.ground(pos.x, pos.z) + 2.3;
+  pos.x += Math.sin(heading) * moved - Math.cos(heading) * (s.sideMoved || 0); pos.z += Math.cos(heading) * moved + Math.sin(heading) * (s.sideMoved || 0); heading += (s.turnRate || 0) * dt; speed = s.airspeed; pos.y = here.ground(pos.x, pos.z) + 2.3;
   if (s.failed) {   // it went wrong: the glider and pilot carry on as a body, from exactly this state, until they come to rest
     const pose = launchPose(s, rig?.step ?? 0); runUp = null; mode = 'tumbling';
     const o = shoulderPivot(pose.pitch, heading + pose.yaw, pose.roll, pose.shoulders);

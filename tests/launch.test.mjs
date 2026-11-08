@@ -79,13 +79,13 @@ console.log('nose checks passed');
 
 // Light wind means a longer run, on the ramp and on the slope alike; a wing held off level pulls the run toward its low tip.
 { const D = Math.PI / 180;
-  const realRun = ({ headwind, slope, edge = Infinity, rollAt = 0 }) => { const s = createLaunch(); s.phase = 'run'; s.k = 1; let heading = 0;
+  const realRun = ({ headwind, slope, edge = Infinity, rollAt = 0 }) => { const s = createLaunch(); s.phase = 'run'; s.k = 1; let heading = 0, right = 0, early = null;
     for (let i = 0; i < 60 * 20 && !s.airborne && !s.failed; i++) {
       const want = s.lift >= .85 ? .8 * D : -1.5 * D;
       stepLaunch(s, 1 / 60, { headwind, slope, edgeAhead: edge - s.distance, manual: true, balance: -Math.max(-1, Math.min(1, (s.roll - rollAt) * 3 + s.rollV * .6)), nose: Math.max(-1, Math.min(1, (want - s.noseCmd) / (2 * D))) });
-      heading += (s.turnRate || 0) / 60;
+      right += s.sideMoved; heading += (s.turnRate || 0) / 60; if (early === null && s.distance > 4) early = heading;
     }
-    return { s, heading }; };
+    return { s, heading, right, early }; };
   for (const [name, slope, edge] of [['ramp', .22, 24], ['slope', .36, Infinity]]) {
     const runs = [0, 1, 2, 4].map(headwind => realRun({ headwind, slope, edge }).s);
     assert.ok(runs.every(r => r.airborne && !r.failed), name + ': every wind gets off');
@@ -94,7 +94,12 @@ console.log('nose checks passed');
     assert.ok(runs.every(r => r.groundSpeed < LAUNCH.topSpeed + LAUNCH.downhillSpeed * slope + LAUNCH.liftedSpeed + 1), name + ': nobody runs faster than legs go, downhill or not: ' + runs.map(r => r.groundSpeed.toFixed(1)).join(', '));
   }
   const level = realRun({ headwind: 1, slope: 0, edge: 40 }), right = realRun({ headwind: 1, slope: 0, edge: 40, rollAt: 10 * D }), left = realRun({ headwind: 1, slope: 0, edge: 40, rollAt: -10 * D });
-  assert.ok(right.heading < -.25 && left.heading > .25 && Math.abs(level.heading) < .1, 'a wing held 10 degrees off level pulls the run toward the low tip (the right wing low turns it right, as in flight): ' + JSON.stringify({ level: level.heading, right: right.heading, left: left.heading }));
+  assert.ok(right.heading < -.15 && left.heading > .15 && Math.abs(level.heading) < .1 && right.right > .4 && left.right < -.4 && Math.abs(level.right) < .3,
+    'a wing held 10 degrees off level drags the pilot toward the low tip and the run turns after it (the right wing low, to the right, as in flight): ' + JSON.stringify({ level, right, left }, (k, v) => k === 's' ? undefined : +v.toFixed?.(2) || v));
+  // It builds as the wing takes the weight: a light wing's pull is held at the shoulders, so the first steps run straight.
+  const rampLevel = realRun({ headwind: 1.5, slope: .22, edge: 24 }), rampRight = realRun({ headwind: 1.5, slope: .22, edge: 24, rollAt: 9 * D });
+  const earlyTurn = (rampLevel.early - rampRight.early) / D, lateTurn = (rampLevel.heading - rampRight.heading) / D;
+  assert.ok(rampRight.s.airborne && earlyTurn < 1 && lateTurn > 2.5 && lateTurn > 4 * earlyTurn, 'the veer comes as the wing loads up, not in the first steps: ' + JSON.stringify({ earlyTurn, lateTurn }));
   const flat = realRun({ headwind: 1, slope: 0 }).s;
   assert.ok(flat.failed === 'stumbled' && flat.t > 9, 'a light wind on the flat never lifts the wing: the sprint gives out');
 }

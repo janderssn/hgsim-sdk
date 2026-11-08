@@ -10,8 +10,10 @@
  *
  * Around it, each usable on its own: launch.js (the run), landing.js (judging and scoring touchdowns, approach helpers),
  * tumble.js (a crash as a rigid body), wind.js (live, gusting wind), recorder.js (recording flights), config.js.
- * Three.js presentation (the pilot's body, landing cues) is in hgsim/three.
+ * Three.js presentation (the pilot's body, landing cues) is in hgsim/three. Types: types/index.d.ts (the package's "types").
  */
+/** The SDK's version (semver), as in package.json: the CHANGELOG says what each one changed. */
+export const VERSION = '0.2.0';
 export { createWorld, AIR_DEFAULTS } from './world.js';
 export { createGlider } from './glider.js';
 export { PRESETS, getPreset, defineWing, wingConfig, handlingFor, vgConfig, TRAITS } from './presets.js';
@@ -24,6 +26,7 @@ export { LANDING_RULES, judgeTouchdown, scoreLanding, measureFlareZone, ZONE_LOW
 export { createTumble, stepTumble } from './tumble.js';
 export { createWind, describeWind, compassName, directionFromBearing, bearingFromDirection } from './wind.js';
 export { createFlightRecorder, FLIGHT_FIELDS, SAMPLE_PERIOD } from './recorder.js';
-export { createRound, createTakeoffBar, takeoffPitch } from './round.js';
+export { createRound, createTakeoffBar, takeoffPitch, ROUND_EVENTS } from './round.js';
+export { createSimulationLoop } from './loop.js';
 export { SCENARIOS, SITES, getScenario, startScenario, runScenario, flyScenario, scenarioWind, launchPilot, landingPilot } from './scenarios.js';
 export { bankedClearance } from './assists/skim-pose.js';

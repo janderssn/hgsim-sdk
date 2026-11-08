@@ -17,6 +17,9 @@ import { scoreLanding } from './landing.js';
 import { clamp, finite, smoothstep } from './math.js';
 
 const PITCH_DEADZONE = 0.05;
+/** The events a round emits, in the order a round meets them. */
+export const ROUND_EVENTS = Object.freeze(['launch', 'liftoff', 'failed', 'scrape', 'crash', 'touchdown']);
+const EVENTS = ROUND_EVENTS;
 
 /**
  * The bar through a take-off, as data: the pilot keeps holding what they held on the run (holdBar) until they make a new input,
@@ -51,9 +54,19 @@ export function takeoffPitch(bar, input, { age = 0, airspeed = 0 } = {}) {
  *   to start from (default: the reference point lowered to the bar).
  */
 export function createRound({ glider, realistic = true, launch: launchConfig = {}, target = null, ground = null, solid = null, landable = null, bodyPose = null } = {}) {
+  if (typeof glider?.step !== 'function' || typeof glider?.launch !== 'function') throw new TypeError('createRound: glider must come from createGlider()');
+  for (const [key, f] of Object.entries({ ground, solid, landable, bodyPose })) if (f !== null && typeof f !== 'function') throw new TypeError(`createRound: ${key} must be a function or null`);
   const world = glider.world, groundAt = ground ?? world.heightAt;
   const landableAt = landable ?? ((x, z) => Math.hypot(world.heightAt(x + 6, z) - world.heightAt(x - 6, z), world.heightAt(x, z + 6) - world.heightAt(x, z - 6)) / 12 < 0.42);
-  const listeners = new Set(), emit = (type, detail = {}) => { for (const f of listeners) f({ type, ...detail }); };
+  const listeners = new Set(), emit = (type, detail = {}) => { const event = { type, ...detail }; for (const l of [...listeners]) if (l.type === null || l.type === type) l.f(event); };
+  const listen = (type, f, once) => {
+    if (typeof type === 'function') [type, f] = [null, type];
+    if (typeof f !== 'function') throw new TypeError('round.on: expected a listener function');
+    if (type !== null && !EVENTS.includes(type)) throw new TypeError(`round.on: unknown event "${type}" (known: ${EVENTS.join(', ')})`);
+    const l = { type, f: once ? e => { listeners.delete(l); f(e); } : f };
+    listeners.add(l);
+    return () => listeners.delete(l);
+  };
   const r = {
     phase: 'ready', t: 0, site: null, launch: null, takeoff: null, stand: false, tumble: null, wreck: null, result: null, contact: null,
     scrapes: 0, distanceFlown: 0, maxSpeed: 0,
@@ -95,11 +108,22 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
     get scrapes() { return r.scrapes; },
     get distanceFlown() { return r.distanceFlown; },
     get maxSpeed() { return r.maxSpeed; },
-    /** Listens to the round's events; returns a function that stops listening. */
-    on(f) { listeners.add(f); return () => listeners.delete(f); },
+    /**
+     * Listens to one event, on('touchdown', e => ...), or to all of them, on(e => ...); returns a function that stops listening.
+     * Events: 'launch', 'liftoff' { launch, dropped }, 'failed' { reason, launch }, 'scrape' { contact }, 'crash' { kind },
+     * 'touchdown' { result, contact }. Each event is { type, ...its details }.
+     */
+    on(type, listener) { return listen(type, listener, false); },
+    /** As on(), for the next such event only. */
+    once(type, listener) { return listen(type, listener, true); },
 
-    /** Stands the pilot at a launch site ({ start: { x, z, heading }, ground, fall, edgeAhead }), the wing resting, ready. */
+    /**
+     * Stands the pilot at a launch site, the wing resting, ready: { start: { x, z, heading }, ground, fall, edgeAhead }, or one of the
+     * scenario SITES as it is.
+     */
     standAt(site) {
+      if (site?.site && site.start) site = { ...site.site, start: { heading: 0, ...site.start } };
+      if (!site?.start || typeof site.fall !== 'function' || typeof site.edgeAhead !== 'function') throw new TypeError('round.standAt: expected a site { start: { x, z, heading }, fall, edgeAhead, ground? } or one of SITES');
       reset(); r.site = site; r.phase = 'ready';
       const { x, z, heading } = site.start, y = (site.ground ?? groundAt)(x, z) + glider.config.contactHeight;
       glider.reset({ x, y, z, heading });

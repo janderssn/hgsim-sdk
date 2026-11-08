@@ -122,3 +122,55 @@ test('scrapes skip a fast, light, level touch off the ground', () => {
   assert.equal(glider.scrape(contact), true);
   assert.ok(glider.state.airspeed < 40 && glider.state.verticalSpeed > 0 && !glider.contact());
 });
+
+test('round events: one type, all of them, once, and mistakes named', async () => {
+  const { createRound, SITES, ROUND_EVENTS } = await import('../src/index.js');
+  const world = createWorld({ terrain: SITES.ramp.terrain, wind: { x: 0, z: -4 } });
+  const round = createRound({ glider: createGlider({ world, preset: 'falcon-170' }), realistic: false });
+  const all = [], liftoffs = [], launches = [];
+  round.on(e => all.push(e.type));
+  const off = round.on('liftoff', e => liftoffs.push(e.dropped));
+  round.once('launch', () => launches.push(1));
+  round.standAt(SITES.ramp).launch();
+  for (let i = 0; i < 60 * 15 && round.phase === 'launch'; i++) round.step(1 / 60);
+  assert.deepEqual(all.slice(0, 2), ['launch', 'liftoff']);
+  assert.equal(liftoffs.length, 1); assert.equal(typeof liftoffs[0], 'boolean');
+  off(); round.standAt(SITES.ramp).launch();
+  for (let i = 0; i < 60 * 15 && round.phase === 'launch'; i++) round.step(1 / 60);
+  assert.equal(liftoffs.length, 1, 'off() stops listening'); assert.equal(launches.length, 1, 'once() hears one');
+  assert.ok(ROUND_EVENTS.includes('touchdown') && Object.isFrozen(ROUND_EVENTS));
+  assert.throws(() => round.on('landed', () => {}), /unknown event "landed"/);
+  assert.throws(() => round.on('touchdown'), /listener function/);
+  assert.throws(() => round.standAt({ start: { x: 0, z: 0 } }), /round.standAt/);
+  assert.throws(() => createRound({}), /createRound: glider/);
+  assert.throws(() => createRound({ glider: createGlider(), ground: 3 }), /ground must be a function/);
+});
+
+test('a time step must be a finite number of seconds; a copied state restores a flight exactly', () => {
+  const glider = createGlider({ at: { y: 400 } });
+  assert.throws(() => glider.step(NaN), RangeError);
+  assert.throws(() => glider.step(-1 / 60), RangeError);
+  assert.throws(() => glider.step(Infinity), RangeError);
+  glider.step(0);
+  for (let i = 0; i < 120; i++) glider.step(1 / 60, { roll: 0.3 });
+  const saved = structuredClone(glider.state), after = [];
+  for (let i = 0; i < 120; i++) after.push(glider.step(1 / 60, { roll: -0.5, pitch: 0.2 }).y);
+  glider.reset(saved);
+  for (let i = 0; i < 120; i++) assert.equal(glider.step(1 / 60, { roll: -0.5, pitch: 0.2 }).y, after[i]);
+});
+
+test('the version, the exports and the generated config types agree with the code', async () => {
+  const { VERSION } = await import('../src/index.js');
+  const { readFileSync } = await import('node:fs');
+  const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+  assert.equal(VERSION, pkg.version);
+  assert.ok(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8').includes(`## [${VERSION}]`), 'the CHANGELOG has this version');
+  assert.deepEqual(Object.keys(pkg.exports), ['.', './three', './package.json']);
+  const { configTypes } = await import('../tools/config-types.mjs');
+  assert.equal(readFileSync(new URL('../types/configs.d.ts', import.meta.url), 'utf8'), configTypes(), 'npm run types:configs');
+  // every runtime export is declared
+  const declared = readFileSync(new URL('../types/index.d.ts', import.meta.url), 'utf8');
+  const index = await import('../src/index.js');
+  const missing = Object.keys(index).filter(name => !['const', 'function'].some(kind => declared.includes(`export ${kind} ${name}:`) || declared.includes(`export ${kind} ${name}(`) || declared.includes(`export ${kind} ${name}<`)));
+  assert.deepEqual(missing, [], 'exports without declarations');
+});

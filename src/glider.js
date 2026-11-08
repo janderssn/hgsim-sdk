@@ -73,6 +73,7 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
      * stand (sit up for drag), field (low over landable ground). Returns the state.
      */
     step(dt, input = {}) {
+      if (!(dt >= 0) || dt === Infinity) throw new RangeError(`glider.step: dt must be a finite number of seconds >= 0 (got ${dt})`);
       model.step(state, input, dt, world, cfg, skimOptions);
       if (skimOptions) updateSkimPose(state, dt, world); else state.visualBank = state.bank;
       return state;

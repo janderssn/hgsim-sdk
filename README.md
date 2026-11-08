@@ -187,11 +187,21 @@ A round is one go of a glider from the ground or the air to the end, the whole l
 import { createRound } from 'hgsim';
 
 const round = createRound({ glider, target: { x: 0, z: 0, radius: 60 } });   // also realistic, ground, solid, landable, bodyPose
-round.standAt(site).launch();           // or round.startAt({ x, y, z, heading, airspeed })
+round.standAt(SITES.ramp).launch();     // any { start, fall, edgeAhead, ground }; or round.startAt({ x, y, z, heading, airspeed })
 round.step(dt, { roll, pitch, nose, push, go, jump });   // each tick
 round.phase;                            // 'ready', 'launch', 'flight', 'tumble', 'landed', 'crashed'
-round.on(e => e.type);                  // 'launch', 'liftoff', 'failed', 'scrape', 'crash', 'touchdown'
+const off = round.on('touchdown', e => e.result.points);   // or round.on(e => e.type) for all of them; off() stops listening
+round.once('liftoff', e => e.dropped);  // 'launch', 'liftoff', 'failed', 'scrape', 'crash', 'touchdown' (ROUND_EVENTS)
 round.state();                          // plain data, to record and draw again
+```
+
+A game steps a round at a fixed rate and draws between the ticks. `createSimulationLoop` does that, the "fix your timestep" pattern that cannon-es and Rapier use, so the same inputs fly the same flight at any frame rate:
+
+```js
+import { createSimulationLoop } from 'hgsim';
+
+const loop = createSimulationLoop({ step: dt => round.step(dt, readControls()), render: (frameSeconds, alpha) => draw(alpha) });
+requestAnimationFrame(function tick(now) { loop.frame(now); requestAnimationFrame(tick); });
 ```
 
 ### Scenarios and the lab
@@ -241,7 +251,7 @@ Any other object with the same shape drops in. `examples/extend.mjs` flies a poi
 
 ### Modules
 
-`src/index.js` is the public API. Each module can also be imported on its own (`hgsim/launch`, `hgsim/landing`, ...), down to the low-level functions such as `stepFlight`, `stepLaunch` and `liftCoefficient`, which take their config as an argument.
+The package has two entry points: `hgsim` (`src/index.js`) and `hgsim/three`. Everything they export is the public API, typed in `types/` and covered by semantic versioning: a breaking change to it bumps the major version (the minor while the version is 0.x) and is listed in `CHANGELOG.md`. The modules below are its source. Within this repository they can be imported directly for the low-level functions the entry points leave out, such as `stepLaunch` and `liftCoefficient`, but those are internal and may change in any release.
 
 | Module | What it does |
 |---|---|
@@ -255,15 +265,25 @@ Any other object with the same shape drops in. `examples/extend.mjs` flies a poi
 | `wind.js` | Live wind: a mean speed and direction with a meander and gusts, and conversions to and from compass bearings. |
 | `recorder.js` | Records each round as samples and marked moments. `tools/flight-report.mjs` reads them back. |
 | `config.js` | `defineConfig` and `overridesOf`. |
+| `loop.js` | `createSimulationLoop`: fixed ticks, drawn once per frame with the alpha to interpolate by. |
 | `presets.js`, `polar.js` | The glider presets and `defineWing` (a wing from ballpark speeds and a character), and the polar and pitch stability of any glider (`polarOf`, `pitchStabilityOf`). |
 | `round.js` | A round: the whole lifecycle of a go, from standing at a launch to the end (`createRound`). |
 | `scenarios.js` | Repeatable test flights for tuning the feel: `SCENARIOS`, `SITES`, `runScenario`, `startScenario`, `flyScenario`, and the scripted launch and landing pilots. |
 | `assists/` | The optional terrain-skimming assist, which keeps a low glider off the ground, and its drawn bank. |
 | `three/` (`hgsim/three`) | Three.js presentation: `createPilotRig` poses the pilot on the skinned glider model, and `createLandingCues` draws the shadow, height gauge and FLARE prompt. Each takes `THREE` as an argument. |
 
+### Types
+
+`types/index.d.ts` and `types/three.d.ts` declare the whole public API for TypeScript and for editors' hints in plain JavaScript. The config interfaces in `types/configs.d.ts` are generated from the frozen defaults by `npm run types:configs`, so they cannot drift from the numbers; the tests fail if they do. `npm run check:types` compiles `types/check.ts`, the README's samples in TypeScript, along with misuse the types must reject (an unknown config key or event, a frozen config written to).
+
+### Errors
+
+Mistakes fail loudly where they are made, with a message naming the thing: a `TypeError` for a wrong kind of argument (an unknown config key, preset, scenario or event, a world or glider not made by the SDK) and a `RangeError` for a number out of range (a negative or non-finite time step). Nothing in the SDK logs, and no error is swallowed.
+
 ### Conventions
 
-- **Units:** metres, seconds and radians throughout.
+- **Units:** metres, seconds and radians throughout. A name says when it is anything else (`topKmh`, `maxRollDeg`).
+- **State:** a glider's state, a launch's and a round's are plain data. `glider.reset(structuredClone(glider.state))` restores a flight exactly, which is how to snapshot one and roll it back.
 - **Frame:** x is east, y is up and z is north.
 - **Heading:** a heading `h` flies along `(sin h, cos h)`. A model drawn with `rotation.set(pitch, heading, roll, 'YXZ')` faces the way it flies.
 - **Wind:** the wind vector `{x, z}` is where the air is going, in m/s. `directionFromBearing` and `bearingFromDirection` convert to and from compass bearings ("from 190°").
@@ -335,7 +355,7 @@ The open range reloads itself when `src/` or `range/` changes. It waits until yo
 |---|---|
 | `range/main.js` | Composes the range on one `createWorld`, one `createGlider` and one `createRound`, and draws the round: the launch, the flight, the landing and a crash. |
 | `range/lab.js` | The lab: scenarios flown in the range, every tick recorded and replayed through the same renderer, the other views, the comparison and the notes. |
-| `range/simulation-loop.js`, `motion.js` | Fixed simulation ticks and interpolated drawing snapshots. |
+| `range/motion.js` | Interpolated drawing snapshots between the fixed ticks of the SDK's `createSimulationLoop`. |
 | `range/controls.js` | Keyboard/gamepad normalization and continuous bar control through lift-off. |
 | `range/camera.js`, `hud.js` | Chase-camera smoothing and change-only HUD updates. |
 | `range/rendering.js` | Adaptive resolution, shadow detail and grass distance for the current device. |
@@ -362,7 +382,8 @@ Rendering starts at full detail. After sustained slow frames it reduces resoluti
 
 ## Tests and checks
 
-- **`npm test`:** the unit tests in `tests/`. `golden.test.mjs` flies fixed scripts (flights, skimming, both models, every kind of launch, the tumble, the wind and landing scores) and requires the numbers recorded in `tests/golden/golden.json`, so a change to the physics cannot slip in unnoticed. After an intended change of the physics, re-record them with `npm run golden:record`. `sdk.test.mjs` covers the SDK's surface. The other tests cover the flight model, the launch (both modes, the run length against the wind, the nose, a wing off level and the cliff), landing cues, terrain skimming, the recorder, audio, the range's world, fixed-step timing, takeoff controls, interpolation, rendering quality and HUD updates.
+- **`npm test`:** the unit tests in `tests/`. `golden.test.mjs` flies fixed scripts (flights, skimming, both models, every kind of launch, the tumble, the wind and landing scores) and requires the numbers recorded in `tests/golden/golden.json`, so a change to the physics cannot slip in unnoticed. After an intended change of the physics, re-record them with `npm run golden:record`. `sdk.test.mjs` covers the SDK's surface.
+- **`npm run check:types`:** compiles the type declarations and their usage check with TypeScript (fetched by `npx`; the SDK itself has no dependencies). The other tests cover the flight model, the launch (both modes, the run length against the wind, the nose, a wing off level and the cliff), landing cues, terrain skimming, the recorder, audio, the range's world, fixed-step timing, takeoff controls, interpolation, rendering quality and HUD updates.
 - **`npm run check:range`:** starts its own server and flies the range in a headless browser. It runs an Easy ramp launch, an Easy cliff launch, an Easy slope launch in calm air, a Realistic launch flown by a simple scripted pilot, sitting up and lying prone in flight, and a landing from overhead. It also checks for page errors. Browser tools require Node 22+ and Chrome/Chromium or Edge; set `CHROME_PATH` if the browser is not discovered automatically.
 
 To measure rendering, start `npm start` and run:

@@ -25,7 +25,7 @@ import { terrainHeight, slopeAt, landableAt, LAUNCH, MARK, THERMAL, WING_CARRY, 
 import { buildScenery } from './scenery.js';
 import { createPolarChart } from './polar-chart.js';
 import { createPitchChart } from './pitch-chart.js';
-import { createSimulationLoop } from './simulation-loop.js';
+import { createSimulationLoop } from '../src/loop.js';
 import { readFlightControls } from './controls.js';
 import { createRenderQuality } from './rendering.js';
 import { createHud } from './hud.js';

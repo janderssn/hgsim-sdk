@@ -25,7 +25,7 @@ try {
     for (let i = 0; i < 80; i++) { if (await page.eval('!!window.rangeDemo&&!!rangeDemo.rig')) return true; await sleep(250); }
     return false;
   };
-  const state = () => page.eval(`JSON.stringify((() => { const d = rangeDemo, s = d.getState(), l = d.runUp?.launch; return { mode: s.mode, clearance: s.clearance, airspeed: s.airspeed, phase: l?.phase ?? null, roll: l?.roll ?? 0, rollV: l?.rollV ?? 0, lift: l?.lift ?? 0, judged: s.result?.judged ?? null }; })())`).then(JSON.parse);
+  const state = () => page.eval(`JSON.stringify((() => { const d = rangeDemo, s = d.getState(), l = d.runUp?.launch; return { mode: s.mode, clearance: s.clearance, airspeed: s.airspeed, phase: l?.phase ?? null, roll: l?.roll ?? 0, rollV: l?.rollV ?? 0, lift: l?.lift ?? 0, judged: s.result?.judged ?? null, upright: d.rig.upright }; })())`).then(JSON.parse);
   const until = async (test, seconds, each) => { const t = Date.now(); while (Date.now() - t < seconds * 1000) { const s = await state(); if (each) await each(s); if (test(s)) return s; await sleep(50); } return state(); };
 
   check(await open('wind=5&from=180'), 'the range loads');
@@ -68,8 +68,10 @@ try {
 
   // Sitting up and back down in flight (Space), then a landing from overhead, hands off, judged.
   const key = code => page.eval(`dispatchEvent(new KeyboardEvent('keydown', { code: '${code}', key: ' ', bubbles: true })); dispatchEvent(new KeyboardEvent('keyup', { code: '${code}', key: ' ', bubbles: true })); 1`);
-  await key('Space'); await sleep(2500); const up = await page.eval('rangeDemo.rig.upright');
-  await key('Space'); await sleep(2500); const down = await page.eval('rangeDemo.rig.upright');
+  // Observe completed poses rather than assuming a fixed rendering rate. The
+  // simulation deliberately caps long GPU frames, including software rendering.
+  await key('Space'); const up = (await until(s => s.upright > .9, 5)).upright;
+  await key('Space'); const down = (await until(s => s.upright < .1, 5)).upright;
   check(up > .9 && down < .1, 'Space sits the pilot up and lays them prone again', JSON.stringify({ up: +up.toFixed(2), down: +down.toFixed(2) }));
   await page.eval(`rangeDemo.overhead(); 1`);
   s = await until(s => s.judged, 150);

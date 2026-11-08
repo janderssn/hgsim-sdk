@@ -3,36 +3,49 @@
  * field, the rocks with the ramp's deck and its timbers, trees, close grass for a sense of speed low down, and the birds
  * that mark the thermal. Nothing here is solid: the ground the flight and the launch feel is world.js.
  */
-import { hash, noise, terrainHeight, slopeAt, LAUNCH, MARK, ROCKS, rockRing, DECK_BACK, DECK_LIP, DECK_FALL, CLIFF_EDGE, ROCK_TOP, RAMP_POSTS, deckY } from './world.js';
+import { hash, noise, terrainHeight, slopeAt, LAUNCH, MARK, ROCKS, rockRing, DECK_BACK, DECK_LIP, DECK_FALL, CLIFF_EDGE, ROCK_TOP, RAMP_POSTS, deckY, groundUnder } from './world.js';
+import { createEnvironmentModels } from './environment-models.js';
+import { createGraniteCliffGeometry } from './granite-cliffs.js';
+import { createForestShadowMap } from './forest-shadows.js';
+import { batchStaticMeshes } from './static-batch.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
 
 /**
  * Adds scenery and returns birds, drawing quality, and camera-detail updates.
- * Quality changes affect drawing only; world.js remains the physics source. The terrain is never coarsened: a lower-detail
- * mesh would draw the ground metres above or below where the glider actually touches it on the slopes.
+ * Quality changes affect drawing only; world.js remains the physics source.
  */
-export function buildScenery(THREE, scene) {
-  addTerrain(THREE, scene);
+export function buildScenery(THREE, scene, { models = createEnvironmentModels(THREE), materials = {}, sunDirection } = {}) {
+  addTerrain(THREE, scene, materials.terrain);
   addMark(THREE, scene);
-  addLaunch(THREE, scene);
-  addTrees(THREE, scene);
+  addLaunch(THREE, scene, materials);
+  const trees = addTrees(THREE, scene, models, sunDirection);
+  addAlpineProps(THREE, scene, models, materials);
   const grass = addGrass(THREE, scene);
   return {
     birds: addBirds(THREE, scene),
-    setQuality: grass.setQuality,
-    updateDetail: grass.updateDetail,
+    forestShadowMap: trees.shadowMap,
+    forestBounds: trees.shadowBounds,
+    setQuality(level) {
+      const grassChanged = grass.setQuality(level);
+      const treesChanged = trees.setQuality(level);
+      return grassChanged || treesChanged;
+    },
+    updateDetail(cameraPosition, camera) {
+      grass.updateDetail(cameraPosition);
+      trees.updateDetail(cameraPosition, camera);
+    },
   };
 }
 
 const TERRAIN_SEGMENTS = 240;
 
-/** Samples the world's height and colours on a regular grid for the terrain mesh. */
+/** Samples the same world and colours at each terrain drawing resolution. */
 function createTerrainGeometry(THREE, segments) {
   const SIZE = 3200, g = new THREE.PlaneGeometry(SIZE, SIZE, segments, segments); g.rotateX(-Math.PI / 2);
   const p = g.attributes.position, colors = new Float32Array(p.count * 3), c = new THREE.Color();
-  const meadow = new THREE.Color('#6f9b46'), dry = new THREE.Color('#9aa65a'), rock = new THREE.Color('#8d8a80'), mown = new THREE.Color('#7fb155'), stripe = new THREE.Color('#74a64c');
+  const meadow = new THREE.Color('#7e8a66'), dry = new THREE.Color('#b5a273'), rock = new THREE.Color('#8e9083'), mown = new THREE.Color('#98a779'), stripe = new THREE.Color('#88996c');
   for (let i = 0; i < p.count; i++) {
     const x = p.getX(i), z = p.getZ(i), y = terrainHeight(x, z); p.setY(i, y);
     const s = slopeAt(x, z, 8), field = 1 - smooth(70, 150, Math.hypot(x - MARK.x, z - MARK.z));
@@ -45,11 +58,11 @@ function createTerrainGeometry(THREE, segments) {
   return g;
 }
 
-/** The terrain mesh, at one fixed detail whatever the drawing quality. */
-function addTerrain(THREE, scene) {
+/** Full-detail terrain is retained at every quality so touchdown matches drawing. */
+function addTerrain(THREE, scene, surfaceMaterial) {
   const terrain = new THREE.Mesh(
     createTerrainGeometry(THREE, TERRAIN_SEGMENTS),
-    new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 }),
+    surfaceMaterial || new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .96 }),
   );
   terrain.receiveShadow = true;
   scene.add(terrain);
@@ -64,53 +77,235 @@ function addMark(THREE, scene) {
 }
 
 /** The two rocks (their rings, with a wobble), and the ramp's deck on the first: planks, stringers and struts to the rock face. */
-function addLaunch(THREE, scene) {
-  const rockMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95, flatShading: true });
-  for (const r of ROCKS) {
-    const rings = 16, sides = 36, verts = [], faces = [], colors = [], grey = new THREE.Color('#8d8a80'), moss = new THREE.Color('#71794f'), cap = new THREE.Color('#7c9a4b'), c = new THREE.Color();
-    for (let i = 0; i <= rings; i++) {
-      const k = i / rings, { y, rx, rz } = rockRing(r, k);
-      for (let s = 0; s < sides; s++) {
-        const a = s / sides * Math.PI * 2, n = noise(Math.cos(a) * 2.6 + i * .35 + 7, Math.sin(a) * 2.6 - i * .3), wob = 1 + (n - .5) * (.3 + .4 * Math.min(1, k * 3));
-        verts.push(r.cx + Math.cos(a) * rx * wob, y + (noise(a * 3, i * 1.3) - .5) * 3 * Math.min(1, k * 4), r.cz + Math.sin(a) * rz * wob);
-        c.copy(grey).lerp(moss, smooth(.5, 1, k) * .9).lerp(cap, 1 - smooth(0, .12, k)).multiplyScalar(.74 + .42 * noise(a * 5 + 3, i * 1.4)); colors.push(c.r, c.g, c.b);
-        const b = (s + 1) % sides; if (i < rings) faces.push(i * sides + s, i * sides + b, (i + 1) * sides + s, i * sides + b, (i + 1) * sides + b, (i + 1) * sides + s);
-      }
-    }
-    const lid = verts.length / 3; verts.push(r.cx, r.top - .4, r.cz); colors.push(cap.r, cap.g, cap.b); for (let s = 0; s < sides; s++) faces.push(lid, (s + 1) % sides, s);
-    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3)); g.setIndex(faces); g.computeVertexNormals();
-    const m = new THREE.Mesh(g, rockMaterial); m.castShadow = m.receiveShadow = true; scene.add(m);
+function addLaunch(THREE, scene, materials) {
+  const rockMaterial = materials.rock || new THREE.MeshStandardMaterial({ vertexColors: true, roughness: .95, flatShading: true });
+  const fractureMaterial = rockMaterial.clone();
+  fractureMaterial.name = 'Recessed granite joints';
+  fractureMaterial.color.multiplyScalar(.62);
+  fractureMaterial.onBeforeCompile = rockMaterial.onBeforeCompile;
+  fractureMaterial.customProgramCacheKey = rockMaterial.customProgramCacheKey.bind(rockMaterial);
+  for (const [index, rock] of ROCKS.entries()) {
+    const geometry = createGraniteCliffGeometry(THREE, rock, index);
+    const cliff = new THREE.Mesh(geometry, [rockMaterial, fractureMaterial]);
+    cliff.name = 'FracturedGraniteCliff';
+    cliff.castShadow = cliff.receiveShadow = true;
+    scene.add(cliff);
   }
-  const timber = new THREE.MeshStandardMaterial({ color: '#776954', roughness: .85 });
-  for (let z = DECK_BACK; z < DECK_LIP; z += 1.5) { const plank = new THREE.Mesh(new THREE.BoxGeometry(7, .14, 1.38 * Math.hypot(1, DECK_FALL)), timber); plank.position.set(LAUNCH.x, deckY(LAUNCH.z + z + .75) - .07, LAUNCH.z + z + .75); plank.rotation.x = Math.atan(DECK_FALL); plank.castShadow = plank.receiveShadow = true; scene.add(plank); }
+  const timber = materials.timber || new THREE.MeshStandardMaterial({ color: '#776954', roughness: .85 });
+  const timberBeam = materials.timberBeam || timber;
+  const woodParts = [];
+  for (let z = DECK_BACK; z < DECK_LIP; z += 1.5) { const plank = new THREE.Mesh(new THREE.BoxGeometry(7, .14, 1.38 * Math.hypot(1, DECK_FALL)), timber); plank.position.set(LAUNCH.x, deckY(LAUNCH.z + z + .75) - .07, LAUNCH.z + z + .75); plank.rotation.x = Math.atan(DECK_FALL); plank.castShadow = plank.receiveShadow = true; woodParts.push(plank); }
   // A timber between two points, for the stringers under the deck and the struts down to the rock face.
-  const beam = (x, y0, z0, y1, z1, r) => { const a = new THREE.Vector3(x, y0, z0), b = new THREE.Vector3(x, y1, z1), d = b.clone().sub(a), t = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.2, d.length(), 6), timber); t.position.copy(a).addScaledVector(d, .5); t.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); t.castShadow = true; scene.add(t); };
+  const beam = (x, y0, z0, y1, z1, r) => { const a = new THREE.Vector3(x, y0, z0), b = new THREE.Vector3(x, y1, z1), d = b.clone().sub(a), t = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.2, d.length(), 6), timberBeam); t.position.copy(a).addScaledVector(d, .5); t.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); t.castShadow = true; woodParts.push(t); };
   // Height of the ramp rock's face at z: its front widens as it falls.
   const under = ROCKS[0], faceY = z => { let lo = 0, hi = 1; for (let i = 0; i < 16; i++) { const k = (lo + hi) / 2; if (rockRing(under, k).rz < z - under.cz) lo = k; else hi = k; } return rockRing(under, lo).y; };
   // Arms out from the deck's edges to the streamer poles beside it (the poles are the streamers' own sticks).
-  for (const p of RAMP_POSTS) { const arm = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(p.x - LAUNCH.x) - 3.4, .12, .14), timber); arm.position.set((p.x + LAUNCH.x + p.side * 3.4) / 2, p.y - .06, p.z); arm.castShadow = true; scene.add(arm); }
+  for (const p of RAMP_POSTS) { const arm = new THREE.Mesh(new THREE.BoxGeometry(Math.abs(p.x - LAUNCH.x) - 3.4, .12, .14), timber); arm.position.set((p.x + LAUNCH.x + p.side * 3.4) / 2, p.y - .06, p.z); arm.castShadow = true; woodParts.push(arm); }
   const at = z => LAUNCH.z + z;
   for (const x of [-3.1, 3.1]) {
     beam(LAUNCH.x + x, deckY(at(DECK_BACK)) - .25, at(DECK_BACK), deckY(at(DECK_LIP)) - .25, at(DECK_LIP), .13);
     for (const z of [DECK_BACK + 1, CLIFF_EDGE + 1]) beam(LAUNCH.x + x, deckY(at(z)) - .2, at(z), ROCK_TOP - 1, at(z), .14);
     for (const [z, foot] of [[-9, -15], [-2, -10], [DECK_LIP - .6, -6]]) beam(LAUNCH.x + x, deckY(at(z)) - .25, at(z), faceY(at(foot)) - 1, at(foot) - 1, .14);
   }
+  // Static world-space batches preserve each board's UVs while sharing the
+  // timber/beam draws, including their shadow submissions.
+  scene.add(...batchStaticMeshes(THREE, woodParts, { name: 'LaunchTimber' }));
 }
 
-/** Trees: instanced trunks and crowns, away from the field and the launch and off the steepest ground. */
-function addTrees(THREE, scene) {
-  const n = 700, trunk = new THREE.InstancedMesh(new THREE.CylinderGeometry(.22, .34, 3.2, 6), new THREE.MeshStandardMaterial({ color: '#5a4332', roughness: .95 }), n);
-  const crown = new THREE.InstancedMesh(new THREE.ConeGeometry(2.6, 8.5, 7), new THREE.MeshStandardMaterial({ color: '#2f5f33', roughness: .92 }), n);
-  const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), S = new THREE.Vector3(), V = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0); let k = 0;
-  for (let i = 0; i < 6000 && k < n; i++) {
-    const x = (hash(i, 7) - .5) * 2800, z = (hash(i, 11) - .5) * 2800;
-    if (Math.hypot(x - MARK.x, z - MARK.z) < 150 || (Math.abs(x - LAUNCH.x) < 70 && Math.abs(z - LAUNCH.z) < 60)) continue;
-    if (slopeAt(x, z) > .75 || hash(i, 13) > .35 + .5 * noise(x / 300, z / 300)) continue;
-    const s = .8 + hash(i, 17) * .7, y = terrainHeight(x, z);
-    Q.setFromAxisAngle(Y, hash(i, 19) * 6.28); V.set(x, y + 1.5 * s, z); M.compose(V, Q, S.set(s, s, s)); trunk.setMatrixAt(k, M);
-    V.set(x, y + 3 * s + 4.2 * s, z); M.compose(V, Q, S.set(s, s, s)); crown.setMatrixAt(k, M); k++;
+/** Layered spruce silhouettes share geometry; only nearby trees use full crowns. */
+function addTrees(THREE, scene, models, sunDirection) {
+  const placements = [];
+  const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion();
+  const scale = new THREE.Vector3(), position = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0);
+  function plant(x, y, z, size, angle, variant, shade) {
+    position.set(x, y, z); rotation.setFromAxisAngle(up, angle);
+    matrix.compose(position, rotation, scale.set(size, size, size));
+    placements.push({ matrix: matrix.clone(), variant, shade, size, yaw: angle, x, y, z,
+      sphere: new THREE.Sphere(new THREE.Vector3(x, y + size * 10.75, z), size * 14) });
   }
-  trunk.count = crown.count = k; trunk.castShadow = crown.castShadow = true; crown.receiveShadow = true; scene.add(trunk, crown);
+  // Connected forest belts follow the valley margins. Large warped density
+  // fields, rather than independent circular groves, leave natural meadow bays.
+  const cells = new Map(), cellSize = 7;
+  function openGround(x, z) {
+    if (Math.hypot(x - MARK.x, z - MARK.z) < 150) return false;
+    if (Math.abs(x - LAUNCH.x) < 70 && Math.abs(z - LAUNCH.z) < 70) return false;
+    if (z > LAUNCH.z - 100 && z < 260 && Math.abs(x) < 80) return false;
+    if (slopeAt(x, z) > .75) return false;
+    const column = Math.floor(x / cellSize), row = Math.floor(z / cellSize);
+    for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+      for (const point of cells.get(`${column + dx},${row + dz}`) || []) {
+        if ((point[0] - x) ** 2 + (point[1] - z) ** 2 < 36) return false;
+      }
+    }
+    const key = `${column},${row}`;
+    if (!cells.has(key)) cells.set(key, []);
+    cells.get(key).push([x, z]);
+    return true;
+  }
+  const candidates = [], spacing = 17;
+  for (let row = 0; row < 167; row++) for (let column = 0; column < 167; column++) {
+    const seed = row * 167 + column;
+    const x = -1411 + column * spacing + (hash(seed, 97) - .5) * 12;
+    const z = -1411 + row * spacing + (hash(seed, 101) - .5) * 12;
+    const warpedX = x + Math.sin(z / 330) * 85;
+    const broad = noise(warpedX / 430 + 11, z / 390 - 6);
+    const local = noise(x / 165 - 8, z / 180 + 3);
+    const margin = smooth(100, 470, Math.abs(x)) * .16;
+    const forest = broad * .68 + local * .32 + margin;
+    if (forest < .46) continue;
+    candidates.push({ x, z, seed, forest, order: hash(seed, 107) });
+  }
+  candidates.sort((a, b) => a.order - b.order);
+  for (const { x, z, seed, forest } of candidates) {
+    if (placements.length >= 12_500) break;
+    if (!openGround(x, z)) continue;
+    const maturity = smooth(.46, .75, forest);
+    const size = 1.02 + hash(seed, 113) * .46 + maturity * .32;
+    plant(x, terrainHeight(x, z), z, size, hash(seed, 127) * Math.PI * 2,
+      seed % 3, .72 + hash(seed, 131) * .32);
+  }
+  // Mature boundary trees frame the ridge while preserving the run corridor.
+  for (const [index, [x, z, size]] of [[-84, -586, 1.8], [-93, -571, 1.55],
+    [-88, -544, 1.72], [81, -606, 1.68], [89, -580, 1.8], [94, -557, 1.48],
+    [86, -524, 1.62], [-77, -638, 1.5]].entries()) {
+    if (openGround(x, z)) plant(x, groundUnder(x, z), z, size, index * 1.93, index % 3, .83);
+  }
+
+  const shadows = createForestShadowMap(THREE, placements, { sunDirection });
+
+  const buckets = models.treeVariants.map((variant, index) => {
+    const capacity = placements.filter(item => item.variant === index).length;
+    const near = new THREE.InstancedMesh(variant.near, variant.foliageMaterial, capacity);
+    const farGeometry = variant.impostorMaterial ? variant.far.clone() : variant.far;
+    if (variant.impostorMaterial) farGeometry.setAttribute('impostorView',
+      new THREE.InstancedBufferAttribute(new Float32Array(capacity), 1));
+    const far = new THREE.InstancedMesh(farGeometry, variant.impostorMaterial || variant.foliageMaterial, capacity);
+    const trunk = new THREE.InstancedMesh(variant.trunk, variant.trunkMaterial, capacity);
+    for (const object of [near, far, trunk]) {
+      object.count = 0;
+      object.name = 'AlpineSpruce';
+      object.userData.alpineTree = true;
+      object.userData.treePart = object === trunk ? 'trunk' : object === near ? 'near' : 'far';
+      object.userData.placementCount = placements.length;
+      // Individual tree spheres are filtered below; a changing aggregate bound
+      // would cost more than these nine shared draws.
+      object.frustumCulled = false;
+      object.receiveShadow = object !== far;
+      object.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      scene.add(object);
+    }
+    return { near, far, trunk, impostor: !!variant.impostorMaterial };
+  });
+  const color = new THREE.Color(), frustum = new THREE.Frustum(), projection = new THREE.Matrix4();
+  const view = new Float64Array(16), lastPosition = new THREE.Vector3(Infinity, Infinity, Infinity);
+  let level = 'high', changed = true, cameraReady = false;
+  const ranges = { high: 80, medium: 60, low: 35 };
+
+  function updateDetail(cameraPosition, camera) {
+    if (camera) camera.updateMatrixWorld();
+    // Both lens changes and camera movement change visibility. In particular,
+    // a stationary viewport resize/FOV adjustment must not keep an old frustum.
+    if (camera) projection.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    const elements = camera ? projection.elements : null;
+    let viewChanged = changed || lastPosition.distanceToSquared(cameraPosition) > .01 || !!camera !== cameraReady;
+    if (elements) {
+      for (let index = 0; index < 16; index++) if (elements[index] !== view[index]) viewChanged = true;
+    }
+    if (!viewChanged) return;
+    lastPosition.copy(cameraPosition); cameraReady = !!camera; changed = false;
+    if (elements) {
+      view.set(elements);
+      frustum.setFromProjectionMatrix(projection);
+    }
+    for (const bucket of buckets) bucket.near.count = bucket.far.count = bucket.trunk.count = 0;
+    for (const item of placements) {
+      if (camera && !frustum.intersectsSphere(item.sphere)) continue;
+      const bucket = buckets[item.variant];
+      const close = item.sphere.center.distanceTo(cameraPosition) < ranges[level];
+      const crown = close ? bucket.near : bucket.far;
+      if (!close && bucket.impostor) {
+        const direction = Math.atan2(cameraPosition.x - item.x, cameraPosition.z - item.z);
+        rotation.setFromAxisAngle(up, direction);
+        position.set(item.x, item.y, item.z);
+        matrix.compose(position, rotation, scale.setScalar(item.size));
+        crown.setMatrixAt(crown.count, matrix);
+        const view = ((Math.round((direction - item.yaw) / (Math.PI / 2)) % 4) + 4) % 4;
+        crown.geometry.attributes.impostorView.setX(crown.count, view);
+      } else crown.setMatrixAt(crown.count, item.matrix);
+      color.setScalar(item.shade); crown.setColorAt(crown.count++, color);
+      // The baked view already contains the trunk and branches; submitting the
+      // high-detail woody mesh for every distant tree defeats the impostor LOD.
+      if (close || !bucket.impostor) bucket.trunk.setMatrixAt(bucket.trunk.count++, item.matrix);
+    }
+    for (const bucket of buckets) {
+      bucket.near.castShadow = level !== 'low';
+      for (const object of [bucket.near, bucket.far, bucket.trunk]) {
+        object.visible = object.count > 0;
+        object.instanceMatrix.needsUpdate = true;
+        if (object.instanceColor) object.instanceColor.needsUpdate = true;
+        if (object.geometry.attributes.impostorView) object.geometry.attributes.impostorView.needsUpdate = true;
+      }
+    }
+  }
+  updateDetail(new THREE.Vector3(0, 250, LAUNCH.z));
+  return {
+    shadowMap: shadows.texture, shadowBounds: shadows.bounds,
+    updateDetail,
+    setQuality(next) {
+      if (!(next in ranges) || next === level) return false;
+      level = next; changed = true;
+      updateDetail(lastPosition);
+      return true;
+    },
+  };
+}
+
+/** Grounded details tell the scale of the launch and the valley. */
+function addAlpineProps(THREE, scene, models, materials) {
+  const place = (name, x, z, yaw = 0, size = 1, surface = groundUnder(x, z)) => {
+    const source = models.props[name];
+    if (!source) return;
+    const prop = source.clone(true);
+    prop.position.set(x, surface, z); prop.rotation.y = yaw; prop.scale.setScalar(size);
+    prop.name = 'Alpine' + name;
+    prop.userData.decorative = true;
+    prop.traverse(object => {
+      if (!object.isMesh) return;
+      const name = object.material?.name || '';
+      if (name === 'AlpineGranite' && materials.granite) object.material = materials.granite;
+      else if (/Alpine(Wood|Endgrain)/.test(name) && materials.timber) object.material = materials.timber;
+      else if (name === 'AlpineIron' && materials.metal) object.material = materials.metal;
+      object.castShadow = true; object.receiveShadow = true;
+    });
+    scene.add(prop);
+  };
+  // Keep equipment behind the run and outside the control frame's full span.
+  place('EquipmentCrate', -7.8, LAUNCH.z - 21, -.22);
+  place('TrailSign', -9, LAUNCH.z - 29, -.45);
+  place('Cairn', 8.6, LAUNCH.z - 26);
+  const boulders = [[-16,-28,1.1],[14,-38,.75],[-24,-16,.9],[67,-50,1.3],[84,-20,.8]];
+  boulders.forEach(([x, z, size], index) => place(index % 2 ? 'BoulderA' : 'BoulderB', x, LAUNCH.z + z, index * 1.7, size));
+  // A refuge and outbuilding sit well outside the landing field and approach.
+  place('Cabin', -190, 118, 1.2, 1.4);
+  place('Cabin', -206, 139, 1.08, .7);
+}
+
+/** Five tapered blades give each meadow instance a grassy, rather than conical, silhouette. */
+function createMeadowTuft(THREE) {
+  const positions = [], indices = [];
+  for (let blade = 0; blade < 5; blade++) {
+    const angle = blade * 2.4, x = Math.cos(angle), z = Math.sin(angle);
+    const height = .65 + .35 * Math.sin(blade + 1.2) ** 2;
+    const first = positions.length / 3;
+    positions.push(-z * .065, -.55, x * .065, z * .065, -.55, -x * .065,
+      x * .31 + z * .014, height - .55, z * .31 - x * .014,
+      x * .31 - z * .014, height - .55, z * .31 + x * .014);
+    indices.push(first, first + 1, first + 2, first, first + 2, first + 3);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices); geometry.computeVertexNormals();
+  return geometry;
 }
 
 /** Grass tufts: close detail that rushes past when flying low, so speed reads near the ground. */
@@ -118,8 +313,8 @@ function addGrass(THREE, scene) {
   const tileSize = 200;
   const distances = { high: Infinity, medium: 350, low: 220 };
   const hysteresis = 25;
-  const geometry = new THREE.ConeGeometry(.55, 1.1, 5);
-  const material = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1 });
+  const geometry = createMeadowTuft(THREE);
+  const material = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 1, side: THREE.DoubleSide });
   const tiles = new Map();
   let count = 0;
   for (let i = 0; i < 30000 && count < 9000; i++) {
@@ -144,7 +339,7 @@ function addGrass(THREE, scene) {
     indices.forEach((i, index) => {
       const x = (hash(i, 23) - .5) * 2400;
       const z = (hash(i, 29) - .5) * 2400;
-      const size = .6 + hash(i, 31) * 1.3;
+      const size = .18 + hash(i, 31) * .32;
       rotation.setFromAxisAngle(up, hash(i, 37) * 6.28);
       position.set(x, terrainHeight(x, z) + .4 * size, z);
       scale.set(size, size * (.7 + hash(i, 41)), size);

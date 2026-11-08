@@ -1,0 +1,6 @@
+# Authoring intermediates; packaged into environment.glb by the Blender builder.
+spruce-atlas.png
+spruce-bark.png
+spruce-bark-normal.png
+*.build.glb
+*.ready.glb

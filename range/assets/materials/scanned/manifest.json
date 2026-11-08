@@ -1,0 +1,168 @@
+{
+  "source_repository": "https://github.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures",
+  "source_revision": "1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b",
+  "source_notice": {
+    "file": "SOURCE-NOTICE.md",
+    "url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/README.md",
+    "sha256": "d00b1be883049c10d05f6477ae5566f4390a882248f93d1daf0214283b40573b",
+    "declaration": "The source README identifies the materials as CC0-Textures.",
+    "qualification": "No standalone LICENSE or per-material author metadata is included upstream."
+  },
+  "normal_convention": "The source Blender package supplies *_nrm maps. They are used as OpenGL tangent-space normals without a green-channel flip; no format label is supplied upstream.",
+  "encoding": {
+    "Pillow": "13.0.0",
+    "libwebp": "1.6.0"
+  },
+  "maps": [
+    {
+      "file": "wood-color.webp",
+      "semantic": "albedo",
+      "source_url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Planks21_col.jpg",
+      "source_path": "textures/Planks21_col.jpg",
+      "source_bytes": 4385196,
+      "source_sha256": "61064629fb219c08d37140a75850a507311bdd5178715963ad214921fda6fdc3",
+      "source_git_blob_sha1": "f51e067ad0567b7dc32f5537536bc44fe9a834e5",
+      "source_dimensions": [
+        2048,
+        2048
+      ],
+      "output_dimensions": [
+        2048,
+        2048
+      ],
+      "output_bytes": 536282,
+      "output_sha256": "52fa16b6f915692dd1902018a72d3696cdce4b89956cd29e03a361eed53dbdd3",
+      "transforms": [
+        "JPEG decoded",
+        "original 2048-pixel resolution retained",
+        "RGB channels retained",
+        "WebP quality 90"
+      ]
+    },
+    {
+      "file": "wood-normal.webp",
+      "semantic": "normal",
+      "source_url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Planks21_nrm.jpg",
+      "source_path": "textures/Planks21_nrm.jpg",
+      "source_bytes": 6426690,
+      "source_sha256": "7a11549518d022a86e9c729bf8d30adbce6975339ce8f03a4d12695e3eff2ff8",
+      "source_git_blob_sha1": "01fbd74c9a2629c066e982faf8bec6843db11266",
+      "source_dimensions": [
+        2048,
+        2048
+      ],
+      "output_dimensions": [
+        1024,
+        1024
+      ],
+      "output_bytes": 1453356,
+      "output_sha256": "267c5214cac083c540a6882b9a4a15bc0f662fcb0db747c576b3147a563acf8d",
+      "transforms": [
+        "JPEG decoded",
+        "Lanczos resize to 1024",
+        "RGB channels retained",
+        "lossless WebP"
+      ]
+    },
+    {
+      "file": "wood-roughness.webp",
+      "semantic": "roughness",
+      "source_url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Planks21_rgh.jpg",
+      "source_path": "textures/Planks21_rgh.jpg",
+      "source_bytes": 2218122,
+      "source_sha256": "acce36b9d0d1c84fe32561d04527b47c278db6472b7e0be8d9e3ae34246eeabd",
+      "source_git_blob_sha1": "1cc8fd4de5296b7ba4f31b10c271d201ba504633",
+      "source_dimensions": [
+        2048,
+        2048
+      ],
+      "output_dimensions": [
+        1024,
+        1024
+      ],
+      "output_bytes": 95104,
+      "output_sha256": "fcf2a2f32c5072ba26794da6d763bce1416111a6613ac0dae889a25f1a817fee",
+      "transforms": [
+        "JPEG decoded",
+        "Lanczos resize to 1024",
+        "grayscale replicated into RGB",
+        "WebP quality 92"
+      ]
+    },
+    {
+      "file": "rock-color.webp",
+      "semantic": "albedo",
+      "source_url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Rock26_col.jpg",
+      "source_path": "textures/Rock26_col.jpg",
+      "source_bytes": 4778959,
+      "source_sha256": "bc411b4f43b99753082cf5fe87f122bc3b1d7eaac560ffae3bcbe5c497530674",
+      "source_git_blob_sha1": "db4855d66cd2587ab4bb0718ad4ea89e32dfeb66",
+      "source_dimensions": [
+        2048,
+        2048
+      ],
+      "output_dimensions": [
+        2048,
+        2048
+      ],
+      "output_bytes": 1152006,
+      "output_sha256": "cb9136b0472b4e3e5cc016681694e23eb074fa877281a2229991d5febf15aee8",
+      "transforms": [
+        "JPEG decoded",
+        "original 2048-pixel resolution retained",
+        "RGB channels retained",
+        "WebP quality 90"
+      ]
+    },
+    {
+      "file": "rock-normal.webp",
+      "semantic": "normal",
+      "source_url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Rock26_nrm.jpg",
+      "source_path": "textures/Rock26_nrm.jpg",
+      "source_bytes": 6255727,
+      "source_sha256": "0f4c9eb51ec0d6a230695d4b6e9836fa8788187b058a0506b36dc8ecdb8168ca",
+      "source_git_blob_sha1": "96d0b6abdbc0bfae59e817b1c8ac9165d639d0a3",
+      "source_dimensions": [
+        2048,
+        2048
+      ],
+      "output_dimensions": [
+        1024,
+        1024
+      ],
+      "output_bytes": 1637652,
+      "output_sha256": "9369a5e957c60803dd81944a158a01a76e66cb4ab976117e59f277a8ac2bf795",
+      "transforms": [
+        "JPEG decoded",
+        "Lanczos resize to 1024",
+        "RGB channels retained",
+        "lossless WebP"
+      ]
+    },
+    {
+      "file": "rock-roughness.webp",
+      "semantic": "roughness",
+      "source_url": "https://raw.githubusercontent.com/RubenCUR/ArmorPaint-Blender-Materials-Latest-March-1st-CC0-Textures/1b2a51fa95d6bc4c6f01336142b20f15f01dfa4b/textures/Rock26_rgh.jpg",
+      "source_path": "textures/Rock26_rgh.jpg",
+      "source_bytes": 1626704,
+      "source_sha256": "27d6ec1ba209360729ce36f49689631cb671a9742aa7e5f28e1d0c3772536bf2",
+      "source_git_blob_sha1": "09e0883bfd985e962c674fb97b2b5bbd23c35b5e",
+      "source_dimensions": [
+        2048,
+        2048
+      ],
+      "output_dimensions": [
+        1024,
+        1024
+      ],
+      "output_bytes": 50684,
+      "output_sha256": "418f87da17171c5083428614380a0994ca142cf90a0de0673fcc853eb590de94",
+      "transforms": [
+        "JPEG decoded",
+        "Lanczos resize to 1024",
+        "grayscale replicated into RGB",
+        "WebP quality 92"
+      ]
+    }
+  ]
+}

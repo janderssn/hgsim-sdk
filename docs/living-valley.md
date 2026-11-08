@@ -6,6 +6,9 @@ wildlife and spatial sound connect those places. The atmospheric work replaces
 the smooth local cloud shapes with a locally bundled Takram WebGL2 provider while
 retaining the game's renderer, materials and flight model.
 
+The subsequent [ground material pass](terrain-art.md) refines the near/far terrain
+and includes the latest comparison gallery. The images below preserve this living-valley checkpoint.
+
 The images below are actual 1280×800 production-renderer captures. The
 [alpine concept](concept/illustrated-alpine-polish.png),
 [boathouse concept](concept/lakeside-boathouse.png) and

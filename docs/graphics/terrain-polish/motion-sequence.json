@@ -1,0 +1,1392 @@
+{
+  "url": "http://127.0.0.1:4281/range/?quality=high",
+  "output": "/tmp/terrain-ground-motion",
+  "width": 960,
+  "height": 600,
+  "requestedFrames": 24,
+  "step": {
+    "x": 0.25,
+    "z": 0.4
+  },
+  "lookAhead": {
+    "x": 4,
+    "z": 14
+  },
+  "simulationFrozen": true,
+  "cloudWarmupFrames": 32,
+  "errors": [],
+  "warnings": [],
+  "frames": [
+    {
+      "index": 0,
+      "file": "frame-0000.png",
+      "camera": [
+        -91,
+        89.90096675239175,
+        -380
+      ],
+      "target": [
+        -87,
+        88.25337911306755,
+        -366
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 213,
+        "calls": 158,
+        "triangles": 5169790,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -16,
+        "cellZ": -64,
+        "tufts": 1273,
+        "flowers": 68,
+        "pebbles": 34,
+        "ferns": 7,
+        "shrubs": 408,
+        "litter": 23,
+        "deadwood": 0,
+        "seeds": 64,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 528623,
+        "cachedCells": 169,
+        "cellBuilds": 338,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 36,
+        "historyFrames": 33,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 1,
+      "file": "frame-0001.png",
+      "camera": [
+        -90.75,
+        89.82282547201392,
+        -379.6
+      ],
+      "target": [
+        -86.75,
+        88.25426912370534,
+        -365.6
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 221,
+        "calls": 158,
+        "triangles": 5162052,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -16,
+        "cellZ": -64,
+        "tufts": 1273,
+        "flowers": 68,
+        "pebbles": 34,
+        "ferns": 7,
+        "shrubs": 408,
+        "litter": 23,
+        "deadwood": 0,
+        "seeds": 64,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 528623,
+        "cachedCells": 169,
+        "cellBuilds": 338,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 37,
+        "historyFrames": 34,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 2,
+      "file": "frame-0002.png",
+      "camera": [
+        -90.5,
+        89.74465043111725,
+        -379.2
+      ],
+      "target": [
+        -86.5,
+        88.25494060196732,
+        -365.2
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 229,
+        "calls": 158,
+        "triangles": 5125686,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -16,
+        "cellZ": -64,
+        "tufts": 1273,
+        "flowers": 68,
+        "pebbles": 34,
+        "ferns": 7,
+        "shrubs": 408,
+        "litter": 23,
+        "deadwood": 0,
+        "seeds": 64,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 528623,
+        "cachedCells": 169,
+        "cellBuilds": 338,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 38,
+        "historyFrames": 35,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 3,
+      "file": "frame-0003.png",
+      "camera": [
+        -90.25,
+        89.66644819258094,
+        -378.8
+      ],
+      "target": [
+        -86.25,
+        88.25536762140344,
+        -364.8
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 237,
+        "calls": 159,
+        "triangles": 5102126,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -16,
+        "cellZ": -64,
+        "tufts": 1273,
+        "flowers": 68,
+        "pebbles": 34,
+        "ferns": 7,
+        "shrubs": 408,
+        "litter": 23,
+        "deadwood": 0,
+        "seeds": 64,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 528623,
+        "cachedCells": 169,
+        "cellBuilds": 338,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 39,
+        "historyFrames": 36,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 4,
+      "file": "frame-0004.png",
+      "camera": [
+        -90,
+        89.58822555341581,
+        -378.4
+      ],
+      "target": [
+        -86,
+        88.2555242851889,
+        -364.4
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 245,
+        "calls": 159,
+        "triangles": 5145405,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -64,
+        "tufts": 1426,
+        "flowers": 73,
+        "pebbles": 37,
+        "ferns": 9,
+        "shrubs": 437,
+        "litter": 27,
+        "deadwood": 0,
+        "seeds": 68,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 579726,
+        "cachedCells": 184,
+        "cellBuilds": 353,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 40,
+        "historyFrames": 37,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 5,
+      "file": "frame-0005.png",
+      "camera": [
+        -89.75,
+        89.5099140319231,
+        -378
+      ],
+      "target": [
+        -85.75,
+        88.25538472786377,
+        -364
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 253,
+        "calls": 159,
+        "triangles": 5253851,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 41,
+        "historyFrames": 38,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 6,
+      "file": "frame-0006.png",
+      "camera": [
+        -89.5,
+        89.431785709207,
+        -377.6
+      ],
+      "target": [
+        -85.5,
+        88.25492311675687,
+        -363.6
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 261,
+        "calls": 159,
+        "triangles": 5253869,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 42,
+        "historyFrames": 39,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 7,
+      "file": "frame-0007.png",
+      "camera": [
+        -89.25,
+        89.38052332478267,
+        -377.2
+      ],
+      "target": [
+        -85.25,
+        88.25411365309826,
+        -363.2
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 269,
+        "calls": 159,
+        "triangles": 5243453,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 43,
+        "historyFrames": 40,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 8,
+      "file": "frame-0008.png",
+      "camera": [
+        -89,
+        89.38245500284484,
+        -376.8
+      ],
+      "target": [
+        -85,
+        88.25293057281722,
+        -362.8
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 277,
+        "calls": 159,
+        "triangles": 5227777,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 44,
+        "historyFrames": 41,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 9,
+      "file": "frame-0009.png",
+      "camera": [
+        -88.75,
+        89.38484789010636,
+        -376.4
+      ],
+      "target": [
+        -84.75,
+        88.25134814702531,
+        -362.4
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 285,
+        "calls": 159,
+        "triangles": 5210169,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 45,
+        "historyFrames": 42,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 10,
+      "file": "frame-0010.png",
+      "camera": [
+        -88.5,
+        89.3876763215596,
+        -376
+      ],
+      "target": [
+        -84.5,
+        88.24934068218892,
+        -362
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 293,
+        "calls": 159,
+        "triangles": 5204447,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 46,
+        "historyFrames": 43,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 11,
+      "file": "frame-0011.png",
+      "camera": [
+        -88.25,
+        89.39091456531443,
+        -375.6
+      ],
+      "target": [
+        -84.25,
+        88.24688251998508,
+        -361.6
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 301,
+        "calls": 159,
+        "triangles": 5204439,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 47,
+        "historyFrames": 44,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 12,
+      "file": "frame-0012.png",
+      "camera": [
+        -88,
+        89.39453683015294,
+        -375.2
+      ],
+      "target": [
+        -84,
+        88.24394803684554,
+        -361.2
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 309,
+        "calls": 159,
+        "triangles": 5248667,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 48,
+        "historyFrames": 45,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 13,
+      "file": "frame-0013.png",
+      "camera": [
+        -87.75,
+        89.39851727276994,
+        -374.8
+      ],
+      "target": [
+        -83.75,
+        88.24051164318813,
+        -360.8
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 317,
+        "calls": 159,
+        "triangles": 5236755,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 49,
+        "historyFrames": 46,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 14,
+      "file": "frame-0014.png",
+      "camera": [
+        -87.5,
+        89.4028300046983,
+        -374.4
+      ],
+      "target": [
+        -83.5,
+        88.23654778233228,
+        -360.4
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 325,
+        "calls": 159,
+        "triangles": 5224857,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 50,
+        "historyFrames": 47,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 15,
+      "file": "frame-0015.png",
+      "camera": [
+        -87.25,
+        89.40744909892143,
+        -374
+      ],
+      "target": [
+        -83.25,
+        88.2320309291041,
+        -360
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 333,
+        "calls": 159,
+        "triangles": 5209297,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 51,
+        "historyFrames": 48,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 16,
+      "file": "frame-0016.png",
+      "camera": [
+        -87,
+        89.41234859616898,
+        -373.6
+      ],
+      "target": [
+        -83,
+        88.2323818021191,
+        -359.6
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 341,
+        "calls": 159,
+        "triangles": 5214973,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 52,
+        "historyFrames": 49,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 17,
+      "file": "frame-0017.png",
+      "camera": [
+        -86.75,
+        89.4164360737616,
+        -373.2
+      ],
+      "target": [
+        -82.75,
+        88.23273153051723,
+        -359.2
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 351,
+        "calls": 226,
+        "triangles": 7534679,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 53,
+        "historyFrames": 50,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 18,
+      "file": "frame-0018.png",
+      "camera": [
+        -86.5,
+        89.41861908841896,
+        -372.8
+      ],
+      "target": [
+        -82.5,
+        88.23305678505741,
+        -358.8
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 359,
+        "calls": 159,
+        "triangles": 5210877,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 54,
+        "historyFrames": 51,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 19,
+      "file": "frame-0019.png",
+      "camera": [
+        -86.25,
+        89.42100449303022,
+        -372.4
+      ],
+      "target": [
+        -82.25,
+        88.23333531998966,
+        -358.4
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 367,
+        "calls": 159,
+        "triangles": 5188889,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -63,
+        "tufts": 1666,
+        "flowers": 88,
+        "pebbles": 43,
+        "ferns": 10,
+        "shrubs": 534,
+        "litter": 32,
+        "deadwood": 0,
+        "seeds": 85,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 681446,
+        "cachedCells": 195,
+        "cellBuilds": 364,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 55,
+        "historyFrames": 52,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 20,
+      "file": "frame-0020.png",
+      "camera": [
+        -86,
+        89.4235662560001,
+        -372
+      ],
+      "target": [
+        -82,
+        88.23354613726534,
+        -358
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 375,
+        "calls": 159,
+        "triangles": 5277648,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -62,
+        "tufts": 1835,
+        "flowers": 107,
+        "pebbles": 46,
+        "ferns": 12,
+        "shrubs": 600,
+        "litter": 41,
+        "deadwood": 0,
+        "seeds": 93,
+        "distantFans": 1769,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 759815,
+        "cachedCells": 205,
+        "cellBuilds": 378,
+        "farCachedCells": 395,
+        "farCellBuilds": 691
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 56,
+        "historyFrames": 53,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 21,
+      "file": "frame-0021.png",
+      "camera": [
+        -85.75,
+        89.42627834025207,
+        -371.6
+      ],
+      "target": [
+        -81.75,
+        88.23499758005687,
+        -357.6
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 383,
+        "calls": 159,
+        "triangles": 5277620,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -62,
+        "tufts": 1835,
+        "flowers": 107,
+        "pebbles": 46,
+        "ferns": 12,
+        "shrubs": 600,
+        "litter": 41,
+        "deadwood": 0,
+        "seeds": 93,
+        "distantFans": 1769,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 759815,
+        "cachedCells": 205,
+        "cellBuilds": 378,
+        "farCachedCells": 395,
+        "farCellBuilds": 691
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 57,
+        "historyFrames": 54,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 22,
+      "file": "frame-0022.png",
+      "camera": [
+        -85.5,
+        89.42911470764014,
+        -371.2
+      ],
+      "target": [
+        -81.5,
+        88.23634364718622,
+        -357.2
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 391,
+        "calls": 159,
+        "triangles": 5189770,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -62,
+        "tufts": 1835,
+        "flowers": 107,
+        "pebbles": 46,
+        "ferns": 12,
+        "shrubs": 600,
+        "litter": 41,
+        "deadwood": 0,
+        "seeds": 93,
+        "distantFans": 1769,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 759815,
+        "cachedCells": 205,
+        "cellBuilds": 378,
+        "farCachedCells": 395,
+        "farCellBuilds": 691
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 58,
+        "historyFrames": 55,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    },
+    {
+      "index": 23,
+      "file": "frame-0023.png",
+      "camera": [
+        -85.25,
+        89.43204932304792,
+        -370.8
+      ],
+      "target": [
+        -81.25,
+        88.2375679452721,
+        -356.8
+      ],
+      "quality": "high",
+      "render": {
+        "frame": 399,
+        "calls": 159,
+        "triangles": 5217436,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -15,
+        "cellZ": -62,
+        "tufts": 1835,
+        "flowers": 107,
+        "pebbles": 46,
+        "ferns": 12,
+        "shrubs": 600,
+        "litter": 41,
+        "deadwood": 0,
+        "seeds": 93,
+        "distantFans": 1769,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 759815,
+        "cachedCells": 205,
+        "cellBuilds": 378,
+        "farCachedCells": 395,
+        "farCellBuilds": 691
+      },
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 59,
+        "historyFrames": 56,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 0
+      }
+    }
+  ],
+  "started": "2026-11-08T15:28:51.474Z",
+  "ok": true,
+  "finished": "2026-11-08T15:33:17.788Z"
+}

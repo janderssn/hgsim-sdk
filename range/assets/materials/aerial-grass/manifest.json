@@ -1,0 +1,66 @@
+{
+  "asset": "Aerial Grass Rock",
+  "author": "Rob Tuytel",
+  "original_asset": "https://polyhaven.com/a/aerial_grass_rock",
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "retrieved": "2026-11-08",
+  "role": "Offline albedo-luminance structure for the unique terrain pigment atlas; not loaded as a runtime texture or normal map.",
+  "source_repository": "https://github.com/playcanvas/engine",
+  "source_commit": "4b305e9b9c2cac2397b65f3ef3915a84a7c7508e",
+  "color": {
+    "file": "color.jpg",
+    "bytes": 210946,
+    "sha256": "47f2a34c9358698033055dee646cc1a699ba2d1645934c8eb3605488c0d93b11",
+    "source_filename": "aerial_grass_rock_diff_1k.jpg",
+    "source_url": "https://raw.githubusercontent.com/playcanvas/engine/4b305e9b9c2cac2397b65f3ef3915a84a7c7508e/examples/assets/textures/terrain/aerial_grass_rock_diff_1k.jpg",
+    "dimensions": [
+      1024,
+      1024
+    ],
+    "color_space": "sRGB",
+    "transform": "None: original mirrored JPEG bytes retained unchanged."
+  },
+  "render_scale": {
+    "metres": [
+      24,
+      32
+    ],
+    "status": "Artistic scale range for the atlas treatment, not verified physical capture dimensions."
+  },
+  "source_metadata": {
+    "file": "source-metadata.json",
+    "bytes": 834,
+    "sha256": "d7f4276f368240093d84065420e6c70a423e99978d83df3cc6c4e465ba0a4082",
+    "source_url": "https://raw.githubusercontent.com/lazyxeon/AstraWeave/ee337b9def74e6cf27f518c91c0a307e9ac0409c/docs/audits/evidence/t2c_materials_2026-07-25/polyhaven_api/info_aerial_grass_rock.json",
+    "reported_scale": "15M x 15M",
+    "reported_dimensions": [
+      15000,
+      15000
+    ],
+    "status": "Third-party retained Poly Haven API response. Live API unavailable during retrieval; reported capture scale not independently verified."
+  },
+  "notices": [
+    {
+      "file": "source-credits.txt",
+      "bytes": 1204,
+      "sha256": "999b390165fd3d0039b3086ed11e46fcb48bf6a1d6ef40eb056bf1bab4fb86f3",
+      "source_url": "https://raw.githubusercontent.com/playcanvas/engine/4b305e9b9c2cac2397b65f3ef3915a84a7c7508e/examples/assets/textures/terrain/polyhaven.credits.txt",
+      "role": "Pinned PlayCanvas attribution identifying this file, artist, original asset and CC0 status."
+    },
+    {
+      "file": "polyhaven-license.json",
+      "bytes": 2216,
+      "sha256": "a9d88b758d1751dd41713381115ed309ea659e219c1654157b709dce7757e779",
+      "source_url": "https://raw.githubusercontent.com/Poly-Haven/polyhaven.com/b1a6aa13afc03ae00860f6ac5fe6d5daf8e95356/public/locales/en/license.json",
+      "role": "Official Poly Haven asset-license page source."
+    },
+    {
+      "file": "LICENSE.txt",
+      "bytes": 7048,
+      "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+      "source_url": "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+      "role": "CC0 1.0 Universal legal text; retained copy from the existing aerial-rocks asset notices."
+    }
+  ]
+}

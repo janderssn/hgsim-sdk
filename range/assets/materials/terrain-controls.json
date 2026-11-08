@@ -1,8 +1,8 @@
 {
-  "description": "Original ecology controls and illustrated albedo pigment; no captured survey/height claim",
+  "description": "Original ecology controls and meadow pigments with licensed aerial-sward luminance; no captured survey/height claim",
   "dimensions": [
-    1024,
-    1024
+    2048,
+    2048
   ],
   "world_bounds_metres": {
     "minX": -1600,
@@ -10,6 +10,10 @@
     "width": 3200,
     "depth": 3200
   },
+  "texel_size_metres": [
+    1.5625,
+    1.5625
+  ],
   "linear": true,
   "format": "opaque RGB8 (no alpha data)",
   "flipY": false,
@@ -23,34 +27,67 @@
     "terrain-ecology.png": {
       "R": "exposed bedrock",
       "G": "talus/debris",
-      "B": "shared 20\u2013150m botanical patch field"
+      "B": "shared 6\u201330m meadow communities with broken 4\u20138m edges"
     }
   },
   "canonical_source": "range/world.js:sampleTerrainEcology(x,z)",
   "world_source_sha256": "098606bf47bfe86aa294fd2c5ff7e51e5017080b0713dfc423ceb0cddb8e089d",
   "geology_source_sha256": "15426fd4b3647d725417d16c2418306d84e512b8b8da13fb32b7bc35b9ba49ee",
-  "style_source_sha256": "dee7ac6007658663904227b44d9a0c553e17231a25ce2bafb189a9104fd5cc85",
+  "style_source_sha256": "855c391f5d04e1bc6a87e20b21455d961a1ea97499fe9d16a54850c5d9b36854",
   "site_source_sha256": "546cd89960c7c691e6e54df638205778b5ee730140f2e28b7e3109a3478471e7",
   "paint_atlas": {
     "file": "terrain-paint.webp",
-    "sha256": "7873566a708bd9a55e726ebbc990aecb1e79e5da9e705757550838d8564c62fa",
-    "bytes": 136948,
+    "sha256": "c67338db8b25bdf04e73a36673ee6c82c0bef5bc9982ed40a16798633a791499",
+    "bytes": 3214504,
     "color_space": "sRGB",
     "flipY": false,
-    "encoding": "RGB WebP quality92/method6",
-    "source": "Original linear pigment field from range/surface-style.js; not directional light"
+    "encoding": "RGB lossless WebP/method6",
+    "source": "Original linear pigments plus bounded CC0 aerial-sward luminance; not directional light",
+    "aerial_sward": {
+      "source": "range/assets/materials/aerial-grass/color.jpg",
+      "sha256": "47f2a34c9358698033055dee646cc1a699ba2d1645934c8eb3605488c0d93b11",
+      "license": "CC0-1.0",
+      "provenance": "range/assets/materials/aerial-grass/manifest.json",
+      "provenance_sha256": "8232ff213aba50b544030067b8d04cef95407588a857fe9d71c52c786b5de12a",
+      "artistic_patch_span_metres": 32.0,
+      "scale_note": "Artistic sampling span, not a verified physical capture footprint",
+      "processing": "sRGB decode; linear luminance area-prefilter; three translated triangle patches; zero-centred bounded contrast",
+      "filtered_source_dimensions": [
+        20,
+        20
+      ],
+      "filtered_linear_luminance_mean": 0.125899,
+      "filtered_linear_luminance_standard_deviation": 0.017613,
+      "maximum_contrast": {
+        "open_meadow": 0.15,
+        "protected_target": 0.05
+      },
+      "path_exclusion": "Full exclusion above 0.65 canonical path/occupied coverage; soft verge from 0.18",
+      "mean_gain": 1.000001,
+      "gain_standard_deviation": 0.054557,
+      "gain_range": [
+        0.873234,
+        1.142594
+      ]
+    },
+    "mean_linear_rgb": [
+      0.189583,
+      0.214719,
+      0.076165
+    ],
+    "community_mean": 0.498878
   },
-  "builder_sha256": "abf61016cc073233d2a67da7c9ba02cf1a5190380d126fdd0a798e7e43de95b8",
+  "builder_sha256": "5eef53b22c11394101bb86526590c5cc90071becd54a415425459ae85cbc31a8",
   "files": [
     {
       "file": "terrain-control.png",
-      "sha256": "5060e489d08b9a030aa9904b8117f8951ccd6c8fdb69efc5f442e13bd1d60287",
-      "bytes": 332763
+      "sha256": "0875a6ebc5eb336b7eacb8b5d9cf7653d63cf29f5c83f4d39ac8335c96288ee7",
+      "bytes": 921552
     },
     {
       "file": "terrain-ecology.png",
-      "sha256": "adbfd492abf78b8bfbcc02a5cd93756c2c50b55705354201137b7fa355cb15f1",
-      "bytes": 699598
+      "sha256": "2e294feb7f760674df4c61343d7553939152b582c89ddf1638cbfbba4ed975b6",
+      "bytes": 3689984
     }
   ]
 }

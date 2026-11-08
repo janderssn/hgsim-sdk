@@ -18,9 +18,9 @@ try {
     height: { type: 'string', default: '800' },
   } });
   const views = values.view.split(',');
-  if (views.some(view => !['flight', 'aircraft', 'departure', 'approach', 'launch', 'meadow', 'woodland', 'staging', 'refuge', 'lakeside', 'boathouse'].includes(view))
+  if (views.some(view => !['flight', 'aircraft', 'departure', 'approach', 'launch', 'meadow', 'ground', 'terrain', 'woodland', 'staging', 'refuge', 'lakeside', 'boathouse'].includes(view))
     || !['high', 'medium', 'low'].includes(values.quality)) {
-    throw new Error('Use --view flight|aircraft|departure|approach|launch|meadow|woodland|staging|refuge|lakeside|boathouse (comma-separated for a gallery).');
+    throw new Error('Use --view flight|aircraft|departure|approach|launch|meadow|ground|terrain|woodland|staging|refuge|lakeside|boathouse (comma-separated for a gallery).');
   }
   const width = Number(values.width), height = Number(values.height);
   if (![width, height].every(value => Number.isInteger(value) && value >= 240 && value <= 4096)) {
@@ -61,6 +61,10 @@ try {
   // Freeze immediately after readiness: inspection poses advance the same
   // production ticks without queuing dozens of unnecessary software-GPU frames.
   await page.eval('(() => { const last = requestAnimationFrame(() => {}); for (let id = Math.max(0, last - 32); id <= last; id++) cancelAnimationFrame(id); window.requestAnimationFrame=()=>0; })();1');
+  // Compile the production material path before expensive cloud-history warmup.
+  // A failed shader must not silently produce a misleading review gallery.
+  await page.eval('rangeDemo.render();1');
+  if (errors.length) throw new Error(errors.join('\n'));
   const reports = [];
   for (const view of views) {
     const output = views.length > 1 ? path.join(values.out, view + '.jpg') : values.out;
@@ -95,6 +99,12 @@ try {
       d.camera.position.set(x, y + 1.25, z);
       d.camera.lookAt(x - 3, y + .7, z + 35);
       document.querySelector('.hud').style.display = 'none';
+    } else if (${JSON.stringify(view)} === 'ground') {
+      d.camera.position.set(-91, d.terrainHeight(-91, -380) + 1.55, -380);
+      d.camera.lookAt(-87, d.terrainHeight(-87, -366) + .35, -366);
+    } else if (${JSON.stringify(view)} === 'terrain') {
+      d.camera.position.set(80, d.terrainHeight(80, -200) + 125, -200);
+      d.camera.lookAt(50, d.terrainHeight(50, 70), 70);
     } else if (${JSON.stringify(view)} === 'staging') {
       const site = d.setDressing?.sites.find(site => site.id === 'launch-staging');
       const x = site?.x ?? -30, z = site?.z ?? -620, y = d.terrainHeight(x, z);

@@ -1,0 +1,482 @@
+{
+  "output": "/tmp/terrain-art-final3",
+  "errors": [],
+  "frames": [
+    {
+      "output": "/tmp/terrain-art-final3/terrain.jpg",
+      "view": "terrain",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "light": "afternoon",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "clouds": "takram-webgl2",
+          "lakeside": "blender-lakeside",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54069,
+          "near": 0,
+          "mid": 91,
+          "far": 6128,
+          "testedCells": 147
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 78,
+          "triangles": 37468
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": false,
+          "cellX": -2,
+          "cellZ": -96,
+          "tufts": 868,
+          "flowers": 34,
+          "pebbles": 30,
+          "ferns": 1,
+          "shrubs": 173,
+          "litter": 0,
+          "deadwood": 0,
+          "seeds": 70,
+          "distantFans": 2494,
+          "distantRadius": 110,
+          "draws": 0,
+          "triangles": 340848,
+          "cachedCells": 169,
+          "cellBuilds": 169,
+          "farCachedCells": 349,
+          "farCellBuilds": 349
+        },
+        "water": {
+          "area": 55039,
+          "maxDepth": 1.0375027894973754,
+          "shoreStones": 59,
+          "reeds": 532,
+          "draws": 5,
+          "triangles": 14936,
+          "reflection": {
+            "frames": 1,
+            "width": 512,
+            "height": 320,
+            "enabled": true
+          }
+        },
+        "lakeside": {
+          "triangles": 39420,
+          "draws": 17,
+          "materials": 14,
+          "textures": 10
+        },
+        "life": {
+          "draws": 4,
+          "triangles": 11320,
+          "smokeWisps": 24
+        },
+        "wildlife": {
+          "raptors": 6,
+          "swallows": 3,
+          "butterflies": 8,
+          "draws": 1,
+          "triangles": 2868
+        },
+        "clouds": {
+          "provider": "takram-webgl2",
+          "cloudFrames": 37,
+          "historyFrames": 33,
+          "warmupFrames": 32,
+          "temporalUpscale": false,
+          "jitter": "original spatial blue noise with temporal rotation",
+          "quality": "high",
+          "width": 640,
+          "height": 400,
+          "historyResetFrames": 0
+        }
+      },
+      "camera": [
+        80,
+        139.1498955978094,
+        -200
+      ],
+      "render": {
+        "frame": 221,
+        "calls": 147,
+        "triangles": 1725812,
+        "points": 0,
+        "lines": 0
+      }
+    },
+    {
+      "output": "/tmp/terrain-art-final3/ground.jpg",
+      "view": "ground",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "light": "afternoon",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "clouds": "takram-webgl2",
+          "lakeside": "blender-lakeside",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54069,
+          "near": 82,
+          "mid": 316,
+          "far": 15054,
+          "testedCells": 320
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 78,
+          "triangles": 37468
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": true,
+          "cellX": -16,
+          "cellZ": -64,
+          "tufts": 1273,
+          "flowers": 68,
+          "pebbles": 34,
+          "ferns": 7,
+          "shrubs": 408,
+          "litter": 23,
+          "deadwood": 0,
+          "seeds": 64,
+          "distantFans": 1846,
+          "distantRadius": 110,
+          "draws": 8,
+          "triangles": 528623,
+          "cachedCells": 169,
+          "cellBuilds": 338,
+          "farCachedCells": 388,
+          "farCellBuilds": 670
+        },
+        "water": {
+          "area": 55039,
+          "maxDepth": 1.0375027894973754,
+          "shoreStones": 59,
+          "reeds": 532,
+          "draws": 5,
+          "triangles": 14936,
+          "reflection": {
+            "frames": 2,
+            "width": 512,
+            "height": 320,
+            "enabled": true
+          }
+        },
+        "lakeside": {
+          "triangles": 39420,
+          "draws": 17,
+          "materials": 14,
+          "textures": 10
+        },
+        "life": {
+          "draws": 4,
+          "triangles": 11320,
+          "smokeWisps": 24
+        },
+        "wildlife": {
+          "raptors": 6,
+          "swallows": 3,
+          "butterflies": 8,
+          "draws": 2,
+          "triangles": 3380
+        },
+        "clouds": {
+          "provider": "takram-webgl2",
+          "cloudFrames": 70,
+          "historyFrames": 33,
+          "warmupFrames": 32,
+          "temporalUpscale": false,
+          "jitter": "original spatial blue noise with temporal rotation",
+          "quality": "high",
+          "width": 640,
+          "height": 400,
+          "historyResetFrames": 0
+        }
+      },
+      "camera": [
+        -91,
+        89.90096675239175,
+        -380
+      ],
+      "render": {
+        "frame": 391,
+        "calls": 225,
+        "triangles": 7544614,
+        "points": 0,
+        "lines": 0
+      }
+    },
+    {
+      "output": "/tmp/terrain-art-final3/lakeside.jpg",
+      "view": "lakeside",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "light": "afternoon",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "clouds": "takram-webgl2",
+          "lakeside": "blender-lakeside",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54069,
+          "near": 51,
+          "mid": 265,
+          "far": 8775,
+          "testedCells": 205
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 78,
+          "triangles": 37468
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": true,
+          "cellX": -63,
+          "cellZ": 22,
+          "tufts": 2691,
+          "flowers": 143,
+          "pebbles": 63,
+          "ferns": 14,
+          "shrubs": 600,
+          "litter": 40,
+          "deadwood": 4,
+          "seeds": 94,
+          "distantFans": 2708,
+          "distantRadius": 110,
+          "draws": 9,
+          "triangles": 1012393,
+          "cachedCells": 169,
+          "cellBuilds": 507,
+          "farCachedCells": 349,
+          "farCellBuilds": 1019
+        },
+        "water": {
+          "area": 55039,
+          "maxDepth": 1.0375027894973754,
+          "shoreStones": 59,
+          "reeds": 532,
+          "draws": 5,
+          "triangles": 14936,
+          "reflection": {
+            "frames": 3,
+            "width": 512,
+            "height": 320,
+            "enabled": true
+          }
+        },
+        "lakeside": {
+          "triangles": 39420,
+          "draws": 17,
+          "materials": 14,
+          "textures": 10
+        },
+        "life": {
+          "draws": 4,
+          "triangles": 11320,
+          "smokeWisps": 24
+        },
+        "wildlife": {
+          "raptors": 6,
+          "swallows": 3,
+          "butterflies": 8,
+          "draws": 3,
+          "triangles": 4382
+        },
+        "clouds": {
+          "provider": "takram-webgl2",
+          "cloudFrames": 103,
+          "historyFrames": 33,
+          "warmupFrames": 32,
+          "temporalUpscale": false,
+          "jitter": "original spatial blue noise with temporal rotation",
+          "quality": "high",
+          "width": 640,
+          "height": 400,
+          "historyResetFrames": 0
+        }
+      },
+      "camera": [
+        -374,
+        7,
+        137
+      ],
+      "render": {
+        "frame": 561,
+        "calls": 191,
+        "triangles": 6230935,
+        "points": 0,
+        "lines": 0
+      }
+    },
+    {
+      "output": "/tmp/terrain-art-final3/departure.jpg",
+      "view": "departure",
+      "errors": [],
+      "scene": {
+        "quality": "high",
+        "visuals": {
+          "direction": "Golden Range",
+          "light": "afternoon",
+          "props": "illustrated-kit",
+          "models": "illustrated-kit",
+          "surfaces": true,
+          "terrain": true,
+          "sky": "illustrated-alpine",
+          "clouds": "takram-webgl2",
+          "lakeside": "blender-lakeside",
+          "forest": "forest",
+          "forestMipLevels": [
+            8,
+            8,
+            8,
+            8
+          ]
+        },
+        "forest": {
+          "total": 54069,
+          "near": 0,
+          "mid": 38,
+          "far": 21918,
+          "testedCells": 442
+        },
+        "props": {
+          "sites": 4,
+          "mergedDraws": 11,
+          "instancedDraws": 1,
+          "stones": 78,
+          "triangles": 37468
+        },
+        "cover": {
+          "quality": "high",
+          "radius": 35,
+          "active": false,
+          "cellX": -63,
+          "cellZ": 22,
+          "tufts": 2691,
+          "flowers": 143,
+          "pebbles": 63,
+          "ferns": 14,
+          "shrubs": 600,
+          "litter": 40,
+          "deadwood": 4,
+          "seeds": 94,
+          "distantFans": 2708,
+          "distantRadius": 110,
+          "draws": 0,
+          "triangles": 1012393,
+          "cachedCells": 169,
+          "cellBuilds": 507,
+          "farCachedCells": 349,
+          "farCellBuilds": 1019
+        },
+        "water": {
+          "area": 55039,
+          "maxDepth": 1.0375027894973754,
+          "shoreStones": 59,
+          "reeds": 532,
+          "draws": 5,
+          "triangles": 14936,
+          "reflection": {
+            "frames": 4,
+            "width": 512,
+            "height": 320,
+            "enabled": true
+          }
+        },
+        "lakeside": {
+          "triangles": 39420,
+          "draws": 17,
+          "materials": 14,
+          "textures": 10
+        },
+        "life": {
+          "draws": 4,
+          "triangles": 11320,
+          "smokeWisps": 24
+        },
+        "wildlife": {
+          "raptors": 6,
+          "swallows": 3,
+          "butterflies": 8,
+          "draws": 1,
+          "triangles": 2868
+        },
+        "clouds": {
+          "provider": "takram-webgl2",
+          "cloudFrames": 136,
+          "historyFrames": 33,
+          "warmupFrames": 32,
+          "temporalUpscale": false,
+          "jitter": "original spatial blue noise with temporal rotation",
+          "quality": "high",
+          "width": 640,
+          "height": 400,
+          "historyResetFrames": 0
+        }
+      },
+      "camera": [
+        -1.0469051170564527,
+        273.0099973108333,
+        -545.0974715192948
+      ],
+      "render": {
+        "frame": 731,
+        "calls": 301,
+        "triangles": 1293975,
+        "points": 0,
+        "lines": 0
+      }
+    }
+  ]
+}

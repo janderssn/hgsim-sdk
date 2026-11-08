@@ -14,38 +14,62 @@ const blend = (a, b, t) => a.map((value, i) => mix(value, b[i], t));
 
 /** Matte albedos in linear RGB; afternoon light and the grade supply lighting. */
 export const GROUND_PALETTE = Object.freeze({
-  ochre: pigment(0x9f8244), straw: pigment(0xb49d59), olive: pigment(0x657343),
-  sage: pigment(0x819571), fern: pigment(0x526c54), russet: pigment(0x866047),
-  umber: pigment(0x655345), field: pigment(0x90915c),
+  ochre: pigment(0x94804a), straw: pigment(0xa59158), olive: pigment(0x737d49),
+  sage: pigment(0x7c8755), fern: pigment(0x6d7a4c), russet: pigment(0x887055),
+  umber: pigment(0x6b5c49), field: pigment(0x90915c),
 });
 
 /**
  * Pure, deterministic and independent of render quality. Returned color is
  * linear RGB; all scalar fields are 0..1. CPU cover and the baked colour atlas
- * use this exact source, so botanical pigment follows visible meadow patches.
+ * share these pigment hues. The offline atlas adds bounded photographic sward
+ * luminance, so botanical colour still follows the visible meadow communities.
  */
 export function sampleGroundStyle(x, z, { moisture = .5, canopy = 0, path = 0 } = {}) {
   moisture = clamp(moisture); canopy = clamp(canopy); path = clamp(path);
-  const warpX = x + (noise(x / 270 + 17, z / 310 - 9) - .5) * 145;
-  const warpZ = z + (noise(x / 330 - 6, z / 250 + 13) - .5) * 105;
-  const broad = noise(warpX / 155 + 19, warpZ / 140 - 5);
-  const middle = noise(warpX / 47 - 11, warpZ / 61 + 4);
-  const variation = noise(warpX / 18 + 3, warpZ / 24 - 15);
-  const patch = clamp((broad * .42 + middle * .58 - .5) * 1.65 + .5);
-  const dryness = clamp(.22 + (1 - moisture) * .67 + (broad - .5) * .68
-    + (middle - .5) * .32 - canopy * .24);
+  // Plant communities follow the valley, with a gentle shear along its side
+  // shoulders. Small domain warps break their edges without the large soft
+  // camouflage blobs produced by the former 100 m colour noise. Moisture
+  // already includes the physical slope/rock masks from sampleTerrainEcology;
+  // this adds no competing relief or lighting to that ecological source.
+  const along = z + .28 * x * Math.tanh(x / 500);
+  const warpX = x + (noise(x / 38 + 17, along / 43 - 9) - .5) * 12;
+  const warpZ = along + (noise(x / 51 - 6, along / 37 + 13) - .5) * 10;
+  const broad = noise(x / 180 + 19, z / 190 - 5);
+  const community = noise(warpX / 23 - 11, warpZ / 32 + 4);
+  const broken = noise((warpX * .82 + warpZ * .57) / 11 + 23,
+    (warpZ * .82 - warpX * .57) / 16 - 17);
+  const edge = noise(warpX / 6.5 + 3, warpZ / 9 - 15);
+  const variation = clamp(community * .20 + broken * .35 + edge * .45);
+  const patch = smooth(.25, .75, community * .64 + broken * .25 + edge * .11);
+  // Broad climate only biases the composition slightly. Local communities
+  // differ by species and senescence, rather than arbitrary light/dark stains.
+  const dryness = clamp(.18 + (1 - moisture) * .64 + (.5 - patch) * .16
+    + (broad - .5) * .06 - canopy * .18);
   const mown = 1 - smooth(95, 165, Math.hypot(x - MARK.x, z - MARK.z));
-  const dry = blend(GROUND_PALETTE.ochre, GROUND_PALETTE.straw, smooth(.24, .80, patch));
-  const lush = blend(GROUND_PALETTE.fern, GROUND_PALETTE.sage, smooth(.20, .78, patch));
-  let color = blend(lush, dry, smooth(.32, .74, dryness));
-  color = blend(color, GROUND_PALETTE.olive, .33 * (1 - smooth(.30, .59, middle)));
-  // Broad russet interruptions soften the lawn and read as worn late-summer
-  // soil shoulders. They are pigment, not baked shadow or false terrain relief.
-  const wear = smooth(.50, .64, variation * .62 + broad * .38) * .50 * (1 - mown * .65);
-  const soil = blend(GROUND_PALETTE.russet, GROUND_PALETTE.umber, smooth(.48, .75, variation));
+  const dry = blend(GROUND_PALETTE.ochre, GROUND_PALETTE.straw, smooth(.25, .76, broken) * .65);
+  const lush = blend(GROUND_PALETTE.fern, GROUND_PALETTE.sage, smooth(.25, .77, patch));
+  // Olive grass remains connected between the communities. Dry climate
+  // permits local straw drifts, rather than replacing a whole moisture region
+  // with a mustard island. Similar grass reflectances keep this a botanical
+  // colour change rather than a false shadow/light pattern at flight height.
+  const dryDrift = smooth(.37, .70, broken * .65 + community * .35);
+  const senescence = smooth(.43, .75, dryness) * (.20 + .58 * dryDrift);
+  let color = blend(lush, dry, senescence);
+  const olive = smooth(.28, .51, dryness) * (1 - smooth(.59, .76, dryness));
+  color = blend(color, GROUND_PALETTE.olive, .24 + olive * (.12 + .16 * (1 - broken)));
+  // Bare shoulders are sparse, broken pockets in the drier communities.
+  // Damp meadows and the protected target retain living cover; actual tracks
+  // still use the explicit, precise path mask rather than this pigment noise.
+  const wear = smooth(.59, .76, broken * .65 + edge * .35)
+    * smooth(.48, .74, dryness) * .46 * (1 - mown * .90);
+  const soil = blend(GROUND_PALETTE.russet, GROUND_PALETTE.umber, edge * .55 + canopy * .25);
   color = blend(color, soil, wear);
-  color = blend(color, GROUND_PALETTE.field, mown * .65);
-  color = color.map(value => value * (.87 + variation * .22));
+  // Restrained 6–30 m reflectance variation survives the scanned detail fade.
+  // Mowing calms both hue and value at the target without painting a hard disk.
+  const value = 1 + (variation - .5) * .16 * (1 - mown * .68);
+  color = color.map(channel => channel * value);
+  color = blend(color, GROUND_PALETTE.field, mown * .82);
   color = blend(color, GROUND_PALETTE.umber, path * .84);
   return { dryness, mown, patch, variation, wear, color };
 }

@@ -6,8 +6,10 @@ The images below are actual in-game renders; the concept remains a separate imag
 
 The next environment pass adds the [living valley](living-valley.md): a Blender-authored
 boathouse and rowboat, a terrain-clipped tarn, refuge activity, wildlife and a shared
-physical sky/cloud lighting system. That page contains the latest gallery and
-validation; the captures below preserve the earlier alpine polish baseline.
+physical sky/cloud lighting system. The latest [ground material pass](terrain-art.md) adds shared stochastic PBR sampling
+and a refined landscape pigment atlas, with matched ground/aerial comparisons.
+Those pages contain the current galleries and validation; the captures below
+preserve the earlier alpine polish baseline.
 
 ## Alpine polish baseline
 

@@ -1,0 +1,2208 @@
+{
+  "forcedFragmentCap": 32,
+  "errors": [],
+  "warnings": [],
+  "states": [
+    {
+      "quality": "high",
+      "viewport": {
+        "width": 960,
+        "height": 600,
+        "aspect": 1.6,
+        "canvas": [
+          960,
+          600
+        ]
+      },
+      "caps": {
+        "reported": 32,
+        "actual": 32,
+        "vertex": 32,
+        "combined": 64
+      },
+      "ready": {
+        "rig": true,
+        "model": "force",
+        "meshes": 217,
+        "clouds": true,
+        "terrainSamples": [
+          {
+            "x": -91,
+            "z": -380,
+            "height": 88.35096675239176
+          },
+          {
+            "x": 80,
+            "z": -200,
+            "height": 14.149895597809408
+          },
+          {
+            "x": 0,
+            "z": 0,
+            "height": -1.4
+          }
+        ]
+      },
+      "draws": {
+        "frame": 53,
+        "calls": 228,
+        "triangles": 7554311,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -16,
+        "cellZ": -64,
+        "tufts": 1273,
+        "flowers": 68,
+        "pebbles": 34,
+        "ferns": 7,
+        "shrubs": 408,
+        "litter": 23,
+        "deadwood": 0,
+        "seeds": 64,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 528623,
+        "cachedCells": 169,
+        "cellBuilds": 338,
+        "farCachedCells": 388,
+        "farCellBuilds": 670
+      },
+      "materials": [
+        {
+          "name": "Alpine meadow, humus and mineral ground",
+          "lean": false
+        },
+        {
+          "name": "Fractured launch granite",
+          "lean": false
+        }
+      ],
+      "programs": [
+        {
+          "id": 17,
+          "kind": "terrain",
+          "linked": true,
+          "lean": false,
+          "total": 22,
+          "fragmentCount": 21,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "surfaceRockColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceMineralMacro",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCanopyMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "kind": "cliff",
+          "linked": true,
+          "lean": false,
+          "total": 19,
+          "fragmentCount": 18,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "cliffMacroColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffStoneColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "quality": "medium",
+      "viewport": {
+        "width": 960,
+        "height": 600,
+        "aspect": 1.6,
+        "canvas": [
+          960,
+          600
+        ]
+      },
+      "caps": {
+        "reported": 32,
+        "actual": 32,
+        "vertex": 32,
+        "combined": 64
+      },
+      "ready": {
+        "rig": true,
+        "model": "force",
+        "meshes": 217,
+        "clouds": true,
+        "terrainSamples": [
+          {
+            "x": -91,
+            "z": -380,
+            "height": 88.35096675239176
+          },
+          {
+            "x": 80,
+            "z": -200,
+            "height": 14.149895597809408
+          },
+          {
+            "x": 0,
+            "z": 0,
+            "height": -1.4
+          }
+        ]
+      },
+      "draws": {
+        "frame": 63,
+        "calls": 228,
+        "triangles": 3780735,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "medium",
+        "radius": 25,
+        "active": true,
+        "cellX": -16,
+        "cellZ": -64,
+        "tufts": 671,
+        "flowers": 43,
+        "pebbles": 24,
+        "ferns": 4,
+        "shrubs": 260,
+        "litter": 14,
+        "deadwood": 0,
+        "seeds": 43,
+        "distantFans": 479,
+        "distantRadius": 75,
+        "draws": 8,
+        "triangles": 291699,
+        "cachedCells": 157,
+        "cellBuilds": 338,
+        "farCachedCells": 280,
+        "farCellBuilds": 670
+      },
+      "materials": [
+        {
+          "name": "Alpine meadow, humus and mineral ground",
+          "lean": false
+        },
+        {
+          "name": "Fractured launch granite",
+          "lean": false
+        }
+      ],
+      "programs": [
+        {
+          "id": 17,
+          "kind": "terrain",
+          "linked": true,
+          "lean": false,
+          "total": 22,
+          "fragmentCount": 21,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "surfaceRockColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceMineralMacro",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCanopyMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "kind": "cliff",
+          "linked": true,
+          "lean": false,
+          "total": 19,
+          "fragmentCount": 18,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "cliffMacroColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffStoneColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "quality": "low",
+      "viewport": {
+        "width": 960,
+        "height": 600,
+        "aspect": 1.6,
+        "canvas": [
+          576,
+          360
+        ]
+      },
+      "caps": {
+        "reported": 32,
+        "actual": 32,
+        "vertex": 32,
+        "combined": 64
+      },
+      "ready": {
+        "rig": true,
+        "model": "force",
+        "meshes": 217,
+        "clouds": true,
+        "terrainSamples": [
+          {
+            "x": -91,
+            "z": -380,
+            "height": 88.35096675239176
+          },
+          {
+            "x": 80,
+            "z": -200,
+            "height": 14.149895597809408
+          },
+          {
+            "x": 0,
+            "z": 0,
+            "height": -1.4
+          }
+        ]
+      },
+      "draws": {
+        "frame": 70,
+        "calls": 120,
+        "triangles": 573057,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "low",
+        "radius": 15,
+        "active": true,
+        "cellX": -16,
+        "cellZ": -64,
+        "tufts": 212,
+        "flowers": 16,
+        "pebbles": 14,
+        "ferns": 0,
+        "shrubs": 40,
+        "litter": 9,
+        "deadwood": 0,
+        "seeds": 8,
+        "distantFans": 204,
+        "distantRadius": 40,
+        "draws": 7,
+        "triangles": 82304,
+        "cachedCells": 121,
+        "cellBuilds": 338,
+        "farCachedCells": 169,
+        "farCellBuilds": 670
+      },
+      "materials": [
+        {
+          "name": "Alpine meadow, humus and mineral ground",
+          "lean": false
+        },
+        {
+          "name": "Fractured launch granite",
+          "lean": false
+        }
+      ],
+      "programs": [
+        {
+          "id": 17,
+          "kind": "terrain",
+          "linked": true,
+          "lean": false,
+          "total": 22,
+          "fragmentCount": 21,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "surfaceRockColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceMineralMacro",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCanopyMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "kind": "cliff",
+          "linked": true,
+          "lean": false,
+          "total": 19,
+          "fragmentCount": 18,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "cliffMacroColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffStoneColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "quality": "high",
+      "viewport": {
+        "width": 390,
+        "height": 780,
+        "aspect": 0.5,
+        "canvas": [
+          390,
+          780
+        ]
+      },
+      "caps": {
+        "reported": 32,
+        "actual": 32,
+        "vertex": 32,
+        "combined": 64
+      },
+      "ready": {
+        "rig": true,
+        "model": "force",
+        "meshes": 217,
+        "clouds": true,
+        "terrainSamples": [
+          {
+            "x": -91,
+            "z": -380,
+            "height": 88.35096675239176
+          },
+          {
+            "x": 80,
+            "z": -200,
+            "height": 14.149895597809408
+          },
+          {
+            "x": 0,
+            "z": 0,
+            "height": -1.4
+          }
+        ]
+      },
+      "draws": {
+        "frame": 78,
+        "calls": 147,
+        "triangles": 5102958,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "high",
+        "radius": 35,
+        "active": true,
+        "cellX": -16,
+        "cellZ": -64,
+        "tufts": 1273,
+        "flowers": 68,
+        "pebbles": 34,
+        "ferns": 7,
+        "shrubs": 408,
+        "litter": 23,
+        "deadwood": 0,
+        "seeds": 64,
+        "distantFans": 1846,
+        "distantRadius": 110,
+        "draws": 8,
+        "triangles": 528623,
+        "cachedCells": 169,
+        "cellBuilds": 386,
+        "farCachedCells": 349,
+        "farCellBuilds": 850
+      },
+      "materials": [
+        {
+          "name": "Alpine meadow, humus and mineral ground",
+          "lean": false
+        },
+        {
+          "name": "Fractured launch granite",
+          "lean": false
+        }
+      ],
+      "programs": [
+        {
+          "id": 17,
+          "kind": "terrain",
+          "linked": true,
+          "lean": false,
+          "total": 22,
+          "fragmentCount": 21,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "surfaceRockColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceMineralMacro",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCanopyMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "kind": "cliff",
+          "linked": true,
+          "lean": false,
+          "total": 19,
+          "fragmentCount": 18,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "cliffMacroColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffStoneColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "quality": "medium",
+      "viewport": {
+        "width": 390,
+        "height": 780,
+        "aspect": 0.5,
+        "canvas": [
+          390,
+          780
+        ]
+      },
+      "caps": {
+        "reported": 32,
+        "actual": 32,
+        "vertex": 32,
+        "combined": 64
+      },
+      "ready": {
+        "rig": true,
+        "model": "force",
+        "meshes": 217,
+        "clouds": true,
+        "terrainSamples": [
+          {
+            "x": -91,
+            "z": -380,
+            "height": 88.35096675239176
+          },
+          {
+            "x": 80,
+            "z": -200,
+            "height": 14.149895597809408
+          },
+          {
+            "x": 0,
+            "z": 0,
+            "height": -1.4
+          }
+        ]
+      },
+      "draws": {
+        "frame": 86,
+        "calls": 147,
+        "triangles": 2527862,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "medium",
+        "radius": 25,
+        "active": true,
+        "cellX": -16,
+        "cellZ": -64,
+        "tufts": 671,
+        "flowers": 43,
+        "pebbles": 24,
+        "ferns": 4,
+        "shrubs": 260,
+        "litter": 14,
+        "deadwood": 0,
+        "seeds": 43,
+        "distantFans": 479,
+        "distantRadius": 75,
+        "draws": 8,
+        "triangles": 291699,
+        "cachedCells": 157,
+        "cellBuilds": 386,
+        "farCachedCells": 277,
+        "farCellBuilds": 850
+      },
+      "materials": [
+        {
+          "name": "Alpine meadow, humus and mineral ground",
+          "lean": false
+        },
+        {
+          "name": "Fractured launch granite",
+          "lean": false
+        }
+      ],
+      "programs": [
+        {
+          "id": 17,
+          "kind": "terrain",
+          "linked": true,
+          "lean": false,
+          "total": 22,
+          "fragmentCount": 21,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "surfaceRockColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceMineralMacro",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCanopyMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "kind": "cliff",
+          "linked": true,
+          "lean": false,
+          "total": 19,
+          "fragmentCount": 18,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "cliffMacroColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffStoneColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "quality": "low",
+      "viewport": {
+        "width": 390,
+        "height": 780,
+        "aspect": 0.5,
+        "canvas": [
+          234,
+          468
+        ]
+      },
+      "caps": {
+        "reported": 32,
+        "actual": 32,
+        "vertex": 32,
+        "combined": 64
+      },
+      "ready": {
+        "rig": true,
+        "model": "force",
+        "meshes": 217,
+        "clouds": true,
+        "terrainSamples": [
+          {
+            "x": -91,
+            "z": -380,
+            "height": 88.35096675239176
+          },
+          {
+            "x": 80,
+            "z": -200,
+            "height": 14.149895597809408
+          },
+          {
+            "x": 0,
+            "z": 0,
+            "height": -1.4
+          }
+        ]
+      },
+      "draws": {
+        "frame": 93,
+        "calls": 108,
+        "triangles": 523654,
+        "points": 0,
+        "lines": 0
+      },
+      "cover": {
+        "quality": "low",
+        "radius": 15,
+        "active": true,
+        "cellX": -16,
+        "cellZ": -64,
+        "tufts": 212,
+        "flowers": 16,
+        "pebbles": 14,
+        "ferns": 0,
+        "shrubs": 40,
+        "litter": 9,
+        "deadwood": 0,
+        "seeds": 8,
+        "distantFans": 204,
+        "distantRadius": 40,
+        "draws": 7,
+        "triangles": 82304,
+        "cachedCells": 121,
+        "cellBuilds": 386,
+        "farCachedCells": 169,
+        "farCellBuilds": 850
+      },
+      "materials": [
+        {
+          "name": "Alpine meadow, humus and mineral ground",
+          "lean": false
+        },
+        {
+          "name": "Fractured launch granite",
+          "lean": false
+        }
+      ],
+      "programs": [
+        {
+          "id": 17,
+          "kind": "terrain",
+          "linked": true,
+          "lean": false,
+          "total": 22,
+          "fragmentCount": 21,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "surfaceRockColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceSoilNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceRockRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceMineralMacro",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "surfaceTalusNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCanopyMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "map",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        },
+        {
+          "id": 18,
+          "kind": "cliff",
+          "linked": true,
+          "lean": false,
+          "total": 19,
+          "fragmentCount": 18,
+          "vertexOnly": [
+            "skyProbeRadiance"
+          ],
+          "samplers": [
+            {
+              "name": "skyProbeRadiance",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "advancedCloudShadow",
+              "size": 1,
+              "type": 36289
+            },
+            {
+              "name": "cliffMacroColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffStoneColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffGrassNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffWorldPaint",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathColor",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathNormal",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffFloorRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffPathRoughness",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffControls",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "cliffEcology",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "forestCoverageMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "directionalShadowMap[0]",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "normalMap",
+              "size": 1,
+              "type": 35678
+            },
+            {
+              "name": "roughnessMap",
+              "size": 1,
+              "type": 35678
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "started": "2026-11-08T15:20:28.371Z",
+  "initial": {
+    "quality": "high",
+    "viewport": {
+      "width": 960,
+      "height": 600,
+      "aspect": 1.6,
+      "canvas": [
+        960,
+        600
+      ]
+    },
+    "caps": {
+      "reported": 32,
+      "actual": 32,
+      "vertex": 32,
+      "combined": 64
+    },
+    "ready": {
+      "rig": true,
+      "model": "force",
+      "meshes": 217,
+      "clouds": true,
+      "terrainSamples": [
+        {
+          "x": -91,
+          "z": -380,
+          "height": 88.35096675239176
+        },
+        {
+          "x": 80,
+          "z": -200,
+          "height": 14.149895597809408
+        },
+        {
+          "x": 0,
+          "z": 0,
+          "height": -1.4
+        }
+      ]
+    },
+    "draws": {
+      "frame": 43,
+      "calls": 203,
+      "triangles": 1377354,
+      "points": 0,
+      "lines": 0
+    },
+    "cover": {
+      "quality": "high",
+      "radius": 35,
+      "active": true,
+      "cellX": -2,
+      "cellZ": -96,
+      "tufts": 868,
+      "flowers": 34,
+      "pebbles": 30,
+      "ferns": 1,
+      "shrubs": 173,
+      "litter": 0,
+      "deadwood": 0,
+      "seeds": 70,
+      "distantFans": 2494,
+      "distantRadius": 110,
+      "draws": 7,
+      "triangles": 340848,
+      "cachedCells": 169,
+      "cellBuilds": 169,
+      "farCachedCells": 349,
+      "farCellBuilds": 349
+    },
+    "materials": [
+      {
+        "name": "Alpine meadow, humus and mineral ground",
+        "lean": false
+      },
+      {
+        "name": "Fractured launch granite",
+        "lean": false
+      }
+    ],
+    "programs": [
+      {
+        "id": 17,
+        "kind": "terrain",
+        "linked": true,
+        "lean": false,
+        "total": 22,
+        "fragmentCount": 21,
+        "vertexOnly": [
+          "skyProbeRadiance"
+        ],
+        "samplers": [
+          {
+            "name": "skyProbeRadiance",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "advancedCloudShadow",
+            "size": 1,
+            "type": 36289
+          },
+          {
+            "name": "surfaceRockColor",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceRockNormal",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceSoilColor",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceSoilNormal",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceControls",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceFloorColor",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceFloorNormal",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceEcology",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceWorldPaint",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceFloorRoughness",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceRockRoughness",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceMineralMacro",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceTalusColor",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "surfaceTalusNormal",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "forestCanopyMap",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "forestCoverageMap",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "map",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "directionalShadowMap[0]",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "normalMap",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "roughnessMap",
+            "size": 1,
+            "type": 35678
+          }
+        ]
+      },
+      {
+        "id": 18,
+        "kind": "cliff",
+        "linked": true,
+        "lean": false,
+        "total": 19,
+        "fragmentCount": 18,
+        "vertexOnly": [
+          "skyProbeRadiance"
+        ],
+        "samplers": [
+          {
+            "name": "skyProbeRadiance",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "advancedCloudShadow",
+            "size": 1,
+            "type": 36289
+          },
+          {
+            "name": "cliffMacroColor",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffStoneColor",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffGrassColor",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffGrassNormal",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffWorldPaint",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffFloorColor",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffFloorNormal",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffPathColor",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffPathNormal",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffFloorRoughness",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffPathRoughness",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffControls",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "cliffEcology",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "forestCoverageMap",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "directionalShadowMap[0]",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "normalMap",
+            "size": 1,
+            "type": 35678
+          },
+          {
+            "name": "roughnessMap",
+            "size": 1,
+            "type": 35678
+          }
+        ]
+      }
+    ]
+  },
+  "ok": true,
+  "finished": "2026-11-08T15:21:37.358Z"
+}

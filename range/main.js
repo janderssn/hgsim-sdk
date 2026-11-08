@@ -102,7 +102,8 @@ if (!aerial) aerial = createAerialAtmosphere(THREE, { sunDirection, sunColor: AR
   style: ART.skyStyle, quality: initialQuality });
 scene.add(aerial.sky);
 const [surfaces, forestAssets, heightfield] = await Promise.all([
-  createSurfaceMaterials(THREE, { anisotropy: renderer.capabilities.getMaxAnisotropy() }).catch(error => {
+  createSurfaceMaterials(THREE, { anisotropy: renderer.capabilities.getMaxAnisotropy(),
+    maxTextures: renderer.capabilities.maxTextures }).catch(error => {
     console.warn('Procedural surface fallback:', error.message);
     return { setQuality() {} };
   }),

@@ -253,8 +253,15 @@ export function createGroundCover(THREE, scene, {
           : batch === 4 ? 1.05 + hash(seedX, seedZ, salt + 3) * .45 : .8 + hash(seedX, seedZ, salt + 3) * .66;
     const height = batch === 0 ? (1 - site.style.mown * .74) * (.70 + site.colony * .54 + site.style.dryness * .12)
       : batch === 7 ? 1 - site.style.mown * .72 : batch === 4 ? .72 + site.moisture * .24 : 1;
-    const spread = batch === 0 ? 1.00 + site.colony * .35 : batch === 1 ? 1.25 : batch === 4 ? 1.22 : 1;
+    const spread = batch === 0 ? 1.00 + site.colony * .35 : batch === 1 ? 1.25
+      : batch === 4 ? .96 + site.colony * .24 : 1;
     scale.set(size * spread, size * height * (.86 + hash(seedX, seedZ, salt + 4) * .24), size * spread);
+    if (batch === 4) {
+      // Related colonies keep a common stature without repeating the same
+      // circular rosette footprint across every patch of ground.
+      const aspect = .85 + hash(seedX, seedZ, salt + 6) * .30;
+      scale.x *= aspect; scale.z /= aspect;
+    }
     matrix.compose(position, rotation, scale);
     const shade = .83 + hash(seedX, seedZ, salt + 5) * .32;
     if (batch === 0) {
@@ -264,7 +271,11 @@ export function createGroundCover(THREE, scene, {
       color.multiplyScalar(shade);
     } else if (batch === 1) {
       color.setRGB(shade * .97, shade, shade * .94);
-    } else if (batch === 3 || batch === 4) color.setRGB(shade * .9, shade, shade * .98);
+    } else if (batch === 3 || batch === 4) {
+      const dry = site.style.dryness;
+      color.setRGB(shade * (.83 + dry * .23), shade * (.96 - dry * .03),
+        shade * (.77 - dry * .18));
+    }
     else if (batch === 7) color.setRGB(shade, shade * .98, shade * .90);
     else color.setRGB(shade, shade, shade);
     return { x, y: site.y, z, density, matrix: matrix.toArray(new Float32Array(16)),
@@ -281,7 +292,7 @@ export function createGroundCover(THREE, scene, {
       const site = suitable(x, z);
       if (site && hash(cx, cz, candidate * 7 + 103) <
         (.72 + site.style.patch * .48) * (1 - (site.style.wear || 0) * .6)
-          * (1 - site.canopy * .77) * (1 - site.talus * .83) * (1 - site.path * .9)) {
+          * (1 - site.canopy * .82) * (1 - site.talus * .83) * (1 - site.path * .9)) {
         groups[0].push(placement(0, x, site, z, cx, cz, candidate * 11 + 800, hash(cx, cz, candidate * 7 + 100)));
       }
     }

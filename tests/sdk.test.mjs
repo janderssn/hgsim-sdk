@@ -129,11 +129,11 @@ test('round events: one type, all of them, once, and mistakes named', async () =
   const round = createRound({ glider: createGlider({ world, preset: 'falcon-170' }), realistic: false });
   const all = [], liftoffs = [], launches = [];
   round.on(e => all.push(e.type));
-  const off = round.on('liftoff', e => liftoffs.push(e.dropped));
+  const off = round.on('airborne', e => liftoffs.push(e.dropped));
   round.once('launch', () => launches.push(1));
   round.standAt(SITES.ramp).launch();
   for (let i = 0; i < 60 * 15 && round.phase === 'launch'; i++) round.step(1 / 60);
-  assert.deepEqual(all.slice(0, 2), ['launch', 'liftoff']);
+  assert.deepEqual(all.slice(0, 2), ['launch', 'airborne']);
   assert.equal(liftoffs.length, 1); assert.equal(typeof liftoffs[0], 'boolean');
   off(); round.standAt(SITES.ramp).launch();
   for (let i = 0; i < 60 * 15 && round.phase === 'launch'; i++) round.step(1 / 60);
@@ -165,11 +165,13 @@ test('the version, the exports and the generated config types agree with the cod
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
   assert.equal(VERSION, pkg.version);
   assert.ok(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8').includes(`## [${VERSION}]`), 'the CHANGELOG has this version');
-  assert.deepEqual(Object.keys(pkg.exports), ['.', './three', './package.json']);
+  assert.deepEqual(Object.keys(pkg.exports), ['.', './three', './ground', './package.json']);
   const { configTypes } = await import('../tools/config-types.mjs');
   assert.equal(readFileSync(new URL('../types/configs.d.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n'),
     configTypes(), 'npm run types:configs');
   // every runtime export is declared
+  const missingIn = (declared, module) => Object.keys(module).filter(name => !['const', 'function'].some(kind => declared.includes(`export ${kind} ${name}:`) || declared.includes(`export ${kind} ${name}(`) || declared.includes(`export ${kind} ${name}<`)));
+  assert.deepEqual(missingIn(readFileSync(new URL('../types/ground.d.ts', import.meta.url), 'utf8'), await import('../src/ground/index.js')), [], 'hgsim/ground exports without declarations');
   const declared = readFileSync(new URL('../types/index.d.ts', import.meta.url), 'utf8');
   const index = await import('../src/index.js');
   const missing = Object.keys(index).filter(name => !['const', 'function'].some(kind => declared.includes(`export ${kind} ${name}:`) || declared.includes(`export ${kind} ${name}(`) || declared.includes(`export ${kind} ${name}<`)));

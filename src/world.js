@@ -10,6 +10,16 @@
  *   });
  *   world.airAt(x, y, z)   // { lift, thermalLift, ridgeLift, extraLift, windX, windZ, groundHeight, aboveGround }
  *
+ * The place every vehicle meets, not only the air: what stands on the terrain (platform: a ramp's deck, a bridge), what it is made
+ * of (material, see MATERIALS), water, solid things (buildings, trees, pylons) and the edge of the map. Each is a plain function the
+ * game supplies, and each has a default (none, grass, dry, open, unbounded), so a world needs only what its vehicles use:
+ *   world.groundAt(x, z)      where feet stand and a glider lands: the terrain, or a platform above it
+ *   world.normalAt(x, z)      the ground's unit normal { x, y, z };  world.slopeAt(x, z): its slope, rise per metre
+ *   world.materialAt(x, z)    { name, grip, softness } (MATERIALS)
+ *   world.waterAt(x, z)       the water's surface height there, or null
+ *   world.solidAt(x, y, z)    what solid thing is at that point (anything truthy, such as 'hut'), or null
+ *   world.inBounds(x, z, margin)
+ *
  * Frame: x east, y up, z north. Wind {x, z} is the direction the air travels toward.
  */
 import { defineConfig } from './config.js';
@@ -36,11 +46,31 @@ export const AIR_DEFAULTS = Object.freeze({
 const flat = () => 0;
 
 /**
+ * What the ground is made of, as vehicles meet it: grip (the friction coefficient a foot gets) and softness (0 firm .. 1 deep: how
+ * much it slows a foot). Ballpark values; a world's material function returns a name, or an object of its own, which may carry
+ * more for a vehicle of its own (a ski's glide, a wheel's rolling resistance).
+ */
+export const MATERIALS = Object.freeze({
+  grass: Object.freeze({ name: 'grass', grip: 0.55, softness: 0.05 }),
+  dirt: Object.freeze({ name: 'dirt', grip: 0.65, softness: 0.1 }),
+  gravel: Object.freeze({ name: 'gravel', grip: 0.55, softness: 0.15 }),
+  rock: Object.freeze({ name: 'rock', grip: 0.75, softness: 0 }),
+  road: Object.freeze({ name: 'road', grip: 0.9, softness: 0 }),
+  wood: Object.freeze({ name: 'wood', grip: 0.6, softness: 0 }),
+  sand: Object.freeze({ name: 'sand', grip: 0.45, softness: 0.5 }),
+  mud: Object.freeze({ name: 'mud', grip: 0.3, softness: 0.45 }),
+  snow: Object.freeze({ name: 'snow', grip: 0.3, softness: 0.4 }),
+  ice: Object.freeze({ name: 'ice', grip: 0.08, softness: 0 }),
+});
+const materialOf = m => typeof m === 'string' ? MATERIALS[m] ?? MATERIALS.grass : m && typeof m === 'object' ? { ...MATERIALS.grass, ...m } : MATERIALS.grass;
+
+/**
  * options: terrain(x, z), surface(x, z) (the top of whatever stands on the ground, such as trees, for the glider's clearance;
  * defaults to the terrain), wind, thermals [{ x, z, radius, strength }], lift [(x, y, z, sample) => m/s], air (AIR_DEFAULTS
  * overrides). Setting thermalCeiling alone keeps the fade 500 m below it.
  */
-export function createWorld({ terrain = flat, surface = null, wind = null, thermals = [], lift = [], air = {} } = {}) {
+export function createWorld({ terrain = flat, surface = null, platform = null, material = null, water = null, solid = null, bounds = null, wind = null, thermals = [], lift = [], air = {} } = {}) {
+  for (const [key, f] of Object.entries({ platform, material, water, solid, bounds })) if (f !== null && typeof f !== 'function') throw new TypeError(`createWorld: ${key} must be a function`);
   if (typeof terrain !== 'function') throw new TypeError('createWorld: terrain must be a function (x, z) => height');
   if (surface !== null && typeof surface !== 'function') throw new TypeError('createWorld: surface must be a function (x, z) => height');
   if (wind !== null && typeof wind !== 'function' && typeof wind !== 'object') throw new TypeError('createWorld: wind must be { x, z }, a wind object or (x, y, z) => ({ x, z })');
@@ -50,14 +80,33 @@ export function createWorld({ terrain = flat, surface = null, wind = null, therm
   const fadeStart = Math.min(ceiling - 1, finite(air.thermalFadeStart, Math.min(AIR_DEFAULTS.thermalFadeStart, ceiling - 500)));
   const config = defineConfig(AIR_DEFAULTS, { ...air, thermalFadeStart: fadeStart }, 'air');
   const heightAt = (x, z) => finite(terrain(x, z));
+  // Where feet, wheels and a landing glider stand: the terrain, or a platform (a deck, a bridge) above it.
+  const groundAt = platform ? (x, z) => { const g = heightAt(x, z), p = platform(x, z); return Number.isFinite(p) && p > g ? p : g; } : heightAt;
   const windAt = typeof wind === 'function' ? (x, y, z) => wind(x, y, z) || { x: 0, z: 0 } : () => wind || { x: 0, z: 0 };
 
   const world = {
     config, thermals, lift,
-    /** Ground height at (x, z). */
+    /** Ground height at (x, z): the terrain itself. */
     heightAt,
+    /** Where feet, wheels and a landing glider stand at (x, z): the terrain, or a platform (a deck, a bridge) above it. */
+    groundAt,
+    /** The ground's slope at (x, z): rise per metre along the steepest way. */
+    slopeAt(x, z, d = 1) { const gx = (world.groundAt(x + d, z) - world.groundAt(x - d, z)) / (2 * d), gz = (world.groundAt(x, z + d) - world.groundAt(x, z - d)) / (2 * d); return Math.hypot(gx, gz); },
+    /** The ground's unit normal at (x, z), { x, y, z }. */
+    normalAt(x, z, d = 1, out = {}) {
+      const gx = (world.groundAt(x + d, z) - world.groundAt(x - d, z)) / (2 * d), gz = (world.groundAt(x, z + d) - world.groundAt(x, z - d)) / (2 * d), n = Math.hypot(gx, 1, gz);
+      out.x = -gx / n; out.y = 1 / n; out.z = -gz / n; return out;
+    },
+    /** What the ground is made of at (x, z): one of MATERIALS (or the world's own), grass by default. */
+    materialAt: material ? (x, z) => materialOf(material(x, z)) : () => MATERIALS.grass,
+    /** The water's surface height at (x, z), or null where there is none. */
+    waterAt: water ? (x, z) => { const w = water(x, z); return Number.isFinite(w) ? w : null; } : () => null,
+    /** The solid thing at a point (a building, a tree, a pylon: whatever the world names it), or null. */
+    solidAt: solid ? (x, y, z) => solid(x, y, z) || null : () => null,
+    /** Whether (x, z) is on the map, at least margin metres in from its edge. */
+    inBounds: bounds ? (x, z, margin = 0) => !!bounds(x, z, margin) : () => true,
     /** Height of the top of the ground or whatever stands on it at (x, z): what the glider must clear. */
-    surfaceAt: surface ? (x, z) => Math.max(heightAt(x, z), finite(surface(x, z), heightAt(x, z))) : heightAt,
+    surfaceAt: surface ? (x, z) => Math.max(groundAt(x, z), finite(surface(x, z), groundAt(x, z))) : groundAt,
     /** The wind at a point, { x, z } in m/s (where the air goes). */
     windAt,
     /** The air at a point: its rise (lift, m/s, + up) and what it is made of, the wind and the ground below. */

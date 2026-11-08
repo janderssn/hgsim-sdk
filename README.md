@@ -181,6 +181,30 @@ glider.flareZone().at(airspeed);   // { low, high }: heights of the feet to flar
 
 `npm run polars` prints the presets side by side, VG off and on. In the range, the panel's Glider section picks a preset (also `?glider=t2c-144`) and sets the VG (key **V**). Its polar and pitch stability charts redraw as you tune or pull the VG.
 
+### Vehicles
+
+hgsim simulates air vehicles: the hang glider so far, with paragliders to follow. Games move through the world in vehicles, and the ones on the ground (the walker so far) are in `hgsim/ground`, on the same world, clock, poses and events ([docs/vehicles.md](docs/vehicles.md)). Every vehicle is stepped at a fixed tick and has the same small surface: `kind`, `phase`, `airborne`, `step(dt, input)`, `pose()`, `velocity()`, `on()` / `once()` and `state()`. They share three events: `airborne`, `touchdown` `{ impact }` and `crash` `{ kind, impact, hit }`. A game holds one vehicle and swaps it.
+
+```js
+import { createWorld, createHangGlider, terrainSite, createSimulationLoop, createPoseTrack, applyPose } from 'hgsim';
+import { createWalker } from 'hgsim/ground';
+
+const world = createWorld({ terrain, platform: rampDeck, material: (x, z) => (snowy(x, z) ? 'snow' : 'grass'), water: lakeLevel, solid: buildingAt, bounds });
+let vehicle = createWalker({ world, at: { x, z, heading } });            // on foot to the launch
+// ... then the pilot launches where they stand:
+vehicle = createHangGlider({ world, preset: 't2c-144' });
+vehicle.standAt(terrainSite(world, { x, z, heading })).launch();        // the run's slope and its edge, read from the world
+vehicle.on('crash', e => damage(e.kind, e.impact, e.hit));               // 'terrain', 'solid' (hit names it), 'water', 'launch'
+
+const track = createPoseTrack();
+const loop = createSimulationLoop({
+  step: dt => { track.push(vehicle.pose()); vehicle.step(dt, controls()); },
+  render: (_, alpha) => applyPose(track.at(alpha, vehicle.pose()), mesh),
+});
+```
+
+The world answers every vehicle's questions: `groundAt` (the terrain, or a deck or bridge above it, where feet stand and a glider lands), `slopeAt`, `normalAt`, `materialAt` (`MATERIALS`: grip and softness for grass, snow, ice, road, ...), `waterAt`, `solidAt` and `inBounds`. Each comes from a plain function the game passes to `createWorld`, and each has a default, so a world supplies only what its vehicles use. The walker's pace comes from the ground: uphill and soft ground are slower, ground too steep is a wall, ice slides, and water, solid things and the map's edge stop it. A ledge is a fall, and a hard landing is a crash.
+
 ### Rounds
 
 A round is one go of a glider from the ground or the air to the end, the whole lifecycle in one place (`src/round.js`): standing at a launch, the launch run, the take-off with its bar hand-over, the flight, a scrape, the touchdown and its score, and a crash carried on as the tumble until the wreck is still. The range draws its rounds, and the scenarios fly theirs headless; both step the same code.
@@ -193,7 +217,7 @@ round.standAt(SITES.ramp).launch();     // any { start, fall, edgeAhead, ground 
 round.step(dt, { roll, pitch, nose, push, go, jump });   // each tick
 round.phase;                            // 'ready', 'launch', 'flight', 'tumble', 'landed', 'crashed'
 const off = round.on('touchdown', e => e.result.points);   // or round.on(e => e.type) for all of them; off() stops listening
-round.once('liftoff', e => e.dropped);  // 'launch', 'liftoff', 'failed', 'scrape', 'crash', 'touchdown' (ROUND_EVENTS)
+round.once('airborne', e => e.dropped); // 'launch', 'airborne', 'failed', 'scrape', 'crash', 'touchdown' (ROUND_EVENTS)
 round.state();                          // plain data, to record and draw again
 ```
 
@@ -253,7 +277,7 @@ Any other object with the same shape drops in. `examples/extend.mjs` flies a poi
 
 ### Modules
 
-The package has two entry points: `hgsim` (`src/index.js`) and `hgsim/three`. Everything they export is the public API, typed in `types/` and covered by semantic versioning: a breaking change to it bumps the major version (the minor while the version is 0.x) and is listed in `CHANGELOG.md`. The modules below are its source. Within this repository they can be imported directly for the low-level functions the entry points leave out, such as `stepLaunch` and `liftCoefficient`, but those are internal and may change in any release.
+The package has three entry points: `hgsim` (`src/index.js`: the world, the clock, poses, events and the air vehicles), `hgsim/ground` (vehicles on the ground) and `hgsim/three`. Everything they export is the public API, typed in `types/` and covered by semantic versioning: a breaking change to it bumps the major version (the minor while the version is 0.x) and is listed in `CHANGELOG.md`. The modules below are its source. Within this repository they can be imported directly for the low-level functions the entry points leave out, such as `stepLaunch` and `liftCoefficient`, but those are internal and may change in any release.
 
 | Module | What it does |
 |---|---|
@@ -269,7 +293,10 @@ The package has two entry points: `hgsim` (`src/index.js`) and `hgsim/three`. Ev
 | `config.js` | `defineConfig` and `overridesOf`. |
 | `loop.js` | `createSimulationLoop`: fixed ticks, drawn once per frame with the alpha to interpolate by. |
 | `presets.js`, `polar.js` | The glider presets and `defineWing` (a wing from ballpark speeds and a character), and the polar and pitch stability of any glider (`polarOf`, `pitchStabilityOf`). |
-| `round.js` | A round: the whole lifecycle of a go, from standing at a launch to the end (`createRound`). |
+| `round.js` | A round: the hang glider as a vehicle, the whole lifecycle of a go from standing at a launch to the end (`createRound`, `createHangGlider`). |
+| `ground/` (`hgsim/ground`) | The vehicles on the ground: the walker, on foot on the world's ground (`createWalker`). |
+| `sites.js` | Launch sites read from the world (`terrainSite`). |
+| `pose.js`, `events.js` | Poses and their interpolation (`lerpPose`, `createPoseTrack`, `applyPose`), and the events every vehicle uses (`createEmitter`). |
 | `scenarios.js` | Repeatable test flights for tuning the feel: `SCENARIOS`, `SITES`, `runScenario`, `startScenario`, `flyScenario`, and the scripted launch and landing pilots. |
 | `assists/` | The optional terrain-skimming assist, which keeps a low glider off the ground, and its drawn bank. |
 | `three/` (`hgsim/three`) | Three.js presentation: `createPilotRig` poses the pilot on the skinned glider model, and `createLandingCues` draws the shadow, height gauge and FLARE prompt. Each takes `THREE` as an argument. |

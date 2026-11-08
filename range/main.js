@@ -277,7 +277,7 @@ function updateFlight(dt, controls) {
 }
 // What the range does with what happens in a round: the take-off's look, a scrape's dust, the landing's card.
 round.on(e => {
-  if (e.type === 'liftoff') { syncRound(); leaveGround(e.launch, e.dropped); syncRound(); }
+  if (e.type === 'airborne') { syncRound(); leaveGround(e.launch, e.dropped); syncRound(); }
   else if (e.type === 'scrape') {
     const c = e.contact.verticalSpeed, ground = terrainHeight(soaring.x, soaring.z);
     impact = Math.max(impact, clamp(.25 + c / 5, .25, .9)); kickDust(soaring.x, ground, soaring.z, 4 + Math.round(c * 2)); audio.emit('touchdown', { speed: soaring.airspeed, contact: c }); toast('Scraped', .8);

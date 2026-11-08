@@ -1,6 +1,6 @@
 {
   "name": "hgsim",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "private": true,
   "description": "A hang-glider simulation SDK: flight, launch, landing and crash physics with no dependencies, and the landing range used to tune it.",
   "keywords": [
@@ -21,6 +21,10 @@
     "./three": {
       "types": "./types/three.d.ts",
       "default": "./src/three/index.js"
+    },
+    "./ground": {
+      "types": "./types/ground.d.ts",
+      "default": "./src/ground/index.js"
     },
     "./package.json": "./package.json"
   },

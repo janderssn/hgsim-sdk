@@ -11,14 +11,16 @@ try {
     url: { type: 'string', default: 'http://127.0.0.1:4180' },
     view: { type: 'string', default: 'flight' },
     quality: { type: 'string', default: 'high' },
+    light: { type: 'string' },
+    clouds: { type: 'string' },
     out: { type: 'string', default: 'work/range.jpg' },
     width: { type: 'string', default: '1280' },
     height: { type: 'string', default: '800' },
   } });
   const views = values.view.split(',');
-  if (views.some(view => !['flight', 'aircraft', 'departure', 'approach', 'launch', 'meadow', 'woodland', 'staging', 'refuge'].includes(view))
+  if (views.some(view => !['flight', 'aircraft', 'departure', 'approach', 'launch', 'meadow', 'woodland', 'staging', 'refuge', 'lakeside', 'boathouse'].includes(view))
     || !['high', 'medium', 'low'].includes(values.quality)) {
-    throw new Error('Use --view flight|aircraft|departure|approach|launch|meadow|woodland|staging|refuge (comma-separated for a gallery).');
+    throw new Error('Use --view flight|aircraft|departure|approach|launch|meadow|woodland|staging|refuge|lakeside|boathouse (comma-separated for a gallery).');
   }
   const width = Number(values.width), height = Number(values.height);
   if (![width, height].every(value => Number.isInteger(value) && value >= 240 && value <= 4096)) {
@@ -26,6 +28,8 @@ try {
   }
   const url = new URL('range/', values.url.replace(/\/+$/, '') + '/');
   url.searchParams.set('quality', values.quality);
+  if (values.light) url.searchParams.set('light', values.light);
+  if (values.clouds) url.searchParams.set('clouds', values.clouds);
   const port = 9400 + Math.floor(Math.random() * 400);
   browser = await launchChrome({ port, width, height });
   page = await connect({ port });
@@ -105,6 +109,12 @@ try {
       d.camera.position.set(x + 15, d.terrainHeight(x + 15, z - 22) + 4.5, z - 22);
       d.camera.lookAt(x, y + 4.0, z);
       document.querySelector('.hud').style.display = 'none';
+    } else if (${JSON.stringify(view)} === 'lakeside') {
+      d.camera.position.set(-374, 7, 137);
+      d.camera.lookAt(-350, 2, 215);
+    } else if (${JSON.stringify(view)} === 'boathouse') {
+      d.camera.position.set(-383, 5.4, 143);
+      d.camera.lookAt(-394, 4.1, 140);
     } else if (${JSON.stringify(view)} === 'woodland') {
       const x = -240, z = -670, y = d.terrainHeight(x, z);
       d.player.visible = false;
@@ -119,10 +129,15 @@ try {
       sun.position.copy(d.camera.position).add(delta);
     }
     d.camera.updateMatrixWorld(true);
+    if (d.aerial?.advancedClouds) {
+      d.aerial.resetHistory();
+      // Settle the actual temporal cloud pass without redrawing full geometry.
+      for (let frame = 0; frame < 32; frame++) d.aerial.render(d.renderer, d.camera, 0);
+    }
     d.render ? d.render() : d.renderer.render(d.scene, d.camera);
     // Read the same draw before the WebGL drawing buffer is discarded. This
     // avoids a stale compositor frame when rendering on a slow software GPU.
-    return { camera: d.camera.position.toArray(), render: { ...d.renderer.info.render }, scene: {quality:d.quality,visuals:d.scene.userData.visuals,forest:d.forestStats,props:d.setDressing?.stats,cover:d.coverStats}, image: d.renderer.domElement.toDataURL(${JSON.stringify(output.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg')}, .95) };
+    return { camera: d.camera.position.toArray(), render: { ...d.renderer.info.render }, scene: {quality:d.quality,visuals:d.scene.userData.visuals,forest:d.forestStats,props:d.setDressing?.stats,cover:d.coverStats,water:d.waterscape?.stats,lakeside:d.lakesideModels?.stats,life:d.livingRefuge?.stats,wildlife:d.wildlife?.stats,clouds:d.aerial?.advancedClouds?.stats}, image: d.renderer.domElement.toDataURL(${JSON.stringify(output.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg')}, .95) };
   })()`);
     await mkdir(path.dirname(output), { recursive: true });
     await writeFile(output, Buffer.from(frame.image.slice(frame.image.indexOf(',') + 1), 'base64'));

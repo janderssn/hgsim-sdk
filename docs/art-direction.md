@@ -4,7 +4,12 @@ The scene is built around the orange sail, golden meadow, weathered launch kit,
 lichen-covered rocks and snowy mountain layers of the [concept](concept/illustrated-alpine-polish.png).
 The images below are actual in-game renders; the concept remains a separate image.
 
-## Current game captures
+The next environment pass adds the [living valley](living-valley.md): a Blender-authored
+boathouse and rowboat, a terrain-clipped tarn, refuge activity, wildlife and a shared
+physical sky/cloud lighting system. That page contains the latest gallery and
+validation; the captures below preserve the earlier alpine polish baseline.
+
+## Alpine polish baseline
 
 ![Departure, using the gameplay chase camera](graphics/alpine-polish/departure.jpg)
 ![Descent beside the refuge, using the gameplay chase camera](graphics/alpine-polish/approach.jpg)

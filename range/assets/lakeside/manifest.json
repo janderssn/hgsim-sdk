@@ -1,0 +1,230 @@
+{
+  "generator": "tools/build-lakeside-assets.py",
+  "blender": "4.3.2",
+  "concept": "docs/concept/lakeside-boathouse.png",
+  "geometry": "lakeside.glb",
+  "geometry_sha256": "7ce2977acf72841cf571fd7423bc1c1df878b57b27937afed2fcc640a498cbd1",
+  "blend": "lakeside.blend",
+  "blend_sha256": "9fefaba0c72aaf2179e091d9177386bc59bc2570a65a8184ad5331396849cce5",
+  "original_geometry": true,
+  "coordinate_system": "glTF Y up, metres; house floor base0/front-Z; boat waterline0",
+  "bounds": {
+    "LakesideBoathouse": {
+      "min": [
+        -1.8344128131866455,
+        -0.47500038146972656,
+        -3.5749998092651367
+      ],
+      "max": [
+        1.9830000400543213,
+        3.6756153106689453,
+        2.362950086593628
+      ]
+    },
+    "LakesideRowboat": {
+      "min": [
+        -0.7100427746772766,
+        -0.23905256390571594,
+        -1.8489999771118164
+      ],
+      "max": [
+        0.7099014520645142,
+        0.5648368000984192,
+        1.8489999771118164
+      ]
+    }
+  },
+  "triangles": {
+    "LakesideBoathouse": 25362,
+    "LakesideRowboat": 14058
+  },
+  "draws": 17,
+  "textures": [
+    {
+      "file": "wood-normal.png",
+      "sha256": "37974b18ab2dffc74296e21fdb279e4f73fa7a1457063b86db28a11e7512531a",
+      "source": "range/assets/materials/scanned/wood-normal.webp",
+      "source_sha256": "267c5214cac083c540a6882b9a4a15bc0f662fcb0db747c576b3147a563acf8d",
+      "dimensions": [
+        512,
+        512
+      ],
+      "tint": null,
+      "transforms": [
+        "Lanczos resize",
+        "PNG encoding",
+        "renormalized tangent-space vectors"
+      ]
+    },
+    {
+      "file": "wood-roughness.png",
+      "sha256": "8a570d33f73f9cdba6f635b70b85a4c7a985e17e4cef019a260ddb802ed4ea79",
+      "source": "range/assets/materials/scanned/wood-roughness.webp",
+      "source_sha256": "fcf2a2f32c5072ba26794da6d763bce1416111a6613ac0dae889a25f1a817fee",
+      "dimensions": [
+        512,
+        512
+      ],
+      "tint": null,
+      "transforms": [
+        "Lanczos resize",
+        "PNG encoding"
+      ]
+    },
+    {
+      "file": "rock-normal.png",
+      "sha256": "6fb64f469555b83bd03a5576f6ccfcac07b7b359d48be23d9c027264cd5c19b5",
+      "source": "range/assets/materials/scanned/rock-normal.webp",
+      "source_sha256": "9369a5e957c60803dd81944a158a01a76e66cb4ab976117e59f277a8ac2bf795",
+      "dimensions": [
+        512,
+        512
+      ],
+      "tint": null,
+      "transforms": [
+        "Lanczos resize",
+        "PNG encoding",
+        "renormalized tangent-space vectors"
+      ]
+    },
+    {
+      "file": "rock-roughness.png",
+      "sha256": "9cb8418c1858f113035f2be49222c218ac9093ca35bbb9dcd99d3106af43901f",
+      "source": "range/assets/materials/scanned/rock-roughness.webp",
+      "source_sha256": "418f87da17171c5083428614380a0994ca142cf90a0de0673fcc853eb590de94",
+      "dimensions": [
+        512,
+        512
+      ],
+      "tint": null,
+      "transforms": [
+        "Lanczos resize",
+        "PNG encoding"
+      ]
+    },
+    {
+      "file": "timber-color.png",
+      "sha256": "152a4ee80d8c74afd0567680388334bd50a4f38a026e086b289aee8ddad52191",
+      "source": "range/assets/materials/scanned/wood-color.webp",
+      "source_sha256": "52fa16b6f915692dd1902018a72d3696cdce4b89956cd29e03a361eed53dbdd3",
+      "dimensions": [
+        512,
+        512
+      ],
+      "tint": [
+        0.74,
+        0.49,
+        0.28
+      ],
+      "transforms": [
+        "Lanczos resize",
+        "PNG encoding",
+        "luminance multiplied by recorded RGB pigment"
+      ]
+    },
+    {
+      "file": "redwood-color.png",
+      "sha256": "344bc60ebab4fef015ffdd64d5ee215b0aa4638b6ab880ea1d08ecadf40b0e25",
+      "source": "range/assets/materials/scanned/wood-color.webp",
+      "source_sha256": "52fa16b6f915692dd1902018a72d3696cdce4b89956cd29e03a361eed53dbdd3",
+      "dimensions": [
+        512,
+        512
+      ],
+      "tint": [
+        0.66,
+        0.31,
+        0.18
+      ],
+      "transforms": [
+        "Lanczos resize",
+        "PNG encoding",
+        "luminance multiplied by recorded RGB pigment"
+      ]
+    },
+    {
+      "file": "tealwood-color.png",
+      "sha256": "4e368ecd912c231100d51791768e3ee289d502d2a2188533f6390a7d314bcb11",
+      "source": "range/assets/materials/scanned/wood-color.webp",
+      "source_sha256": "52fa16b6f915692dd1902018a72d3696cdce4b89956cd29e03a361eed53dbdd3",
+      "dimensions": [
+        512,
+        512
+      ],
+      "tint": [
+        0.21,
+        0.43,
+        0.41
+      ],
+      "transforms": [
+        "Lanczos resize",
+        "PNG encoding",
+        "luminance multiplied by recorded RGB pigment"
+      ]
+    },
+    {
+      "file": "hullwood-color.png",
+      "sha256": "c9026e64d613795065a95dd27a7cfbfdbf422a4a623d7daf040afec6c7871c22",
+      "source": "range/assets/materials/scanned/wood-color.webp",
+      "source_sha256": "52fa16b6f915692dd1902018a72d3696cdce4b89956cd29e03a361eed53dbdd3",
+      "dimensions": [
+        512,
+        512
+      ],
+      "tint": [
+        1.03,
+        0.63,
+        0.29
+      ],
+      "transforms": [
+        "Lanczos resize",
+        "PNG encoding",
+        "luminance multiplied by recorded RGB pigment"
+      ]
+    },
+    {
+      "file": "slate-color.png",
+      "sha256": "d19406e4871d6c22acf97553c5f1f92565ac704da15821c68bc5d158579be733",
+      "source": "range/assets/materials/scanned/rock-color.webp",
+      "source_sha256": "cb9136b0472b4e3e5cc016681694e23eb074fa877281a2229991d5febf15aee8",
+      "dimensions": [
+        512,
+        512
+      ],
+      "tint": [
+        0.44,
+        0.49,
+        0.51
+      ],
+      "transforms": [
+        "Lanczos resize",
+        "PNG encoding",
+        "luminance multiplied by recorded RGB pigment"
+      ]
+    },
+    {
+      "file": "stone-color.png",
+      "sha256": "9daf1e7fbbd2b7ea4bac81962073f1fc124a2ecf7b513c49b91b1488d851d2e5",
+      "source": "range/assets/materials/scanned/rock-color.webp",
+      "source_sha256": "cb9136b0472b4e3e5cc016681694e23eb074fa877281a2229991d5febf15aee8",
+      "dimensions": [
+        512,
+        512
+      ],
+      "tint": [
+        0.76,
+        0.74,
+        0.67
+      ],
+      "transforms": [
+        "Lanczos resize",
+        "PNG encoding",
+        "luminance multiplied by recorded RGB pigment"
+      ]
+    }
+  ],
+  "source_notice": "../materials/scanned/CREDITS.md",
+  "source_manifest": "../materials/scanned/manifest.json",
+  "source_license_qualification": "Upstream README identifies package as CC0-Textures; no standalone per-material license. Retained notice and checksums in scanned source manifest.",
+  "source_builder_sha256": "008454aacc41876140fb811a46910ef43b91fc0da6740a8a7e773e290e850732"
+}

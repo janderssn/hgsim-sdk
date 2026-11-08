@@ -32,6 +32,7 @@
     .hud:has(.panel:not(.hidden)) .card { left: calc((100vw - 310px) / 2); max-width: calc(100vw - 340px); }
     .readout .alpha b { font-size: 22px; }
     a.switch { font-size: 12px; font-weight: 700; color: var(--ink); background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.22); border-radius: 6px; padding: 6px 10px; text-decoration: none; }
+    a.switch[aria-current="true"] { background: rgba(235,185,105,.2); border-color: #c9a56c; }
     section[hidden] { display: none; }
     .panel { position: absolute; right: 16px; top: 16px; width: 290px; background: var(--panel); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,.14); border-radius: 12px; padding: 14px 16px; font-size: 13px; pointer-events: auto; max-height: calc(100vh - 32px); overflow: auto; }
     .panel.hidden { display: none; }
@@ -72,6 +73,11 @@
     <div class="hints" id="hints"></div>
     <div class="card" id="card"></div>
     <aside class="panel" id="panel">
+      <section>
+        <h3>Valley light</h3>
+        <div class="buttons" id="lightConditions"></div>
+        <p class="best">Choose a light to begin a new flight.</p>
+      </section>
       <section>
         <h3>Physics</h3>
         <div class="wind-now" id="modelName">—</div>

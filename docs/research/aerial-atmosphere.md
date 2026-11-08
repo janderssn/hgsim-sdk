@@ -1,5 +1,10 @@
 # A coherent WebGL2 daylight medium
 
+This note describes the original analytic provider, retained through
+`?clouds=basic`. The default renderer now uses the
+[Takram bridge](cloud-shader-options.md); [living valley](../living-valley.md)
+documents the current lighting, integration and explicit approximation limits.
+
 `range/aerial-atmosphere.js` owns one fixed sun direction, analytic sky radiance,
 height-dependent aerial extinction, 3D cumulus medium and sun optical-depth map.
 It does not alter the numerical terrain or flight model. `range/atmosphere.js`

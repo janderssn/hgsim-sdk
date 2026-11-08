@@ -20,7 +20,7 @@ const smooth = (a, b, v) => { const t = clamp((v - a) / (b - a), 0, 1); return t
  * Quality changes affect drawing only; world.js remains the physics source.
  */
 export function buildScenery(THREE, scene, { models = createEnvironmentModels(THREE), materials = {}, sunDirection,
-  forestAssets = null, aerial = null, streamedCover = false, forestExclusionAt, legacyProps = true } = {}) {
+  forestAssets = null, aerial = null, streamedCover = false, forestExclusionAt, legacyProps = true, legacyBirds = true } = {}) {
   addTerrain(THREE, scene, materials.terrain);
   addMark(THREE, scene);
   addLaunch(THREE, scene, materials);
@@ -33,7 +33,7 @@ export function buildScenery(THREE, scene, { models = createEnvironmentModels(TH
   if (legacyProps) addAlpineProps(THREE, scene, models, materials);
   const grass = streamedCover ? { setQuality: () => false, updateDetail() {} } : addGrass(THREE, scene);
   return {
-    birds: addBirds(THREE, scene),
+    birds: legacyBirds ? addBirds(THREE, scene) : [],
     boulderCoverageAt: boulders.coverageAt,
     forestShadowMap: trees.shadowMap,
     forestBounds: trees.shadowBounds,

@@ -22,13 +22,18 @@ try {
   for (let i = 0; i < 300; i++) { try { if ((await fetch(`${base}/healthz`)).ok) break; } catch {} await sleep(100); }   // (a deployed machine may be waking)
   chrome = await launchChrome({ port: debugPort, width: 960, height: 540 });
   page = await connect({ port: debugPort });
+  await page.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+    window.__rangeCheckDocument = new URL(location.href).searchParams.get('__rangeCheck');
+  ` });
   const errors = [];
   page.on(m => { if (m.method === 'Runtime.exceptionThrown') errors.push(m.params.exceptionDetails.exception?.description || m.params.exceptionDetails.text); });
+  let documentId = 0;
   const open = async query => {
     const options = new URLSearchParams(query);
     if (fixedQuality) options.set('quality', fixedQuality);
+    const token = String(++documentId); options.set('__rangeCheck', token);
     await page.goto(`${base}/range/?${options}`);
-    for (let i = 0; i < 80; i++) { if (await page.eval('!!window.rangeDemo&&!!rangeDemo.rig')) {
+    for (let i = 0; i < 240; i++) { if (await page.eval(`window.__rangeCheckDocument === ${JSON.stringify(token)} && !!window.rangeDemo?.rig`)) {
       if (deterministic) await page.eval('(()=>{const id=requestAnimationFrame(()=>{});for(let n=Math.max(0,id-32);n<=id;n++)cancelAnimationFrame(n);window.requestAnimationFrame=()=>0;})();1');
       return true;
     } await sleep(250); }

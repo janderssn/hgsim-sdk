@@ -266,3 +266,83 @@ test('cloud work is capped at 4K, follows camera without moving the field, and r
     for (const count of counts.values()) assert.equal(count, 1);
   } finally { aerial.dispose(); }
 });
+
+test('advanced clouds supply the sole sky, light probe and material shadow path without baking the fallback volume', () => {
+  const generated = [], calls = [], skyTexture = new THREE.Texture(), cloudTexture = new THREE.Texture();
+  const shadowUniform = { value: .37 };
+  const provider = {
+    skyTexture, texture: cloudTexture, shadowUniforms: { providerVisibility: shadowUniform },
+    shadowGLSL: 'uniform float providerVisibility; float aerialCloudVisibility(vec3 worldPosition) { return providerVisibility; }',
+    setQuality(level) { calls.push(['quality', level]); },
+    render(time) { calls.push(['render', time]); },
+    getSunColor(target) { return target.setRGB(.9, .65, .3); },
+    generateRadiance(three, width, height) {
+      const data = new Float32Array(width * height * 4);
+      for (let i = 0; i < data.length; i += 4) data.set([.25, .5, .75, 1], i);
+      const texture = new three.DataTexture(data, width, height, three.RGBAFormat, three.FloatType);
+      texture.mapping = three.EquirectangularReflectionMapping; generated.push(texture); return texture;
+    },
+    dispose() { calls.push(['dispose']); skyTexture.dispose(); cloudTexture.dispose(); },
+  };
+  // Zero is an invalid legacy volume size. Successful construction proves that
+  // the provider mode does not run the expensive old bake beside its own field.
+  const aerial = createAerialAtmosphere(THREE, { advancedClouds: provider, shapeSize: 0 });
+  const material = new THREE.MeshStandardMaterial();
+  try {
+    assert.equal(aerial.advancedClouds, provider);
+    assert.equal(aerial.uniforms.aerialCloudShadow.value, null);
+    assert.equal(aerial.uniforms.skyProbeRadiance.value, generated[0]);
+    assert.equal(aerial.uniforms.aerialUseSkyProbe.value, true);
+    assert.deepEqual(aerial.uniforms.aerialInscatterTint.value.toArray(), [1, 1, 1]);
+    assert.deepEqual(aerial.sampleSkyRadiance([.3, .7, .2]), [.25, .5, .75]);
+    assert.deepEqual(aerial.getSunColor().toArray(), [.9, .65, .3]);
+    const lightingProbe = aerial.generateRadiance(THREE, 32, 16);
+    assert.equal(generated.length, 2); assert.notEqual(lightingProbe, generated[0]);
+    assert.equal(lightingProbe.image.width, 32);
+    aerial.installMaterial(material);
+    const shader = { uniforms: {}, vertexShader: THREE.ShaderLib.standard.vertexShader,
+      fragmentShader: THREE.ShaderLib.standard.fragmentShader };
+    material.onBeforeCompile(shader, {});
+    assert.equal(shader.uniforms.providerVisibility, shadowUniform);
+    assert.equal(aerial.shared.cloudShadowGLSL, provider.shadowGLSL);
+    assert.match(shader.fragmentShader, /return providerVisibility/);
+    assert.doesNotMatch(shader.fragmentShader, /texture2D\(aerialCloudShadow/);
+    assert.match(shader.vertexShader, /aerialUseSkyProbe \? aerialProbeRadiance/);
+    assert.doesNotMatch(aerial.sky.material.fragmentShader, /aerialSkyRadiance/);
+    assert.match(aerial.sky.material.fragmentShader, /sky \* \(1\.0 - cloud\.a\) \+ cloud\.rgb/);
+    const releaseCounts = new Map();
+    for (const texture of [skyTexture, cloudTexture, ...generated]) {
+      releaseCounts.set(texture, 0); texture.addEventListener('dispose', () => releaseCounts.set(texture, releaseCounts.get(texture) + 1));
+    }
+    aerial.dispose(); aerial.dispose();
+    assert.equal(calls.filter(call => call[0] === 'dispose').length, 1);
+    for (const texture of [skyTexture, cloudTexture, generated[0]]) assert.equal(releaseCounts.get(texture), 1);
+    assert.equal(releaseCounts.get(lightingProbe), 0, 'the lighting caller owns its independent radiance texture');
+    lightingProbe.dispose(); assert.equal(releaseCounts.get(lightingProbe), 1);
+  } finally { material.dispose(); aerial.dispose(); }
+});
+
+test('advanced provider renders once, forwards quality and restores caller state even on failure', () => {
+  const target = {}, internal = {}, calls = [], camera = new THREE.PerspectiveCamera();
+  const renderer = { current: target, xr: { enabled: true }, info: { autoReset: true },
+    getDrawingBufferSize: v => v.set(1280, 800),
+    getRenderTarget() { return this.current; }, setRenderTarget(value) { this.current = value; } };
+  const provider = { texture: new THREE.Texture(), skyTexture: new THREE.Texture(),
+    shadowGLSL: 'float aerialCloudVisibility(vec3 p) { return 1.0; }', shadowUniforms: {},
+    generateRadiance(three) { return new three.DataTexture(new Float32Array([.2, .3, .4, 1]), 1, 1, three.RGBAFormat, three.FloatType); },
+    setQuality(level) { calls.push(['quality', level]); },
+    render(time) { calls.push(['render', time]); renderer.current = internal; },
+    dispose() { provider.texture.dispose(); provider.skyTexture.dispose(); } };
+  const aerial = createAerialAtmosphere(THREE, { advancedClouds: provider });
+  try {
+    aerial.update(camera, 10); assert.equal(calls.filter(call => call[0] === 'render').length, 0);
+    aerial.setQuality('medium'); aerial.render(renderer, camera, 10);
+    assert.deepEqual(calls, [['quality', 'high'], ['quality', 'medium'], ['render', 10]]);
+    assert.equal(aerial.sky.material.uniforms.cloudRadiance.value, provider.texture);
+    assert.equal(aerial.sky.material.uniforms.advancedSkyRadiance.value, provider.skyTexture);
+    assert.equal(renderer.current, target); assert.equal(renderer.xr.enabled, true); assert.equal(renderer.info.autoReset, true);
+    provider.render = () => { renderer.current = internal; throw new Error('provider GPU failure'); };
+    assert.throws(() => aerial.render(renderer, camera, 11), /provider GPU failure/);
+    assert.equal(renderer.current, target); assert.equal(renderer.xr.enabled, true); assert.equal(renderer.info.autoReset, true);
+  } finally { aerial.dispose(); }
+});

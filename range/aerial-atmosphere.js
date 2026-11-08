@@ -91,6 +91,8 @@ export const AERIAL_SCATTERING_GLSL = /* glsl */`
   uniform vec3 aerialSunDirection, aerialCameraPosition, aerialSunTransmittance, aerialSunColor;
   uniform vec3 aerialRayTint, aerialMieTint, aerialMultipleScatter, aerialGroundRadiance, aerialInscatterTint;
   uniform float aerialDepthStrength;
+  uniform sampler2D skyProbeRadiance;
+  uniform bool aerialUseSkyProbe;
   const vec3 AERIAL_BETA_R = vec3(5.8e-6, 13.5e-6, 33.1e-6);
   const float AERIAL_BETA_M = 2.4e-5;
   float aerialColumn(float mu, float scaleHeight) {
@@ -112,6 +114,12 @@ export const AERIAL_SCATTERING_GLSL = /* glsl */`
     if (sunDisk) sky += smoothstep(0.999986995, 0.99999032, mu) * 160.0 * aerialSunColor * aerialSunTransmittance;
     return sky;
   }
+  vec3 aerialProbeRadiance(vec3 direction) {
+    vec3 d = normalize(direction);
+    vec2 uv = vec2(atan(d.z, d.x) * 0.159154943 + 0.5,
+      asin(clamp(d.y, -1.0, 1.0)) * 0.318309886 + 0.5);
+    return texture2D(skyProbeRadiance, uv).rgb;
+  }
   float aerialPathIntegral(float startHeight, float endHeight, float distanceM, float scaleHeight) {
     float a = max(-300.0, startHeight), b = max(-300.0, endHeight);
     float delta = (b - a) / scaleHeight;
@@ -132,7 +140,11 @@ export const AERIAL_SCATTERING_GLSL = /* glsl */`
     transmittance = exp((-AERIAL_BETA_R * rayleigh - AERIAL_BETA_M * aerosol) * depthDensity);
     // The local segment scatters toward the same sky radiance as the backdrop;
     // no second grey fog colour, display-space blend or fixed distance wall.
-    inscatter = aerialSkyRadiance(direction, false) * aerialInscatterTint * (1.0 - transmittance);
+    // The advanced provider supplies its actual LUT-derived sky, matching the
+    // backdrop and light probe. Only the bounded local extinction remains an
+    // approximation; the old analytic sky is never mixed into that branch.
+    vec3 sky = aerialUseSkyProbe ? aerialProbeRadiance(direction) : aerialSkyRadiance(direction, false);
+    inscatter = sky * aerialInscatterTint * (1.0 - transmittance);
   }
   vec3 aerialApply(vec3 color, vec3 worldPosition) {
     vec3 transmittance, inscatter;
@@ -170,20 +182,23 @@ const VERTEX_WORLD = /* glsl */`
  * low-resolution background pass; ordinary geometry supplies exact occlusion.
  */
 export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunColor = SUN_COLOR, style = 'daylight', quality = 'high',
-  cloudOffset = [CLOUD_FIELD.offsetX, CLOUD_FIELD.offsetZ], shapeSize = 128, shadowSize = 128 } = {}) {
+  cloudOffset = [CLOUD_FIELD.offsetX, CLOUD_FIELD.offsetZ], shapeSize = 128, shadowSize = 128, advancedClouds = null } = {}) {
   const direction = new THREE.Vector3(...normalize(sunDirection));
   const solarColor = colorChannels(sunColor), palette = styleFor(style);
-  const shape = bakeCloudShape(shapeSize);
-  const shadow = bakeCloudShadow(shape, direction, shadowSize);
-  const shapeTexture = new THREE.Data3DTexture(shape.data, shape.width, shape.height, shape.depth);
-  shapeTexture.format = THREE.RGBAFormat;
-  shapeTexture.type = THREE.UnsignedByteType;
-  shapeTexture.unpackAlignment = 1;
-  shapeTexture.wrapS = shapeTexture.wrapR = THREE.RepeatWrapping;
-  shapeTexture.wrapT = THREE.ClampToEdgeWrapping;
-  shapeTexture.minFilter = shapeTexture.magFilter = THREE.LinearFilter;
-  shapeTexture.generateMipmaps = false;
-  shapeTexture.needsUpdate = true;
+  // Never allocate or bake the legacy volume alongside the advanced provider.
+  const shape = advancedClouds ? null : bakeCloudShape(shapeSize);
+  const shadow = advancedClouds ? null : bakeCloudShadow(shape, direction, shadowSize);
+  const shapeTexture = shape ? new THREE.Data3DTexture(shape.data, shape.width, shape.height, shape.depth) : null;
+  if (shapeTexture) {
+    shapeTexture.format = THREE.RGBAFormat;
+    shapeTexture.type = THREE.UnsignedByteType;
+    shapeTexture.unpackAlignment = 1;
+    shapeTexture.wrapS = shapeTexture.wrapR = THREE.RepeatWrapping;
+    shapeTexture.wrapT = THREE.ClampToEdgeWrapping;
+    shapeTexture.minFilter = shapeTexture.magFilter = THREE.LinearFilter;
+    shapeTexture.generateMipmaps = false;
+    shapeTexture.needsUpdate = true;
+  }
 
   const texture2D = field => {
     const texture = new THREE.DataTexture(field.data, field.size, field.size, THREE.RedFormat);
@@ -194,9 +209,18 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
     texture.needsUpdate = true;
     return texture;
   };
-  const shadowTexture = texture2D(shadow);
-  const clearClouds = new THREE.DataTexture(new Uint8Array([0, 0, 0, 255]), 1, 1, THREE.RGBAFormat);
+  const shadowTexture = shadow ? texture2D(shadow) : null;
+  const clearClouds = new THREE.DataTexture(new Uint8Array([0, 0, 0, advancedClouds ? 0 : 255]), 1, 1, THREE.RGBAFormat);
   clearClouds.needsUpdate = true;
+  // This caller-owned probe stays alive for surface inscatter. Separate probes
+  // returned by generateRadiance belong to the lighting/PMREM caller as before.
+  const skyProbe = advancedClouds ? advancedClouds.generateRadiance(THREE, 64, 32) : null;
+  if (skyProbe) {
+    skyProbe.wrapS = THREE.RepeatWrapping; skyProbe.wrapT = THREE.ClampToEdgeWrapping;
+    skyProbe.minFilter = skyProbe.magFilter = THREE.LinearFilter;
+    skyProbe.generateMipmaps = false; skyProbe.needsUpdate = true;
+  }
+  const shadowGLSL = advancedClouds?.shadowGLSL || AERIAL_CLOUD_SHADOW_GLSL;
   const uniforms = {
     aerialSunDirection: { value: direction },
     aerialSunColor: { value: new THREE.Vector3(...solarColor) },
@@ -205,17 +229,20 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
     aerialMieTint: { value: new THREE.Vector3(...palette.mieTint) },
     aerialMultipleScatter: { value: new THREE.Vector3(...palette.multiple) },
     aerialGroundRadiance: { value: new THREE.Vector3(...palette.ground) },
-    aerialInscatterTint: { value: new THREE.Vector3(...palette.aerialTint) },
+    aerialInscatterTint: { value: new THREE.Vector3(...(advancedClouds ? [1, 1, 1] : palette.aerialTint)) },
     aerialDepthStrength: { value: palette.depthStrength },
     aerialCameraPosition: { value: new THREE.Vector3() },
     aerialWindOffset: { value: new THREE.Vector2(cloudOffset[0], cloudOffset[1]) },
     aerialCloudShadow: { value: shadowTexture },
+    skyProbeRadiance: { value: skyProbe || clearClouds },
+    aerialUseSkyProbe: { value: !!skyProbe },
+    ...advancedClouds?.shadowUniforms,
   };
   const resolution = new THREE.Vector2(1, 1);
-  const cloudTarget = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType,
+  const cloudTarget = advancedClouds ? null : new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType,
     minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false, stencilBuffer: false });
-  cloudTarget.texture.name = 'Above bounded volumetric cloud radiance + transmittance';
-  const cloudMaterial = new THREE.ShaderMaterial({
+  if (cloudTarget) cloudTarget.texture.name = 'Above bounded volumetric cloud radiance + transmittance';
+  const cloudMaterial = advancedClouds ? null : new THREE.ShaderMaterial({
     name: 'Above world-space cumulus integral',
     glslVersion: THREE.GLSL3,
     depthWrite: false, depthTest: false, toneMapped: false,
@@ -312,16 +339,29 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
     `,
   });
   const cloudScene = new THREE.Scene(), cloudCamera = new THREE.Camera();
-  const cloudQuad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), cloudMaterial);
-  cloudQuad.frustumCulled = false;
-  cloudScene.add(cloudQuad);
+  const cloudQuad = advancedClouds ? null : new THREE.Mesh(new THREE.PlaneGeometry(2, 2), cloudMaterial);
+  if (cloudQuad) { cloudQuad.frustumCulled = false; cloudScene.add(cloudQuad); }
   const skyMaterial = new THREE.ShaderMaterial({
     name: 'Above coherent single-scattering daylight', side: THREE.BackSide,
     depthWrite: false, fog: false, toneMapped: true,
-    uniforms: { ...uniforms, cloudRadiance: { value: clearClouds }, skyResolution: { value: resolution }, cloudDecodeScale: { value: 1 } },
+    uniforms: { ...uniforms, cloudRadiance: { value: clearClouds }, skyResolution: { value: resolution }, cloudDecodeScale: { value: 1 },
+      advancedSkyRadiance: { value: advancedClouds?.skyTexture || clearClouds } },
     vertexShader: `varying vec3 vSkyDirection;
       void main() { vSkyDirection = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-    fragmentShader: `
+    fragmentShader: advancedClouds ? `
+      uniform sampler2D advancedSkyRadiance, cloudRadiance;
+      uniform vec2 skyResolution;
+      void main() {
+        vec2 uv = gl_FragCoord.xy / skyResolution;
+        vec3 sky = texture2D(advancedSkyRadiance, uv).rgb;
+        vec4 cloud = texture2D(cloudRadiance, uv);
+        // Provider output is premultiplied scene-linear RGB plus opacity.
+        // The ordinary HDR scene finish performs the single final tone map.
+        gl_FragColor = vec4(sky * (1.0 - cloud.a) + cloud.rgb, 1.0);
+        #include <tonemapping_fragment>
+        #include <colorspace_fragment>
+      }
+    ` : `
       varying vec3 vSkyDirection;
       uniform sampler2D cloudRadiance;
       uniform vec2 skyResolution;
@@ -342,7 +382,19 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
   sky.renderOrder = -100;
   sky.frustumCulled = false;
   let level = AERIAL_QUALITY[quality] ? quality : 'high', disposed = false;
+  advancedClouds?.setQuality(level);
   const installed = new WeakSet();
+
+  function sampleProviderSky(ray) {
+    const d = normalize(ray), { width, height, data } = skyProbe.image;
+    const x = (Math.atan2(d[2], d[0]) / (2 * PI) + .5) * width - .5;
+    const y = (Math.asin(Math.max(-1, Math.min(1, d[1]))) / PI + .5) * height - .5;
+    const ix = Math.floor(x), iy = Math.floor(y), fx = x - ix, fy = y - iy;
+    const at = (dx, dy, channel) => data[(Math.max(0, Math.min(height - 1, iy + dy)) * width
+      + ((ix + dx) % width + width) % width) * 4 + channel];
+    return [0, 1, 2].map(channel => (at(0, 0, channel) * (1 - fx) + at(1, 0, channel) * fx) * (1 - fy)
+      + (at(0, 1, channel) * (1 - fx) + at(1, 1, channel) * fx) * fy);
+  }
 
   /** Safe to call after another onBeforeCompile patch; hooks compose once. */
   function installMaterial(material) {
@@ -370,7 +422,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
       // slant-column exponentials for every overlapping cutout fragment.
       shader.vertexShader = shader.vertexShader.replace('#include <common>', `#include <common>\n${varyings}\n${AERIAL_SCATTERING_GLSL}`)
         .replace('#include <project_vertex>', `#include <project_vertex>\n${VERTEX_WORLD}\naerialSegment(vAerialWorldPosition, vAerialTransmittance, vAerialInscatter);`);
-      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${varyings}\nuniform vec3 aerialSunDirection;\n${AERIAL_CLOUD_SHADOW_GLSL}`)
+      shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\n${varyings}\nuniform vec3 aerialSunDirection;\n${shadowGLSL}`)
         .replace('#include <fog_fragment>', '')
         .replace('#include <tonemapping_fragment>', 'gl_FragColor.rgb = gl_FragColor.rgb * vAerialTransmittance + vAerialInscatter;\n#include <tonemapping_fragment>');
       if (receivesDirectLight) shader.fragmentShader = shader.fragmentShader.replace('#include <aomap_fragment>', `#include <aomap_fragment>
@@ -379,7 +431,7 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
         reflectedLight.directSpecular *= aerialBeamVisibility;
       `);
     };
-    material.customProgramCacheKey = () => `${key}|above-aerial-daylight-vertex-v2`;
+    material.customProgramCacheKey = () => `${key}|above-aerial-${advancedClouds ? 'advanced' : 'daylight'}-vertex-v3`;
     material.needsUpdate = true;
     return material;
   }
@@ -395,13 +447,17 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
   }
 
   const shared = { uniforms, installMaterial, scatteringGLSL: AERIAL_SCATTERING_GLSL,
-    cloudShadowGLSL: AERIAL_CLOUD_SHADOW_GLSL };
+    cloudShadowGLSL: shadowGLSL };
   return {
-    sky, shared, uniforms, installMaterial,
+    sky, shared, uniforms, installMaterial, advancedClouds,
     get quality() { return level; },
-    get budget() { return AERIAL_QUALITY[level]; },
-    sampleSkyRadiance: (ray, options) => sampleSkyRadiance(ray, direction, { sunColor: solarColor, style, ...options }),
+    get budget() { return advancedClouds ? advancedClouds.stats : AERIAL_QUALITY[level]; },
+    // Advanced CPU queries sample the same disk-free probe used by surface
+    // inscatter. The visible provider sky retains its high-resolution solar disc.
+    sampleSkyRadiance: (ray, options) => advancedClouds ? sampleProviderSky(ray)
+      : sampleSkyRadiance(ray, direction, { sunColor: solarColor, style, ...options }),
     generateRadiance(THREEForTexture = THREE, width = 256, height = 128, { sunDisk = false } = {}) {
+      if (advancedClouds) return advancedClouds.generateRadiance(THREEForTexture, width, height);
       const pixels = new Float32Array(width * height * 4);
       for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
         // Equirectangular lookup uses asin(y)/pi+.5: texture row 0 is nadir.
@@ -422,12 +478,28 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
       texture.needsUpdate = true;
       return texture;
     },
-    setQuality(next) { if (AERIAL_QUALITY[next]) level = next; },
+    setQuality(next) { if (AERIAL_QUALITY[next]) { level = next; advancedClouds?.setQuality(next); } },
+    resetHistory() { advancedClouds?.resetHistory?.(); },
+    getSunColor(target = new THREE.Color()) {
+      return advancedClouds ? advancedClouds.getSunColor(target) : target.setRGB(...solarColor);
+    },
     update,
     render(renderer, camera, seconds = 0) {
       if (disposed) return;
       update(camera, seconds);
       renderer.getDrawingBufferSize(resolution);
+      if (advancedClouds) {
+        const target = renderer.getRenderTarget(), xrEnabled = renderer.xr.enabled, autoReset = renderer.info.autoReset;
+        renderer.xr.enabled = false; renderer.info.autoReset = false;
+        try {
+          advancedClouds.render(seconds);
+          skyMaterial.uniforms.advancedSkyRadiance.value = advancedClouds.skyTexture;
+          skyMaterial.uniforms.cloudRadiance.value = advancedClouds.texture || clearClouds;
+        } finally {
+          renderer.setRenderTarget(target); renderer.xr.enabled = xrEnabled; renderer.info.autoReset = autoReset;
+        }
+        return;
+      }
       const budget = AERIAL_QUALITY[level];
       if (!budget.steps) {
         skyMaterial.uniforms.cloudRadiance.value = clearClouds;
@@ -469,8 +541,9 @@ export function createAerialAtmosphere(THREE, { sunDirection = DEFAULT_SUN, sunC
       if (disposed) return;
       disposed = true;
       sky.removeFromParent();
-      sky.geometry.dispose(); skyMaterial.dispose(); cloudQuad.geometry.dispose(); cloudMaterial.dispose();
-      shapeTexture.dispose(); shadowTexture.dispose(); clearClouds.dispose(); cloudTarget.dispose();
+      sky.geometry.dispose(); skyMaterial.dispose(); cloudQuad?.geometry.dispose(); cloudMaterial?.dispose();
+      shapeTexture?.dispose(); shadowTexture?.dispose(); clearClouds.dispose(); cloudTarget?.dispose();
+      skyProbe?.dispose(); advancedClouds?.dispose();
     },
   };
 }

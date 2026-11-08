@@ -12,6 +12,8 @@
  * stopped and disconnected once they end, with a hard cap on concurrent voices.
  */
 
+import { createValleyAmbience } from './valley-ambience.js';
+
 export const SOUND_STORAGE_KEY = 'alpine-frontier-sound';
 export const MAX_VOICES = 20;
 const MAX_DYING = 8;
@@ -58,7 +60,7 @@ function defaultStorage(host) { try { return host.localStorage || null; } catch 
 function blankState() {
   return { mode: 'ready', paused: false, speed: 0, verticalSpeed: 0, lift: 0, thermalLift: 0, ridgeLift: 0, clearance: 1000, skim: 0,
     stalled: false, stallWarning: false, pullUp: false, bank: 0, walking: false, sprinting: false,
-    biome: { alpine: 1, desert: 0, tropical: 0, archipelago: 0 }, nearSea: 0, altitude: 1500 };
+    biome: { alpine: 1, desert: 0, tropical: 0, archipelago: 0 }, nearSea: 0, altitude: 1500, environment: null };
 }
 
 /** Copies a possibly partial game state into `out` with safe numbers. Biome, sea and altitude persist when missing. */
@@ -79,6 +81,7 @@ function readState(src, out) {
   out.bank = clamp(num(s.bank), -Math.PI, Math.PI);
   out.walking = !!s.walking;
   out.sprinting = !!s.sprinting;
+  out.environment = s.environment && typeof s.environment === 'object' ? s.environment : null;
   const b = s.biome;
   if (b && typeof b === 'object') {
     const a = clamp(num(b.alpine), 0, 1), d = clamp(num(b.desert), 0, 1), t = clamp(num(b.tropical), 0, 1), r = clamp(num(b.archipelago), 0, 1);
@@ -138,6 +141,7 @@ export function createAudio(options = {}) {
   const host = typeof window !== 'undefined' ? window : globalThis;
   const storage = 'storage' in options ? options.storage : defaultStorage(host);
   const random = typeof options.random === 'function' ? options.random : Math.random;
+  const valley = createValleyAmbience({ random }), valleyState = {};
   const doc = 'document' in options ? options.document : (typeof document !== 'undefined' ? document : null);
   const makeContext = typeof options.createContext === 'function' ? options.createContext : () => {
     const Ctor = options.AudioContext || host.AudioContext || host.webkitAudioContext;
@@ -271,6 +275,7 @@ export function createAudio(options = {}) {
   function applyMaster(tc) {
     if (!ctx || !g) return;
     const audible = on && !hidden;
+    if (!audible) valley.stop();
     try { g.master.gain.setTargetAtTime(audible ? MASTER_LEVEL : 0, ctx.currentTime, tc); } catch (err) { noteError(err); }
     if (suspendTimer) { clearTimeout(suspendTimer); suspendTimer = null; }
     if (audible) { if (ctx.state !== 'running' && ctx.state !== 'closed') resumeQuietly(); }
@@ -307,7 +312,7 @@ export function createAudio(options = {}) {
   }
 
   function unlock() {
-    if (ctx && ctx.state === 'closed') { ctx = null; g = null; }
+    if (ctx && ctx.state === 'closed') { valley.stop(); ctx = null; g = null; }
     if (!ctx) {
       if (failures >= 3) return;
       try {
@@ -742,7 +747,7 @@ export function createAudio(options = {}) {
     const b = s.biome, calm = s.mode === 'gliding' ? 1 - ramp(12, 24, s.speed) : 1, ground = ramp(300, 30, s.clearance);
     if (now >= nextBird) {
       const k = b.alpine * calm * ground;
-      if (b.alpine > 0.25 && k > 0.2) birdCall(now + 0.01, 0.6 + 0.4 * k);
+      if (!s.environment && b.alpine > 0.25 && k > 0.2) birdCall(now + 0.01, 0.6 + 0.4 * k);
       nextBird = now + 6 + random() * 14;
     }
     if (now >= nextGull) {
@@ -802,7 +807,7 @@ export function createAudio(options = {}) {
     const b = s.biome, ground = ramp(260, 25, s.clearance);
     const ambDuck = gliding ? 1 - 0.82 * ramp(12, 30, s.speed) : cable ? 0.7 : 1;
     setp(g.ambBus.gain, ambDuck * ducked, now, ducked < 1 ? 0.05 : 0.6);
-    setp(g.alpine.gain, b.alpine * 0.05 * (0.55 + 0.9 * gust3), now, 0.5);
+    setp(g.alpine.gain, s.environment ? 0 : b.alpine * 0.05 * (0.55 + 0.9 * gust3), now, 0.5);
     setp(g.alpineF.frequency, 1500 + 900 * gust3, now, 0.6);
     setp(g.desert.gain, b.desert * 0.05 * (0.5 + gust2), now, 0.5);
     if (now >= cicNext) { cicTarget = 0.25 + 0.75 * random(); cicNext = now + 3 + random() * 6; }
@@ -831,6 +836,15 @@ export function createAudio(options = {}) {
       sweep(now);
       if (!on) return;
       const s = readState(state, S), step = clamp(num(dt), 0, 0.25);
+      // Place sounds reuse this unlocked context and the same muted/ducked bus.
+      // The legacy nonspatial alpine calls remain available without a descriptor.
+      if (s.environment && !hidden && !s.paused && ctx.state === 'running') {
+        if (valley.start(ctx, g.ambBus, g.noise)) {
+          for (const key of ['position', 'forward', 'forest', 'forestSource', 'refuge', 'lake']) valleyState[key] = s.environment[key];
+          valleyState.clearance = s.clearance;
+          valley.update(valleyState);
+        }
+      } else valley.stop();
       if (s.mode !== prevMode) { if (s.mode === 'gliding') varioClimb = s.verticalSpeed; prevMode = s.mode; }
       varioClimb += (s.verticalSpeed - varioClimb) * (1 - Math.exp(-step / 0.35));
       edges(s);
@@ -858,7 +872,7 @@ export function createAudio(options = {}) {
   /** Diagnostics for tests and playtest tooling. */
   function stats() {
     return { state: ctx ? ctx.state : 'none', enabled: on, voices: voices.length, dying: dying.length, persistentNodes: persistentCount,
-      voiceNodes, beeps: beepCount, counts: { ...counts }, errors, lastError: lastError ? String(lastError) : null };
+      voiceNodes, beeps: beepCount, counts: { ...counts }, valley: valley.stats(), errors, lastError: lastError ? String(lastError) : null };
   }
 
   /** Vario beeps and sink tone on/off (Options); wind and effects are unaffected. */

@@ -30,11 +30,11 @@
   "world_source_sha256": "098606bf47bfe86aa294fd2c5ff7e51e5017080b0713dfc423ceb0cddb8e089d",
   "geology_source_sha256": "15426fd4b3647d725417d16c2418306d84e512b8b8da13fb32b7bc35b9ba49ee",
   "style_source_sha256": "dee7ac6007658663904227b44d9a0c553e17231a25ce2bafb189a9104fd5cc85",
-  "site_source_sha256": "d020c33d719284039e94f25e0d1c0a7f7cee531f2ca5a1319c63b9e5eb9b24e4",
+  "site_source_sha256": "546cd89960c7c691e6e54df638205778b5ee730140f2e28b7e3109a3478471e7",
   "paint_atlas": {
     "file": "terrain-paint.webp",
-    "sha256": "b896c61a1106275e282610a69dd86c5d41b8290ad92acf0d649f04eef5b1e6fa",
-    "bytes": 133188,
+    "sha256": "7873566a708bd9a55e726ebbc990aecb1e79e5da9e705757550838d8564c62fa",
+    "bytes": 136948,
     "color_space": "sRGB",
     "flipY": false,
     "encoding": "RGB WebP quality92/method6",
@@ -44,8 +44,8 @@
   "files": [
     {
       "file": "terrain-control.png",
-      "sha256": "cb6aff09c5dc9826c8c591922f514330b3d7005de8d10522b187b19170bc1faa",
-      "bytes": 331748
+      "sha256": "5060e489d08b9a030aa9904b8117f8951ccd6c8fdb69efc5f442e13bd1d60287",
+      "bytes": 332763
     },
     {
       "file": "terrain-ecology.png",

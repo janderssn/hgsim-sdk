@@ -1,0 +1,13 @@
+{
+  "name": "hgsim-takram-feasibility",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@takram/three-clouds": "0.7.6",
+    "@takram/three-atmosphere": "0.19.1",
+    "@takram/three-geospatial": "0.9.1",
+    "postprocessing": "6.38.3",
+    "three": "0.180.0",
+    "esbuild": "0.25.12"
+  }
+}

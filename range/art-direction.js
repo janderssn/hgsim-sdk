@@ -6,6 +6,9 @@ export const ALPINE_ART = Object.freeze({
   sunDirection: Object.freeze([.70, .48, -.55]),
   sunColor: Object.freeze([1, .79, .54]),
   sunIntensity: 3.8,
+  // Illustrated diffuse fill compensates for the sky-only probe's omission of
+  // cloud-scattered light and local ground bounce; solar/sky radiance stay raw.
+  diffuseSkyGain: 3,
   exposure: .97,
   skyStyle: 'illustrated-alpine',
   grade: Object.freeze({
@@ -18,6 +21,23 @@ export const ALPINE_ART = Object.freeze({
     bloom: .035,
   }),
 });
+
+// Daylight conditions stay above the low-sun limits of the local forest-shadow
+// approximation. The advanced atmosphere derives solar colour from its LUTs;
+// these colours only provide a matching direction for the lightweight fallback.
+export const ALPINE_LIGHT_CONDITIONS = Object.freeze({
+  afternoon: Object.freeze({ label: 'Afternoon', sunDirection: ALPINE_ART.sunDirection,
+    sunColor: ALPINE_ART.sunColor, sunIntensity: ALPINE_ART.sunIntensity }),
+  'late-sun': Object.freeze({ label: 'Late sun', sunDirection: Object.freeze([.748, .309, -.588]),
+    sunColor: Object.freeze([1, .73, .47]), sunIntensity: 3.3 }),
+  'clear-day': Object.freeze({ label: 'Clear day', sunDirection: Object.freeze([.3932, .8660, -.3089]),
+    sunColor: Object.freeze([1, .97, .91]), sunIntensity: 3.8 }),
+});
+
+export function resolveArtDirection(condition = 'afternoon') {
+  const key = Object.hasOwn(ALPINE_LIGHT_CONDITIONS, condition) ? condition : 'afternoon';
+  return Object.freeze({ ...ALPINE_ART, ...ALPINE_LIGHT_CONDITIONS[key], condition: key });
+}
 
 /** Display-linear balance: after the single tone map, before sRGB encoding. */
 export const ART_GRADING_GLSL = /* glsl */`

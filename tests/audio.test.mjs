@@ -3,6 +3,7 @@
 // targets, stop before start, double start), so silent NaN leaks show up as audio errors.
 import assert from 'node:assert/strict';
 import { pathToFileURL } from 'node:url';
+import { createValleyAmbience, createValleyPhrase, valleySoundLocation, MAX_VALLEY_VOICES } from '../range/valley-ambience.js';
 
 const modulePath = process.env.AUDIO_MODULE ? pathToFileURL(process.env.AUDIO_MODULE).href : new URL('../range/audio.js', import.meta.url).href;
 const { createAudio, varioTone, sinkTone, readSoundPreference, SOUND_STORAGE_KEY, MAX_VOICES, VARIO } = await import(modulePath);
@@ -245,6 +246,91 @@ test('a failing AudioContext never throws into the game', () => {
   for (let i = 0; i < 5; i++) audio.unlock();
   audio.update(glide(), 0.016); audio.emit('crash', { severity: 1 }); audio.setEnabled(false); audio.setEnabled(true);
   assert.equal(audio.stats().state, 'none');
+});
+
+const valleyEnvironment = () => ({ position: { x: 0, y: 2, z: 0 }, forward: { x: 0, z: 1 }, forest: .8,
+  refuge: { x: -12, y: 1, z: 8 }, lake: { x: 120, y: 0, z: 0, radius: 100 } });
+
+test('place ambience uses the unlocked context, stays bounded and releases on mute/pause/suspension', () => {
+  const { audio, ctx } = make({ random: () => .5 }), environment = valleyEnvironment();
+  const before = MockContext.instances;
+  audio.update({ mode: 'foot', clearance: 2, environment }, .1);
+  assert.equal(ctx(), null, 'environment does not unlock audio');
+  audio.unlock(); const c = ctx(), baseline = c.live;
+  run(audio, c, 100, { mode: 'foot', clearance: 2, environment });
+  const stats = audio.stats();
+  assert.equal(MockContext.instances, before + 1, 'there is one context for all sound');
+  assert.ok(stats.valley.counts.bird >= 3 && stats.valley.counts.wood >= 1);
+  assert.equal(stats.counts.bird || 0, 0, 'local birds replace the nonspatial alpine bird scheduler');
+  assert.ok(stats.valley.voices <= MAX_VALLEY_VOICES && stats.valley.nodes <= 20 && stats.valley.buffers <= 5);
+  assert.ok(c.live <= baseline + 20);
+  assert.equal(audio.graph().alpine.gain.lastTarget, 0, 'local leaves replace the uniform alpine noise bed');
+  audio.setEnabled(false);
+  assert.equal(audio.stats().valley.active, false); assert.equal(c.live, baseline);
+  run(audio, c, 20, { mode: 'foot', clearance: 2, environment });
+  assert.deepEqual(audio.stats().valley.counts, stats.valley.counts);
+  audio.setEnabled(true); audio.update({ mode: 'foot', clearance: 2, environment }, .1);
+  assert.equal(audio.stats().valley.active, true);
+  c.state = 'suspended'; audio.update({ mode: 'foot', clearance: 2, environment }, .1);
+  assert.equal(c.state, 'suspended'); assert.equal(c.live, baseline);
+  c.state = 'running'; audio.update({ mode: 'foot', clearance: 2, environment }, .1);
+  audio.update({ mode: 'foot', paused: true, clearance: 2, environment }, .1);
+  assert.equal(c.live, baseline); assert.equal(audio.stats().errors, 0);
+});
+
+test('spatial water is silent without a lake and attenuates by shore distance and height', () => {
+  const { audio, ctx } = make(), environment = valleyEnvironment(); audio.unlock(); const c = ctx();
+  run(audio, c, .2, { mode: 'foot', clearance: 2, environment });
+  assert.ok(audio.stats().valley.shoreLevel > .8);
+  environment.lake = null;
+  run(audio, c, .2, { mode: 'foot', clearance: 2, environment });
+  assert.equal(audio.stats().valley.shoreLevel, 0, 'a previously visited lake must not remain audible');
+  environment.lake = { x: 120, y: 0, z: 0, radius: 100 };
+  environment.position.y = 180;
+  run(audio, c, .2, { mode: 'gliding', clearance: 180, environment });
+  assert.equal(audio.stats().valley.shoreLevel, 0);
+  const listener = { x: 125, y: 0, z: 0 }, lake = { x: 0, y: 0, z: 0 };
+  const toward = valleySoundLocation(listener, { x: 0, z: 1 }, lake, 100);
+  const reverse = valleySoundLocation(listener, { x: 0, z: -1 }, lake, 100);
+  assert.equal(toward.distance, 25); assert.equal(toward.pan, -reverse.pan);
+  assert.equal(valleySoundLocation(listener, {}, null).distance, Infinity);
+});
+
+test('hiding the page releases place voices immediately through the existing visibility policy', () => {
+  let visibility;
+  const doc = { hidden: false, addEventListener(name, callback) { if (name === 'visibilitychange') visibility = callback; } };
+  const { audio, ctx } = make({ document: doc, random: () => .5 }); audio.unlock();
+  const c = ctx(), baseline = c.live;
+  run(audio, c, 9, { mode: 'foot', clearance: 2, environment: valleyEnvironment() });
+  assert.equal(audio.stats().valley.active, true);
+  doc.hidden = true; visibility();
+  assert.equal(audio.stats().valley.active, false); assert.equal(c.live, baseline);
+  run(audio, c, 20, { mode: 'foot', clearance: 2, environment: valleyEnvironment() });
+  assert.equal(c.live, baseline);
+});
+
+test('place ambience never resumes a suspended context and disposal is idempotent', () => {
+  const c = new MockContext(), output = c.createGain(), noise = { pink: c.createBuffer(1, 480, 48000), brown: c.createBuffer(1, 480, 48000) };
+  let resumes = 0; c.resume = () => { resumes++; };
+  const valley = createValleyAmbience(), baseline = c.live;
+  c.state = 'suspended'; assert.equal(valley.start(c, output, noise), false); assert.equal(c.live, baseline);
+  c.state = 'running'; assert.equal(valley.start(c, output, noise), true);
+  valley.update({ ...valleyEnvironment(), clearance: 2 });
+  valley.dispose(); valley.dispose();
+  assert.equal(c.live, baseline); assert.equal(resumes, 0);
+  assert.equal(valley.start(c, output, noise), false, 'disposed graph cannot restart');
+});
+
+test('original phrase samples are finite, quiet-ended and bounded without oscillator voices', () => {
+  const c = new MockContext();
+  for (const kind of ['bird', 'wood']) for (let variant = 0; variant < 4; variant++) {
+    const buffer = createValleyPhrase(c, kind, variant), data = buffer.getChannelData(0);
+    let peak = 0, energy = 0;
+    for (const v of data) { assert.ok(Number.isFinite(v)); peak = Math.max(peak, Math.abs(v)); energy += v * v; }
+    assert.ok(peak > .2 && peak < 1.4); assert.ok(energy / data.length < .13);
+    assert.equal(data[0], 0); assert.ok(Math.abs(data.at(-1)) < 1e-6);
+    assert.ok(buffer.duration < 1.5);
+  }
 });
 
 console.log(JSON.stringify({ passed }, null, 2));

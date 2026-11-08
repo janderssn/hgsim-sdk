@@ -1,0 +1,228 @@
+{
+  "errors": [],
+  "capture": {
+    "clouds": {
+      "provider": "takram-webgl2",
+      "cloudFrames": 44,
+      "historyFrames": 33,
+      "warmupFrames": 32,
+      "temporalUpscale": false,
+      "jitter": "original spatial blue noise with temporal rotation",
+      "quality": "medium",
+      "width": 480,
+      "height": 300,
+      "historyResetFrames": 0
+    },
+    "probe": 3
+  },
+  "quality": [
+    {
+      "quality": "low",
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 45,
+        "historyFrames": 1,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "low",
+        "width": 320,
+        "height": 200,
+        "historyResetFrames": 44
+      },
+      "water": {
+        "area": 55039,
+        "maxDepth": 1.0375027894973754,
+        "shoreStones": 59,
+        "reeds": 532,
+        "draws": 5,
+        "triangles": 14936,
+        "reflection": {
+          "frames": 1,
+          "width": 320,
+          "height": 200,
+          "enabled": false
+        }
+      }
+    },
+    {
+      "quality": "medium",
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 46,
+        "historyFrames": 1,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "medium",
+        "width": 480,
+        "height": 300,
+        "historyResetFrames": 45
+      },
+      "water": {
+        "area": 55039,
+        "maxDepth": 1.0375027894973754,
+        "shoreStones": 59,
+        "reeds": 532,
+        "draws": 5,
+        "triangles": 14936,
+        "reflection": {
+          "frames": 2,
+          "width": 320,
+          "height": 200,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "quality": "high",
+      "clouds": {
+        "provider": "takram-webgl2",
+        "cloudFrames": 47,
+        "historyFrames": 1,
+        "warmupFrames": 32,
+        "temporalUpscale": false,
+        "jitter": "original spatial blue noise with temporal rotation",
+        "quality": "high",
+        "width": 640,
+        "height": 400,
+        "historyResetFrames": 46
+      },
+      "water": {
+        "area": 55039,
+        "maxDepth": 1.0375027894973754,
+        "shoreStones": 59,
+        "reeds": 532,
+        "draws": 5,
+        "triangles": 14936,
+        "reflection": {
+          "frames": 3,
+          "width": 512,
+          "height": 320,
+          "enabled": true
+        }
+      }
+    }
+  ],
+  "portrait": {
+    "aspect": 0.5571428571428572,
+    "canvas": [
+      390,
+      700
+    ],
+    "clouds": {
+      "provider": "takram-webgl2",
+      "cloudFrames": 48,
+      "historyFrames": 1,
+      "warmupFrames": 32,
+      "temporalUpscale": false,
+      "jitter": "original spatial blue noise with temporal rotation",
+      "quality": "high",
+      "width": 224,
+      "height": 400,
+      "historyResetFrames": 47
+    }
+  },
+  "audio": {
+    "before": {
+      "state": "none",
+      "enabled": true,
+      "voices": 0,
+      "dying": 0,
+      "persistentNodes": 0,
+      "voiceNodes": 0,
+      "beeps": 0,
+      "counts": {},
+      "valley": {
+        "active": false,
+        "nodes": 0,
+        "voices": 0,
+        "buffers": 0,
+        "failures": 0,
+        "forestLevel": 0,
+        "shoreLevel": 0,
+        "counts": {
+          "bird": 0,
+          "wood": 0
+        }
+      },
+      "errors": 0,
+      "lastError": null
+    },
+    "unlocked": {
+      "state": "running",
+      "enabled": true,
+      "voices": 0,
+      "dying": 0,
+      "persistentNodes": 60,
+      "voiceNodes": 0,
+      "beeps": 0,
+      "counts": {},
+      "valley": {
+        "active": true,
+        "nodes": 11,
+        "voices": 0,
+        "buffers": 0,
+        "failures": 0,
+        "forestLevel": 0,
+        "shoreLevel": 0,
+        "counts": {
+          "bird": 0,
+          "wood": 0
+        }
+      },
+      "errors": 0,
+      "lastError": null
+    },
+    "muted": {
+      "state": "running",
+      "enabled": false,
+      "voices": 0,
+      "dying": 0,
+      "persistentNodes": 60,
+      "voiceNodes": 0,
+      "beeps": 0,
+      "counts": {},
+      "valley": {
+        "active": false,
+        "nodes": 0,
+        "voices": 0,
+        "buffers": 0,
+        "failures": 0,
+        "forestLevel": 0,
+        "shoreLevel": 0,
+        "counts": {
+          "bird": 0,
+          "wood": 0
+        }
+      },
+      "errors": 0,
+      "lastError": null
+    },
+    "resumed": {
+      "state": "running",
+      "enabled": true,
+      "voices": 0,
+      "dying": 0,
+      "persistentNodes": 60,
+      "voiceNodes": 0,
+      "beeps": 0,
+      "counts": {},
+      "valley": {
+        "active": true,
+        "nodes": 11,
+        "voices": 0,
+        "buffers": 0,
+        "failures": 0,
+        "forestLevel": 0,
+        "shoreLevel": 0,
+        "counts": {
+          "bird": 0,
+          "wood": 0
+        }
+      },
+      "errors": 0,
+      "lastError": null
+    }
+  }
+}

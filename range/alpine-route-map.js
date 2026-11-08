@@ -1,14 +1,16 @@
 /** Original field map, sampled from the same ground height as the playable range. */
 import { ALPINE_TRAILS } from './alpine-sites.js';
+import { alpineLakeDepthAt } from './alpine-waterscape.js';
 export function createAlpineRouteMap(THREE, groundHeight, sites) {
   const width = 384, height = 256, pixels = new Uint8Array(width * height * 4);
   const palette = [[.47,.53,.31],[.59,.62,.38],[.70,.68,.46],[.78,.72,.52],[.84,.77,.59]];
   const nx = 65, nz = 65, heights = new Float32Array(nx * nz);
-  const bounds = { minX: -330, maxX: 330, minZ: -780, maxZ: 240 };
-  for (let z=0;z<nz;z++) for (let x=0;x<nx;x++) heights[z*nx+x]=groundHeight(bounds.minX+x/(nx-1)*660,bounds.minZ+z/(nz-1)*1020);
+  const bounds = { minX: -560, maxX: 360, minZ: -780, maxZ: 560 };
+  const spanX = bounds.maxX - bounds.minX, spanZ = bounds.maxZ - bounds.minZ;
+  for (let z=0;z<nz;z++) for (let x=0;x<nx;x++) heights[z*nx+x]=groundHeight(bounds.minX+x/(nx-1)*spanX,bounds.minZ+z/(nz-1)*spanZ);
   const ink=[.31,.30,.20], cream=[.88,.82,.63];
   function pixel(x,y,color) { x=Math.round(x);y=Math.round(y);if(x<0||x>=width||y<0||y>=height)return;const i=(y*width+x)*4;for(let c=0;c<3;c++)pixels[i+c]=Math.round(Math.max(0,Math.min(1,color[c]))*255);pixels[i+3]=255; }
-  function point(x,z) { return [22+(x-bounds.minX)/660*340, 32+(z-bounds.minZ)/1020*202]; }
+  function point(x,z) { return [22+(x-bounds.minX)/spanX*340, 32+(z-bounds.minZ)/spanZ*202]; }
   function line(a,b,color,thickness=1) { const n=Math.ceil(Math.hypot(b[0]-a[0],b[1]-a[1]));for(let i=0;i<=n;i++){const t=i/Math.max(1,n);for(let ox=-thickness/2;ox<=thickness/2;ox++)for(let oy=-thickness/2;oy<=thickness/2;oy++)pixel(a[0]+(b[0]-a[0])*t+ox,a[1]+(b[1]-a[1])*t+oy,color);} }
   for(let y=0;y<height;y++)for(let x=0;x<width;x++) {
     let color=cream;
@@ -20,6 +22,7 @@ export function createAlpineRouteMap(THREE, groundHeight, sites) {
       color=palette[index].map((v,c)=>v*(1-f)+palette[index+1][c]*f);
       const contour=Math.abs(((elevation+1000)%10)-5),shade=Math.max(-.10,Math.min(.10,(h10-h00)*.004-(h01-h00)*.007));
       color=color.map((v,c)=>(contour<.65?v*.65+ink[c]*.35:v)+shade);
+      if (alpineLakeDepthAt(bounds.minX+(x-22)/340*spanX,bounds.minZ+(y-32)/202*spanZ) > 0) color=[.22,.46,.48];
     }
     const paper=.98+.015*Math.sin(x*2.31+y*1.79);pixel(x,y,color.map(v=>v*paper));
   }

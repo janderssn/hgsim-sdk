@@ -1,0 +1,9 @@
+PASS model=original assets, rig and launch
+PASS assist=on assets, rig and launch
+PASS portrait resize and shader programs
+PASS missing prepared mips fall back to PNG atlases and launch
+PASS missing forest/elevation/surfaces preserve local props and launch
+PASS missing cloud atmosphere/transmittance.bin warns, activates basic sky and launches
+PASS missing cloud shape.bin warns, activates basic sky and launches
+PASS missing lakeside GLB warns, preserves lake/dock and launches
+PASS no runtime or shader errors

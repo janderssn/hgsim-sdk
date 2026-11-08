@@ -1,0 +1,52 @@
+{
+  "source": "https://github.com/takram-design-engineering/three-geospatial",
+  "revision": "b012ad06d858fc035d88aacfd73f092f93c994e4",
+  "versions": {
+    "@takram/three-clouds": "0.7.6",
+    "@takram/three-atmosphere": "0.19.1",
+    "@takram/three-geospatial": "0.9.1",
+    "postprocessing": "6.38.3",
+    "three": "0.180.0",
+    "esbuild": "0.25.12"
+  },
+  "renderer": "WebGL2 / vendored Three r180, one shared Three module",
+  "noise": "Original spatial void-and-cluster ranks with temporal golden-ratio rotation; not NVIDIA STBN",
+  "files": {
+    "range/assets/clouds/shape.bin": {
+      "bytes": 2097152,
+      "sha256": "ef65cf6156894720c00bf572c49e3e254f8899c4b5158246e5a35a1922e2519c"
+    },
+    "range/assets/clouds/shape_detail.bin": {
+      "bytes": 32768,
+      "sha256": "c09112199c6e0281b74ff5283c11c2943ae082650b9b67978cf5d59ed2956e4f"
+    },
+    "range/assets/clouds/local_weather.png": {
+      "bytes": 679653,
+      "sha256": "b84daef855dc5eebcc9b174fe832ba75a98e44b846dde201bce354417cc08031"
+    },
+    "range/assets/clouds/turbulence.png": {
+      "bytes": 49691,
+      "sha256": "ec2b1b0af4a6a6104102b21e58beb300b0a3d334c0281d84fde8c91d322910f9"
+    },
+    "range/assets/clouds/atmosphere/irradiance.bin": {
+      "bytes": 8192,
+      "sha256": "126bd4ff0419e04c877639caf9e3cd64a139ae511cf315a23a0c989fc47b51a5"
+    },
+    "range/assets/clouds/atmosphere/transmittance.bin": {
+      "bytes": 131072,
+      "sha256": "a2a0dd1464048d92e7bfdf385a9108e8d9c3e2748684f1f64523587d5894180a"
+    },
+    "range/assets/clouds/atmosphere/scattering.bin": {
+      "bytes": 8388608,
+      "sha256": "82c505fe6e3b7f1995c650cc8a1478f42bd510029bf63845e9485c078aef6617"
+    },
+    "range/vendor/takram-clouds.js": {
+      "bytes": 293345,
+      "sha256": "ee201cffaf2405b94e636dd6ba816280012a639bc948dfe7c671b6ad1b75b76f"
+    },
+    "range/assets/clouds/blue-noise-rotation.bin": {
+      "bytes": 262144,
+      "sha256": "614ecbc7404e578894014bf32d0a8ccdf00f631bed15af244f6bbc3afd831a90"
+    }
+  }
+}

@@ -149,7 +149,8 @@ test('round events: one type, all of them, once, and mistakes named', async () =
 test('a time step must be a finite number of seconds; a copied state restores a flight exactly', () => {
   const glider = createGlider({ at: { y: 400 } });
   assert.throws(() => glider.step(NaN), RangeError);
-  assert.throws(() => glider.step(-1 / 60), RangeError);
+  const still = structuredClone(glider.state); glider.step(-1 / 60);
+  assert.deepEqual(glider.state, still, 'a negative step (a frame clock run backwards) advances nothing');
   assert.throws(() => glider.step(Infinity), RangeError);
   glider.step(0);
   for (let i = 0; i < 120; i++) glider.step(1 / 60, { roll: 0.3 });

@@ -22,10 +22,14 @@ export const SITE_DEFAULTS = Object.freeze({
   span: 2,
 });
 
+const MIN_STEP = 0.01, MAX_SAMPLES = 10000;
+
 export function terrainSite(world, { x = 0, z = 0, heading = 0, ...options } = {}) {
   if (typeof world?.groundAt !== 'function') throw new TypeError('terrainSite: world must come from createWorld()');
   const cfg = defineConfig(SITE_DEFAULTS, options, 'terrainSite');
-  if (cfg.step <= 0 || cfg.span <= 0) throw new RangeError('terrainSite: step and span must be positive');
+  // (a step too fine for the look would sample the ground millions of times on every tick of a launch run)
+  if (!(cfg.step >= MIN_STEP) || !(cfg.span > 0) || !(cfg.look >= 0) || cfg.look / cfg.step > MAX_SAMPLES)
+    throw new RangeError(`terrainSite: step must be at least ${MIN_STEP} m, span positive, and look no more than ${MAX_SAMPLES} steps (got step ${cfg.step}, span ${cfg.span}, look ${cfg.look})`);
   const ground = (px, pz) => world.groundAt(px, pz);
   const fall = (px, pz, h) => (ground(px, pz) - ground(px + Math.sin(h) * cfg.span, pz + Math.cos(h) * cfg.span)) / cfg.span;
   const edgeAhead = (px, pz, h) => {

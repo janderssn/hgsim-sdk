@@ -70,6 +70,9 @@ test('a launch site read from the world: the fall along the run and the edge ahe
   assert.ok(site.edgeAhead(0, -150, Math.PI) <= 50, 'water is an edge');
   assert.throws(() => terrainSite(world, { step: 0 }), RangeError);
   assert.throws(() => terrainSite(world, { span: 0 }), RangeError);
+  assert.throws(() => terrainSite(world, { step: 1e-6 }), RangeError, 'too fine to sample every launch tick');
+  assert.throws(() => terrainSite(world, { look: 1e6 }), RangeError);
+  assert.throws(() => terrainSite(world, { ground: () => 0 }), /unknown key "ground"/);
 });
 
 test('the walker: the ground sets the pace, water, solids and walls stop it, ledges are falls', () => {
@@ -156,6 +159,14 @@ test('a walker restored while blocked can retreat and clear the obstacle', () =>
   assert.equal(legacy.blocked, null);
 });
 
+test("a round's own ground option is ground over water too", () => {
+  const world = createWorld({ water: () => 1 }), jetty = () => 1.2;
+  const round = createHangGlider({ world, ground: jetty }), crashes = [];
+  round.on('crash', e => crashes.push(e.kind));
+  round.startAt({ y: 3.2, airspeed: 12, pathAngle: -0.04 }).step(1 / 60);
+  assert.deepEqual(crashes, [], 'not a ditching');
+});
+
 test('a platform above water supports both a launch run and a touchdown', () => {
   const world = createWorld({ platform: () => 1.2, water: () => 1 });
   assert.equal(terrainSite(world).edgeAhead(0, 0, 0), Infinity);
@@ -169,7 +180,11 @@ test('invalid round ticks leave the current flight and its clock intact', () => 
   const round = createHangGlider().startAt({ y: 50 });
   const before = round.state();
   assert.throws(() => round.step(Infinity), RangeError);
+  assert.throws(() => round.step(NaN), RangeError);
+  assert.throws(() => round.step('1'), RangeError);
   assert.deepEqual(round.state(), before);
+  round.step(-0.02);
+  assert.deepEqual(round.state(), before, 'a negative step advances nothing, and does not throw');
 });
 
 test('one ground for every vehicle: a glider lands on a platform the walker stands on', () => {

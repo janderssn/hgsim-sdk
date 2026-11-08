@@ -13,7 +13,7 @@
 import { defineConfig } from '../config.js';
 import { createEmitter } from '../events.js';
 import { makePose } from '../pose.js';
-import { clamp, finite } from '../math.js';
+import { clamp, finite, tickSeconds } from '../math.js';
 
 export const WALKER_DEFAULTS = Object.freeze({
   gravity: 9.81,
@@ -129,7 +129,7 @@ export function createWalker({ world, at = {}, config = {} } = {}) {
      * turn toward), strafe (-1 left .. +1 right), sprint, jump.
      */
     step(dt, input = {}) {
-      if (!(dt >= 0) || dt === Infinity) throw new RangeError(`walker.step: dt must be a finite number of seconds >= 0 (got ${dt})`);
+      dt = tickSeconds(dt, 'walker.step');
       if (dt === 0) return walker;
       if (s.phase === 'down') { s.downFor -= dt; if (s.downFor <= 0) s.phase = 'stand'; return walker; }
       const forward = clamp(finite(input.forward), -1, 1), strafe = clamp(finite(input.strafe), -1, 1);

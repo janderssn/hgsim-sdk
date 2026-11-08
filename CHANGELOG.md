@@ -4,12 +4,21 @@ All notable changes to the hgsim SDK. The format follows [Keep a Changelog](http
 
 The public API is what `hgsim`, `hgsim/ground` and `hgsim/three` export, as declared in `types/`.
 
-## [0.4.1]
+## [0.5.0]
 
-- Preserve one-shot event delivery when a listener emits another event during dispatch.
-- Restore a walker's blocked position from its snapshot and handle unknown ground materials.
-- Respect platforms above water during launch and touchdown.
-- Reject invalid round time steps and launch-site sampling distances before they change state or stall the simulation.
+### Changed
+
+These are stricter than 0.4.0, so a call that used to pass may now throw: hence a minor version.
+
+- `createEmitter`'s `emit` throws a `TypeError` for an event type the emitter was not created with, as `on` already did.
+- `terrainSite` validates its options as a config: an unknown key or a non-finite value throws a `TypeError`, and a sampling `step` under 0.01 m, a `span` that is not positive or a `look` of more than 10000 steps throws a `RangeError`.
+- `round.step`, `glider.step` and `walker.step` share one rule for the time step: a non-finite one (NaN, Infinity) throws a `RangeError`, and a negative one advances nothing. A frame clock that runs backwards, as a timestamp taken in an input handler can, no longer throws from `glider.step` and `walker.step`.
+
+### Fixed
+
+- One-shot listeners run once even when a listener emits the same event during dispatch.
+- A walker restored from a snapshot while blocked keeps where it was stopped, and can walk away; older snapshots without it still restore. Unknown material names, such as `constructor`, are grass.
+- A platform above water is ground for a launch run and a touchdown. The round's water check uses its own ground (its `ground` option, or the world's).
 
 ## [0.4.0]
 

@@ -1,7 +1,7 @@
 // Compiled by npm run check:types: the declarations must describe how the SDK is really used (the README's samples), and reject misuse.
 import {
   createWorld, createGlider, createRound, createSimulationLoop, defineConfig, defineWing, runScenario, startScenario, SITES,
-  GLIDER_DEFAULTS, LANDING_RULES, PRESETS, VERSION, type RoundEvent, type GliderConfig,
+  GLIDER_DEFAULTS, LANDING_RULES, PRESETS, VERSION, sweepFlightContact, type RoundEvent, type GliderConfig, type LandingScore,
 } from 'hgsim';
 import { createLandingCues } from 'hgsim/three';
 
@@ -13,7 +13,14 @@ const kmh: number = s.airspeed * 3.6;
 const saved = structuredClone(glider.state); glider.reset(saved);
 const best = glider.polar()?.bestGlide.glideRatio;
 const contact = glider.contact();
-if (contact) { const score = glider.land({ x: 0, z: 0, radius: 60 }, contact); const j: 'soft' | 'firm' | 'rough' | 'crash' = score.judged; }
+if (contact) {
+  const score = glider.land({ x: 0, z: 0, radius: 60 }, contact);
+  const j: LandingScore['judged'] = score.judged;
+  glider.scrape({ ...contact, part: 'wheel', airframeY: s.y });
+}
+const tire = { x: 0, y: .1, z: 0, clearance: .1, part: 'wheel' } as const;
+const hit = sweepFlightContact([tire], [{ ...tire, y: 0, clearance: 0 }], world.heightAt, 1 / 60);
+glider.step(1 / 60, { contactClearance: hit?.end.clearance });
 
 const round = createRound({ glider, target: { x: 0, z: 0 } });
 round.standAt(SITES.ramp).launch();

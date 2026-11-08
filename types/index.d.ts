@@ -76,6 +76,8 @@ export interface FlightInput {
   /** Low over ground that can be landed on (a hands-off final settles onto it). */
   field?: boolean;
   landable?: boolean;
+  /** Measured feet, base-bar, or tire clearance for a posed glider, in metres. */
+  contactClearance?: number;
 }
 
 /**
@@ -219,7 +221,9 @@ export interface GliderOptions<C extends object = GliderConfig> {
   rules?: DeepPartial<LandingRules>;
 }
 
-/** A touchdown, as glider.contact() measures it. */
+export type ContactPart = 'feet' | 'bar' | 'wheel';
+
+/** A touchdown, measured by the glider or supplied by the host's posed contact sampler. */
 export interface Contact {
   /** Into the ground, along its normal, m/s. */
   verticalSpeed: number;
@@ -227,12 +231,23 @@ export interface Contact {
   wind: Vec2; x: number; z: number; ground?: number;
   flare: { pressed: boolean; feet?: number; ratio?: number; balloon?: number };
   settled?: boolean;
+  part?: ContactPart;
+  /** Resolved model origin for the bounce response. */
+  airframeY?: number;
+  /** True once a wheel rollout has stopped. */
+  rolledOut?: boolean;
   hit?: unknown;
+}
+
+export interface ContactSample { x: number; y: number; z: number; clearance: number; part: ContactPart }
+export interface SweptContact {
+  x: number; y: number; z: number; part: ContactPart;
+  fraction: number; closingSpeed: number; end: ContactSample;
 }
 
 export type Judgement = 'soft' | 'firm' | 'rough' | 'crash';
 export interface LandingScore {
-  judged: Judgement; points: number; stars: 0 | 1 | 2 | 3; notes: string[]; noStep: boolean;
+  judged: Judgement | 'wheel-rollout'; points: number; stars: 0 | 1 | 2 | 3; notes: string[]; noStep: boolean;
   headwind: number; tailwind: number; windSpeed: number;
   /** From the mark, m, or null without one. */
   distance: number | null;
@@ -417,9 +432,15 @@ export function createSimulationLoop(options: {
 
 export function windOnRun(wind: Vec2, heading: number): { headwind: number; crosswind: number };
 export function runProfile(air: { headwind?: number; crosswind?: number; airLift?: number }, distance: number, slope?: number, config?: GliderConfig, launch?: LaunchConfig): LaunchState;
+export function shoulderPivot(pitch: number, heading: number, roll: number, weight?: number, out?: number[]): number[];
 
-export function judgeTouchdown(touchdown: { verticalSpeed?: number; groundSpeed?: number; slope?: number; bank?: number; tailwind?: number }, rules?: LandingRules): Judgement;
+export function judgeTouchdown(touchdown: { verticalSpeed?: number; groundSpeed?: number; slope?: number; bank?: number; tailwind?: number; part?: ContactPart }, rules?: LandingRules): Judgement;
 export function scoreLanding(touchdown: Partial<Contact>, target?: Target | null, rules?: LandingRules): LandingScore;
+export function sweepFlightContact(before: readonly ContactSample[], after: readonly ContactSample[],
+  groundHeight: (x: number, z: number) => number, dt: number): SweptContact | null;
+export function canRollOnWheels(contact: Pick<Contact, 'part' | 'verticalSpeed' | 'groundSpeed' | 'slope' | 'bank'>
+  & { forwardSpeed: number; sideSpeed: number }): boolean;
+export function advanceWheelRoll(speed: number, grade: number, dt: number): { speed: number; distance: number };
 export function measureFlareZone(makeGlider: (init: Partial<FlightState>) => Glider<any>, performance: Performance, options?: {
   speeds?: number[]; heights?: { from: number; to: number; step: number }; footHeight?: number; start?: number; barFor?: (airspeed: number) => number;
 }): FlareZone;

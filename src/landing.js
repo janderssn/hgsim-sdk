@@ -35,7 +35,8 @@ export const LANDING_RULES = Object.freeze({
  * Touchdown judgement. verticalSpeed: speed into the ground (m/s, positive down; pass the contact speed on a slope),
  * groundSpeed: horizontal speed over the ground, slope (rise per metre), bank (rad), tailwind (m/s). Returns 'soft', 'firm', 'rough' or 'crash'.
  */
-export function judgeTouchdown({ verticalSpeed = 0, groundSpeed = 0, slope = 0, bank = 0, tailwind = 0 } = {}, rules = LANDING_RULES) {
+export function judgeTouchdown({ verticalSpeed = 0, groundSpeed = 0, slope = 0, bank = 0, tailwind = 0, part } = {}, rules = LANDING_RULES) {
+  if (part === 'bar' || part === 'wheel') return 'crash';
   const cfg = rules;
   const vertical = Math.max(0, finite(verticalSpeed)), ground = Math.abs(finite(groundSpeed));
   if (!(finite(slope, 1) < cfg.maxTouchdownSlope) || Math.abs(finite(bank)) > cfg.maxTouchdownBank) return 'crash';
@@ -52,6 +53,7 @@ export function judgeTouchdown({ verticalSpeed = 0, groundSpeed = 0, slope = 0, 
  * touchdown: { verticalSpeed, groundSpeed, slope, bank } as for judgeTouchdown, plus heading (rad), airspeed, the
  * wind {x, z} at touchdown and flare { pressed, feet, ratio, balloon } (the state's flare bookkeeping); target:
  * { x, z, radius } of the landing mark (optional) with the touchdown position { x, z }.
+ * A completed wheel rollout has part='wheel' and rolledOut=true and earns zero points.
  * Returns { judged, points, headwind, tailwind, windSpeed, distance, ring, stars, notes, noStep }.
  */
 export function scoreLanding(touchdown = {}, target = null, rules = LANDING_RULES) {
@@ -62,14 +64,16 @@ export function scoreLanding(touchdown = {}, target = null, rules = LANDING_RULE
   const headwind = -(Math.sin(heading) * windX + Math.cos(heading) * windZ);
   const touched = judgeTouchdown({ ...touchdown, tailwind: -headwind }, rules);
   const whacked = touched === 'soft' && touchdown.flare && !touchdown.flare.pressed && Math.abs(finite(touchdown.groundSpeed)) > finite(cfg.unflaredGround, Infinity);
-  const judged = whacked ? 'firm' : touched;
-  const notes = [];
+  const rollout = touchdown.part === 'wheel' && touchdown.rolledOut === true;
+  const judged = rollout ? 'wheel-rollout' : whacked ? 'firm' : touched;
+  const scored = judged !== 'crash' && !rollout;
+  const notes = rollout ? ['Wheel rollout'] : [];
   let points = pts[judged] || 0;
   if (judged === 'soft') notes.push('Soft touchdown');
   else if (judged === 'firm') notes.push('Firm touchdown');
   else if (judged === 'rough') notes.push('Rough touchdown');
   let windPoints = 0;
-  if (windSpeed > 1.5 && judged !== 'crash') {
+  if (windSpeed > 1.5 && scored) {
     const share = clamp(headwind / windSpeed, -1, 1);
     windPoints = Math.round(pts.headwind * clamp(share / 0.7, 0, 1));
     if (share >= 0.7) notes.push('Into wind');
@@ -83,7 +87,7 @@ export function scoreLanding(touchdown = {}, target = null, rules = LANDING_RULE
   let noStep = false;
   if (judged === 'soft' && vertical < cfg.noStepTouchdown.vertical && ground < cfg.noStepTouchdown.ground) { noStep = true; points += pts.noStep; notes.push('No-stepper'); }
   const flare = touchdown.flare;
-  if (flare && judged !== 'crash') {
+  if (flare && scored) {
     if (flare.balloon > 0.5) notes.push('Flared too early');
     else if (flare.pressed && finite(flare.feet, 9) < 0.45) notes.push(finite(flare.ratio, 1) > 1.5 ? 'Too fast to flare' : 'Flared late');
     else if (!flare.pressed && !noStep) notes.push('No flare');
@@ -92,7 +96,7 @@ export function scoreLanding(touchdown = {}, target = null, rules = LANDING_RULE
   if (target && Number.isFinite(target.x) && Number.isFinite(target.z) && Number.isFinite(touchdown.x) && Number.isFinite(touchdown.z)) {
     distance = Math.hypot(touchdown.x - target.x, touchdown.z - target.z);
     const radius = finite(target.radius, 60);
-    if (judged !== 'crash') {
+    if (scored) {
       if (distance <= cfg.bullseyeRadius) { ring = 'bullseye'; points += pts.bullseye; notes.push('Bullseye'); }
       else if (distance <= cfg.innerRingRadius) { ring = 'inner'; points += pts.inner; notes.push('On the mark'); }
       else if (distance <= cfg.outerRingRadius) { ring = 'outer'; points += pts.outer; notes.push('Near the mark'); }
@@ -100,7 +104,7 @@ export function scoreLanding(touchdown = {}, target = null, rules = LANDING_RULE
     }
   }
   const best = pts.soft + pts.headwind + pts.bullseye + pts.noStep;
-  const stars = judged === 'crash' ? 0 : points >= best * 0.85 ? 3 : points >= best * 0.5 ? 2 : 1;
+  const stars = !scored ? 0 : points >= best * 0.85 ? 3 : points >= best * 0.5 ? 2 : 1;
   return { judged, points, headwind, tailwind: -headwind, windSpeed, distance, ring, stars, notes, noStep };
 }
 

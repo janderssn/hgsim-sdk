@@ -14,6 +14,7 @@
  * No rendering, collisions or external dependencies; terrain following lives in assists/terrain-skimming.js.
  */
 import { skimGuidance } from '../assists/terrain-skimming.js';
+import { tryWheelScrape } from '../contact.js';
 
 const DEG = Math.PI / 180;
 export const CLASSIC_DEFAULTS = Object.freeze({
@@ -270,7 +271,7 @@ export function stepSoaring(state, input = {}, dt = 0, environment = {}) {
     const air = sampleSoaringAir(state.x, state.y, state.z, environment);
     const surface = surfaceAt ? Math.max(air.groundHeight, finite(surfaceAt(state.x, state.z), air.groundHeight))
       : air.groundHeight;
-    const clearance = state.y - surface, feet = clearance - cfg.footHeight;
+    const clearance = state.y - surface, feet = finite(input.contactClearance, clearance - cfg.footHeight);
     const verticalNow = v * Math.sin(gamma) + air.lift;
 
     // Landing: S held low over landable ground at approach speed. flare = round-out weight near the ground.
@@ -460,7 +461,12 @@ export const classicModel = Object.freeze({
       thermalCeiling: world.config.thermalCeiling, thermalFadeStart: world.config.thermalFadeStart,
       terrainSkimming: !!skim, skimClearance: skim?.clearance,
     };
-    return stepSoaring(state, { roll: input.roll, pitch: input.pitch, landable: input.landable, ground: input.field }, dt, environment);
+    return stepSoaring(state, { roll: input.roll, pitch: input.pitch, landable: input.landable,
+      ground: input.field, contactClearance: input.contactClearance }, dt, environment);
+  },
+  scrape(state, contact, ground, rules, cfg) {
+    const stall = classicModel.performance().stallSpeed(contact.bank);
+    return tryWheelScrape(state, contact, ground + cfg.footHeight, stall, rules);
   },
   performance: () => Object.freeze({
     stallSpeed: (bank = 0) => CLASSIC_DEFAULTS.stallSpeed / Math.sqrt(Math.max(0.5, Math.cos(bank))),

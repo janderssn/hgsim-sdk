@@ -1,5 +1,5 @@
 /**
- * Poses the skinned pilot of hang-glider.glb every frame. Visual only: nothing here touches the flight.
+ * Poses the skinned pilot of hang-glider.glb and exposes its foot and control-bar contact points.
  *
  * The bar is fixed to the wing and the pilot hangs from it, so the body is what moves: pulling in swings it forward until
  * the bar is under the chest, pushing out swings it back to straight arms, and a weight shift swings it sideways about the
@@ -86,7 +86,9 @@ export function createPilotRig(THREE, pilot) {
   const easeOver = t => t < 0 ? t : ease(t);   // (eased, but a swing past prone carries on past it)
   let phase = 0, time = 0, lowest = -.65, strideLift = 0, runSpeed = 0, gripHold = 0, planted = 0;
   const body = Q(), spine = Q(), chest = Q(), neck = Q(), head = Q(), shoulder = V(), elbow = V(), hand = V(), upper = Q(), fore = Q(), pose = Q(), pelvis = V();
-  const footTip = { L: V(), R: V() }, footLow = { L: V(), R: V() }, feetPoint = V();
+  const footTip = { L: V(), R: V() }, heel = { L: V(), R: V() }, feetPoint = V();
+  const barContacts = [barL, barL.clone().lerp(barR, .5), barR];
+  const footContacts = [footTip.L, heel.L, footTip.R, heel.R];
 
   function legs(tag, side, u, r, c, p, rollAngle, step, tuck = 0) {
     // Hip and knee angles: h swings the thigh forward, k bends the knee back.
@@ -213,8 +215,10 @@ export function createPilotRig(THREE, pilot) {
     // The point the feet stand on: each foot's lowest point (toe or heel) against the ground, which slopes tilt along +Z, with the
     // weight passing between the feet over the last 12 cm of their difference in clearance, so a stride never moves the body in a step.
     const clearance = p => p.y - tilt * p.z;
-    for (const side of ['L', 'R']) { const low = footLow[side].copy(footTip[side]); v1.copy(worldP['Foot_' + side]); v1.y -= .09; if (clearance(v1) < clearance(low)) low.copy(v1); }
-    feetPoint.lerpVectors(footLow.L, footLow.R, clamp(.5 + (clearance(footLow.L) - clearance(footLow.R)) / .24, 0, 1));
+    for (const side of ['L', 'R']) { heel[side].copy(worldP['Foot_' + side]); heel[side].y -= .09; }
+    const lowL = clearance(heel.L) < clearance(footTip.L) ? heel.L : footTip.L;
+    const lowR = clearance(heel.R) < clearance(footTip.R) ? heel.R : footTip.R;
+    feetPoint.lerpVectors(lowL, lowR, clamp(.5 + (clearance(lowL) - clearance(lowR)) / .24, 0, 1));
     };
     solve(0);
     // Into the frame: forward until the shoulders are under the uprights (the tubes on top of them, a little ahead of the joints).
@@ -233,7 +237,7 @@ export function createPilotRig(THREE, pilot) {
   }
 
   update(0, {}, true);
-  return { update, feetPoint, get lowest() { return lowest; }, get step() { return phase; }, get upright() { return upright.x; }, get hands() { return [handAt[LEFT], handAt[RIGHT], hold.length]; } };
+  return { update, feetPoint, footContacts, barContacts, get lowest() { return lowest; }, get step() { return phase; }, get upright() { return upright.x; }, get hands() { return [handAt[LEFT], handAt[RIGHT], hold.length]; } };
 }
 
 /** Cloth life: a ripple running back along the sail, growing with the speed and near the stall. */
@@ -241,8 +245,11 @@ export function addSailFlutter(wing) {
   const uniforms = { uFlutterTime: { value: 0 }, uFlutterAmp: { value: 0 } };
   wing.traverse(o => {
     if (!o.isMesh || !o.userData?.isSail) return;
-    const material = o.material.clone(); o.material = material;
-    material.onBeforeCompile = shader => {
+    const previous = o.material;
+    const originalCompile = previous.onBeforeCompile, originalKey = previous.customProgramCacheKey.call(previous);
+    const material = previous.clone(); o.material = material;
+    material.onBeforeCompile = (shader, renderer) => {
+      originalCompile.call(material, shader, renderer);
       shader.uniforms.uFlutterTime = uniforms.uFlutterTime; shader.uniforms.uFlutterAmp = uniforms.uFlutterAmp;
       shader.vertexShader = 'uniform float uFlutterTime; uniform float uFlutterAmp;\n' + shader.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
         float flutterFront = 2.42 - .63 * abs(position.x);
@@ -250,7 +257,7 @@ export function addSailFlutter(wing) {
         flutterAft = flutterAft * flutterAft * flutterAft;
         transformed.y += uFlutterAmp * flutterAft * (sin(uFlutterTime * 17. + position.z * 7. + position.x * 2.3) + .6 * sin(uFlutterTime * 29. + position.x * 5.1 - position.z * 4.));`);
     };
-    material.customProgramCacheKey = () => 'sail-flutter';
+    material.customProgramCacheKey = () => originalKey + '|sail-flutter-v2';
   });
   return { update(dt, { speed = 0, stall = 0 } = {}) { uniforms.uFlutterTime.value += dt; const fast = clamp((speed - 12) / 28, 0, 1); uniforms.uFlutterAmp.value = .003 + .012 * fast * fast + .035 * clamp(stall, 0, 1); } };
 }

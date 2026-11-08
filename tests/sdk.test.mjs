@@ -167,7 +167,8 @@ test('the version, the exports and the generated config types agree with the cod
   assert.ok(readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8').includes(`## [${VERSION}]`), 'the CHANGELOG has this version');
   assert.deepEqual(Object.keys(pkg.exports), ['.', './three', './package.json']);
   const { configTypes } = await import('../tools/config-types.mjs');
-  assert.equal(readFileSync(new URL('../types/configs.d.ts', import.meta.url), 'utf8'), configTypes(), 'npm run types:configs');
+  assert.equal(readFileSync(new URL('../types/configs.d.ts', import.meta.url), 'utf8').replaceAll('\r\n', '\n'),
+    configTypes(), 'npm run types:configs');
   // every runtime export is declared
   const declared = readFileSync(new URL('../types/index.d.ts', import.meta.url), 'utf8');
   const index = await import('../src/index.js');

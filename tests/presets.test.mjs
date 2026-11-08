@@ -83,3 +83,23 @@ test('VG: loose for handling, tight for glide; tuning stays on top of it and the
   g.tune({ cd0: 0.03 }); g.setVG(1); assert.equal(g.config.cd0, 0.03, 'a tuned value wins over the VG');
   const plain = createGlider({ preset: 'alpha-235' }); assert.ok(!plain.hasVG); plain.setVG(1); assert.equal(plain.vg, 0);
 });
+
+test('the flare zone is measured per wing and per approach speed', () => {
+  const zoneAtTrim = (id, vg = 0) => { const g = createGlider({ preset: id }).setVG(vg); return g.flareZone().at(g.performance.trimSpeed()); };
+  const standard = zoneAtTrim('intermediate');
+  assert.ok(standard.low < 3.3 && standard.high > 2.7, 'the default wing\'s hands-off zone overlaps the tested 2.7-3.3 m: ' + JSON.stringify(standard));
+  const topless = zoneAtTrim('t2c-144');
+  assert.ok(topless.high < standard.low, 'a topless wing trimmed near the stall flares lower: ' + JSON.stringify(topless));
+  const g = createGlider({ preset: 't2c-144' }).setVG(1), zone = g.flareZone();
+  assert.equal(g.flareZone(), zone, 'measured once per config');
+  assert.ok(zone.at(2 * g.performance.stallSpeed()) === null && zone.at(0.9 * g.performance.stallSpeed()) === null, 'no zone outside the measured speeds');
+  g.tune({ mass: 100 }); assert.notEqual(g.flareZone(), zone, 'measured again after tuning');
+  // Flying it: hands off at trim, then the flare held from the middle of the zone, lands softly on every wing.
+  const field = createWorld({ wind: { x: 0, z: -2 } });
+  for (const id of ids) {
+    const z = zoneAtTrim(id), from = (z.low + z.high) / 2, lander = createGlider({ preset: id, world: field, at: { y: 16 } });
+    let on = false;
+    for (let i = 0; i < 6000 && !lander.contact(); i++) { if (lander.height() - 2.3 < from) on = true; lander.step(1 / 60, { pitch: on ? 1 : 0, field: lander.height() < 14 }); }
+    assert.equal(lander.land().judged, 'soft', `${id}: a flare from ${from.toFixed(1)} m lands softly`);
+  }
+});

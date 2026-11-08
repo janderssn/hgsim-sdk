@@ -133,7 +133,11 @@ How far to trust the reference data: no independently measured polar is publishe
 
 Wills Wing's polars assume a pilot of 130% of the minimum hook-in weight; the presets fly at the reference's total mass.
 
-The fitted wings trim only 10–20% above the stall, as real wings do. Fly the final with some speed in hand (the bar a little in) and flare from 1–2 m. The `intermediate` game wing trims faster and flares from about 3 m.
+The fitted wings trim only 10–20% above the stall, as real wings do, so where to flare depends on the wing and on how fast it arrives.
+
+- **Measured flare zone:** `glider.flareZone()` flies the wing's finals at a range of approach speeds and records, for each speed, the heights from which holding the bar out lands softly. Holding a little bar in keeps the pilot prone and the wing fast, so it flares lower. A hands-off final lets the pilot come upright and the wing settle.
+- **Examples at trim, hands off:** the `intermediate` wing at 47 km/h flares from 2.4–3.0 m. The T2C with the VG off, at 34 km/h, flares from 0.4–1.0 m. The T2C at 45 km/h, bar slightly in, flares from 0.9–2.4 m.
+- **In the range:** the landing cue's green zone and its FLARE prompt follow that measurement for the wing and its current airspeed. The zone is held once the flare begins. The panel shows the zone at trim and at 1.5× the stall speed, and the result card's tips name the wing's own flare height.
 
 ```js
 const glider = createGlider({ world, preset: 't2c-144', config: { mass: 115 } });   // a preset, then your own changes on top
@@ -143,6 +147,7 @@ glider.usePreset('alpha-235');   // switch wings in flight; glider.tune() change
 glider.setVG(1);         // a wing with a VG (glider.hasVG): 0 loose (lighter roll, slower) .. 1 tight (flatter glide, heavier roll)
 glider.pitchStability(); // { curves: [{ bar, points: [{ alpha, rate }], trim }], stiffness, lowAlphaRecovery }
 glider.reference;        // the data the preset was fitted to (at the current VG), with its sources
+glider.flareZone().at(airspeed);   // { low, high }: heights of the feet to flare from at this approach speed (null: none soft)
 ```
 
 **The polar** is sink rate against airspeed in steady, straight flight. The highest point of the curve is the minimum sink, the speed to circle in lift. The point where a line from the origin just touches the curve is the best glide, the speed for distance in still air. Against a headwind or through sinking air, the speed to fly moves faster.
@@ -171,7 +176,7 @@ Any other object with the same shape drops in. `examples/extend.mjs` flies a poi
 | `flight.js` | The force model: `GLIDER_DEFAULTS`, the aerodynamics, `stepFlight`, `performance`, `scrapeGround`. |
 | `models/classic.js` | The classic model. |
 | `launch.js` | The launch kernel: picking the wing up, balancing it, the run and the lift-off (`LAUNCH_DEFAULTS`). |
-| `landing.js` | `LANDING_RULES`, `judgeTouchdown` and `scoreLanding`, and approach helpers: the flare zone, `pullOutHeights`, `dropToImpact`. |
+| `landing.js` | `LANDING_RULES`, `judgeTouchdown` and `scoreLanding`, and approach helpers: `measureFlareZone` (any wing's flare zone by approach speed), the default wing's `ZONE_LOW`/`ZONE_HIGH`, `pullOutHeights`, `dropToImpact`. |
 | `tumble.js` | A launch or landing gone wrong as a rigid body. It has gravity, a flat-plate sail and ground contact with friction, and runs until the wreck comes to rest. |
 | `wind.js` | Live wind: a mean speed and direction with a meander and gusts, and conversions to and from compass bearings. |
 | `recorder.js` | Records each round as samples and marked moments. `tools/flight-report.mjs` reads them back. |

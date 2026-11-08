@@ -330,8 +330,8 @@ function showCard(r) {
   const f = c.flare, flareLine = !f?.pressed ? 'none · the wing mushed on' : `S at ${f.feet.toFixed(1)} m and ${(f.ratio * 100).toFixed(0)}% of stall speed` + (r.notes.includes('Flared too early') ? ' · too early, it ballooned' : r.notes.includes('Flared late') ? ' · late' : r.noStep ? ' · perfect' : ' · good');
   const stars = [1, 2, 3].map(i => `<span class="${i <= r.stars ? '' : 'off'}">★</span>`).join('');
   const windLine = r.windSpeed < 1.5 ? 'calm air' : `${r.headwind >= 0 ? 'headwind' : 'tailwind'} ${Math.abs(r.headwind).toFixed(1)} m/s · wind ${describeWind(wind)}`;
-  const why = crash ? r.headwind < -LANDING_RULES.tailwindFree && c.verticalSpeed < LANDING_RULES.softTouchdown.vertical ? `Too fast to run it out: a ${(-r.headwind).toFixed(1)} m/s tailwind made it ${(c.groundSpeed * 3.6).toFixed(0)} km/h over the ground.` : (Math.abs(c.bank) > LANDING_RULES.maxTouchdownBank ? 'Wings not level at touchdown.' : c.verticalSpeed >= 2.8 && c.groundSpeed >= 10.5 ? 'Too fast and sinking too hard: slow down into the wind and push out low.' : c.verticalSpeed >= 3.6 ? 'Dropped in from too high: you stalled above the ground. Start holding S lower, at about 3 m.' : c.groundSpeed >= 19 ? 'Far too fast over the ground: bleed off speed, land into the wind.' : 'Too steep a slope to land on.') : '';
-  const tip = !crash && r.notes.includes('Downwind') ? 'Landing downwind: the ground speed was the airspeed plus the wind. Turn into the wind next time; the windsock points the way the air moves.' : !crash && r.notes.includes('Flared too early') ? 'Too early: you ran out of speed high up. Start holding S lower, at about 3 m.' : !crash && r.notes.includes('Too fast to flare') ? 'Too fast: the wing could not be pushed out before the ground. Slow down on final.' : !crash && r.notes.includes('No flare') ? 'No flare: on final, hold S from about 3 m and keep holding.' : !crash && r.notes.includes('Flared late') ? 'Late: start holding S a little higher, at about 3 m.' : !crash && r.judged === 'rough' ? 'Fast over the ground: bleed speed before the flare.' : !crash && r.ring === null ? 'Plan the pattern so the final approach ends on the mark.' : '';
+  const why = crash ? r.headwind < -LANDING_RULES.tailwindFree && c.verticalSpeed < LANDING_RULES.softTouchdown.vertical ? `Too fast to run it out: a ${(-r.headwind).toFixed(1)} m/s tailwind made it ${(c.groundSpeed * 3.6).toFixed(0)} km/h over the ground.` : (Math.abs(c.bank) > LANDING_RULES.maxTouchdownBank ? 'Wings not level at touchdown.' : c.verticalSpeed >= 2.8 && c.groundSpeed >= 10.5 ? 'Too fast and sinking too hard: slow down into the wind and push out low.' : c.verticalSpeed >= 3.6 ? `Dropped in from too high: you stalled above the ground. Start holding S lower, at about ${flareHeight()} m.` : c.groundSpeed >= 19 ? 'Far too fast over the ground: bleed off speed, land into the wind.' : 'Too steep a slope to land on.') : '';
+  const tip = !crash && r.notes.includes('Downwind') ? 'Landing downwind: the ground speed was the airspeed plus the wind. Turn into the wind next time; the windsock points the way the air moves.' : !crash && r.notes.includes('Flared too early') ? `Too early: you ran out of speed high up. Start holding S lower, at about ${flareHeight()} m.` : !crash && r.notes.includes('Too fast to flare') ? 'Too fast: the wing could not be pushed out before the ground. Slow down on final.' : !crash && r.notes.includes('No flare') ? `No flare: on final, hold S from about ${flareHeight()} m and keep holding.` : !crash && r.notes.includes('Flared late') ? `Late: start holding S a little higher, at about ${flareHeight()} m.` : !crash && r.judged === 'rough' ? 'Fast over the ground: bleed speed before the flare.' : !crash && r.ring === null ? 'Plan the pattern so the final approach ends on the mark.' : '';
   card.className = 'card on' + (crash ? ' crash' : '');
   card.innerHTML = `<h2>${title}</h2><div class="stars">${stars}</div>
     <table>
@@ -370,8 +370,8 @@ $('windCalm').addEventListener('click', () => { wind.set({ speed: 0 }); syncWind
 // Panel: tuning
 const tuneInputs = [...document.querySelectorAll('[data-tune]')];
 function syncTunePanel() { const t = glider.config; for (const input of tuneInputs) { const key = input.dataset.tune, deg = !!input.dataset.deg, v = deg ? t[key] / DEG : t[key]; input.value = v; $('t-' + key).textContent = deg ? (Math.round(v * 10) / 10) + '°' : key === 'cd0' ? Number(v).toFixed(3) : Number(v).toFixed(1); } }
-for (const input of tuneInputs) input.addEventListener('input', () => { const key = input.dataset.tune, v = Number(input.value); glider.tune({ [key]: input.dataset.deg ? v * DEG : v }); syncTunePanel(); drawPolar(true); });
-$('tuneReset').addEventListener('click', () => { glider.tune(); syncTunePanel(); drawPolar(true); toast(glider.preset ? `${glider.preset.name} restored` : 'Defaults restored'); });
+for (const input of tuneInputs) input.addEventListener('input', () => { const key = input.dataset.tune, v = Number(input.value); glider.tune({ [key]: input.dataset.deg ? v * DEG : v }); syncTunePanel(); drawPolar(true); refreshFlareZone(); });
+$('tuneReset').addEventListener('click', () => { glider.tune(); syncTunePanel(); drawPolar(true); refreshFlareZone(); toast(glider.preset ? `${glider.preset.name} restored` : 'Defaults restored'); });
 $('tuneCopy').addEventListener('click', () => { const diff = glider.overrides; navigator.clipboard?.writeText(JSON.stringify(diff)); toast(Object.keys(diff).length ? 'Copied: ' + JSON.stringify(diff) : 'Nothing changed from the defaults', 4); });
 // Panel: the glider. A preset picker, what the wing is, and its polar, live: tuning moves the curve, and the green dot is where
 // the wing is flying now (its own sink at this drag, so turns, dives and the flare are seen leaving the steady glide).
@@ -399,7 +399,7 @@ function drawPolar(changed = false) {
   polarChart.draw({ polar: polarNow, others: otherPolars.filter(o => o.id !== glider.preset?.id), now: mode === 'gliding' ? { airspeed: soaring.airspeed, sink: soaring.sinkRate } : null, reference: glider.reference?.points });
 }
 presetSelect.addEventListener('change', () => {
-  glider.usePreset(presetSelect.value); vgTarget = glider.vg; syncVG(); describePreset(); syncTunePanel(); drawPolar(true);
+  glider.usePreset(presetSelect.value); vgTarget = glider.vg; syncVG(); describePreset(); syncTunePanel(); drawPolar(true); refreshFlareZone();
   const q = new URLSearchParams(location.search); q.set('glider', presetSelect.value); history.replaceState(null, '', '?' + q);
   toast(glider.preset.name, 1.6); $('world').focus();
 });
@@ -408,13 +408,27 @@ let vgTarget = glider.vg;
 function stepVG(dt) {
   if (!glider.hasVG || glider.vg === vgTarget) return;
   const v = glider.vg, next = v + Math.max(-dt * .5, Math.min(dt * .5, vgTarget - v));
-  glider.setVG(Math.abs(next - vgTarget) < 1e-3 ? vgTarget : next); syncVG(); polarNow = pitchNow = null;
+  glider.setVG(Math.abs(next - vgTarget) < 1e-3 ? vgTarget : next); syncVG(); polarNow = pitchNow = null; refreshFlareZone();
 }
 function syncVG() {
   $('vgRow').hidden = !glider.hasVG; $('vg').value = vgTarget; $('vgV').textContent = glider.vg < .02 ? 'off (loose)' : glider.vg > .98 ? 'on (tight)' : Math.round(glider.vg * 100) + '%';
 }
 $('vg').addEventListener('input', () => { vgTarget = Number($('vg').value); });
 describePreset(); syncVG();
+// Where to flare (the landing cue's zone) depends on the wing and how fast it arrives: measured by flying the wing
+// (Glider.flareZone, a few hundred ms), after a change of wing, VG or tuning has settled.
+let flareGuide = null, flareTimer = 0;
+function refreshFlareZone(delay = 400) { clearTimeout(flareTimer); flareTimer = setTimeout(() => { flareGuide = glider.flareZone(); showFlareZone(); }, delay); }
+function showFlareZone() {
+  const p = glider.performance, at = (v, label) => { const z = flareGuide?.at(v); return z ? `${label} ${z.low.toFixed(1)}–${z.high.toFixed(1)} m` : null; };
+  $('flareStats').textContent = p && flareGuide ? 'Flare from ' + [at(p.trimSpeed(), `${(p.trimSpeed() * 3.6).toFixed(0)} km/h hands off:`), at(1.5 * p.stallSpeed(), `${(1.5 * p.stallSpeed() * 3.6).toFixed(0)} km/h:`)].filter(Boolean).join(' · ') : '';
+}
+/** The height to start the flare from on a hands-off final, for the tips on the result card. */
+function flareHeight() {
+  const z = flareGuide && glider.performance ? flareGuide.at(glider.performance.trimSpeed()) : null;
+  return z ? (Math.round((z.low + z.high) / 2 * 2) / 2).toString() : '3';
+}
+refreshFlareZone(0);
 for (const [id, name] of [['btnLaunch', 'ramp'], ['btnCliff', 'cliff'], ['btnSlope', 'slope']]) $(id).addEventListener('click', () => { standAtSite(name); launch(); $('world').focus(); });
 $('btnOverhead').addEventListener('click', () => { overhead(); $('world').focus(); });
 $('btnMark').addEventListener('click', () => { markMoment(); $('world').focus(); });
@@ -547,7 +561,7 @@ function renderFrame(dt, alpha) {
   sun.target.position.set(pos.x, pos.y, pos.z); sun.position.set(pos.x - 900, pos.y + 1300, pos.z + 700);
   updateHud();
   if (elapsed - polarDrawn > .2 && !$('panel').classList.contains('hidden')) { polarDrawn = elapsed; drawPolar(); }
-  { const f = mode === 'gliding', g = terrainHeight(pos.x, pos.z); cues.update({ flying: f, x: pos.x, z: pos.z, ground: g, feet: pos.y - g - 2.3, speedRatio: speed / glider.performance.stallSpeed(), bar: soaring.bar || 0, sink: -verticalSpeed, landable: slopeAt(pos.x, pos.z) < .42, speed, dropToImpact: f && verticalSpeed < -3 ? dropToImpact({ x: pos.x, feetY: pos.y - 2.3, z: pos.z, vx: Math.sin(heading) * Math.cos(soaring.pathAngle || 0) * speed + (soaring.windX || 0), vy: verticalSpeed, vz: Math.cos(heading) * Math.cos(soaring.pathAngle || 0) * speed + (soaring.windZ || 0), terrainHeight }) : null }); }
+  { const f = mode === 'gliding', g = terrainHeight(pos.x, pos.z); cues.update({ zone: flareGuide ? flareGuide.at(speed) : undefined, flying: f, x: pos.x, z: pos.z, ground: g, feet: pos.y - g - 2.3, speedRatio: speed / glider.performance.stallSpeed(), bar: soaring.bar || 0, sink: -verticalSpeed, landable: slopeAt(pos.x, pos.z) < .42, speed, dropToImpact: f && verticalSpeed < -3 ? dropToImpact({ x: pos.x, feetY: pos.y - 2.3, z: pos.z, vx: Math.sin(heading) * Math.cos(soaring.pathAngle || 0) * speed + (soaring.windX || 0), vy: verticalSpeed, vz: Math.cos(heading) * Math.cos(soaring.pathAngle || 0) * speed + (soaring.windZ || 0), terrainHeight }) : null }); }
   { const flying = mode === 'gliding', cg = Math.cos(soaring.pathAngle || 0); streaks.update(camera.position, { x: Math.sin(heading) * cg, y: Math.sin(soaring.pathAngle || 0), z: Math.cos(heading) * cg }, flying ? speed : 0, dt);
     audio.update({ mode: flying ? 'gliding' : 'foot', paused: false, speed, verticalSpeed, lift: flying ? soaring.lift : 0, thermalLift: flying ? soaring.thermalLift : 0, ridgeLift: flying ? soaring.ridgeLift : 0, clearance: pos.y - terrainHeight(pos.x, pos.z), skim: flying ? clamp(soaring.skimAssist || 0, 0, 1) : 0, stalled: flying && !!soaring.stalled, stallWarning: flying && !!soaring.stallWarning, pullUp: flying && !!soaring.pullUp, bank, walking: false, sprinting: false, biome: 'alpine', nearSea: 0, altitude: pos.y }, dt); }
   renderer.render(scene, camera);

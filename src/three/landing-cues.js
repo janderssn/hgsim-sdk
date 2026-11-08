@@ -6,7 +6,11 @@
  * enough). Presentation only: it never touches the flight.
  *
  *   const cues = createLandingCues(THREE, scene, { onFlareCue() { audio.emit('tip'); } });
- *   cues.update({ flying, x, z, ground, feet, speedRatio, bar, sink, landable, speed, dropToImpact }, dt);
+ *   cues.update({ flying, x, z, ground, feet, speedRatio, bar, sink, landable, speed, dropToImpact, zone }, dt);
+ *
+ * zone: where this wing flares softly at this airspeed, { low, high } in m of the feet (Glider.flareZone().at(airspeed)); null
+ * where no flare is soft (too slow, or too fast to land); left out, the default wing's ZONE_LOW..ZONE_HIGH. It is held once the
+ * flare has begun, so the zone does not slide away under a wing slowing in the flare.
  *
  * (dropToImpact and pullOutHeights, the pure parts, are in hgsim's landing.js.)
  */
@@ -36,14 +40,24 @@ export function createLandingCues(THREE, scene, { onFlareCue } = {}) {
   const wrap = document.createElement('div'); wrap.className = 'lc-wrap';
   // The last 12 m take most of the bar, so the flare zone stays readable; the rest compresses the height up to 170 m.
   const y = h => { const c = clamp(h, 0, GAUGE_TOP); return (1 - (c <= GAUGE_NEAR ? c / GAUGE_NEAR * NEAR_SHARE : NEAR_SHARE + (c - GAUGE_NEAR) / (GAUGE_TOP - GAUGE_NEAR) * (1 - NEAR_SHARE))) * 100; };
-  wrap.innerHTML = `<div class="lc-track"><div class="lc-free"></div><div class="lc-push"></div><div class="lc-zone" style="top:${y(ZONE_HIGH)}%;height:${y(ZONE_LOW) - y(ZONE_HIGH)}%"></div><div class="lc-mark"></div></div><div class="lc-num"></div>`;
-  const mark = wrap.querySelector('.lc-mark'), num = wrap.querySelector('.lc-num'), freeBand = wrap.querySelector('.lc-free'), pushBand = wrap.querySelector('.lc-push');
+  wrap.innerHTML = `<div class="lc-track"><div class="lc-free"></div><div class="lc-push"></div><div class="lc-zone"></div><div class="lc-mark"></div></div><div class="lc-num"></div>`;
+  const zoneBar = wrap.querySelector('.lc-zone'), mark = wrap.querySelector('.lc-mark'), num = wrap.querySelector('.lc-num'), freeBand = wrap.querySelector('.lc-free'), pushBand = wrap.querySelector('.lc-push');
   const prompt = document.createElement('div'); prompt.className = 'lc-flare'; prompt.textContent = 'FLARE';
   document.body.append(wrap, prompt);
-  let armed = true;
+  let armed = true, held = { low: ZONE_LOW, high: ZONE_HIGH }, drawn = null;
+  const showZone = z => {
+    const key = z ? `${z.low.toFixed(2)}:${z.high.toFixed(2)}` : '';
+    if (key === drawn) return; drawn = key;
+    zoneBar.style.display = z ? '' : 'none';
+    if (z) { zoneBar.style.top = y(z.high) + '%'; zoneBar.style.height = Math.max(.6, y(z.low) - y(z.high)) + '%'; }
+  };
+  showZone(held);
 
   return {
-    update({ flying, x, z, ground, feet, speedRatio, bar, sink, landable, speed = 0, dropToImpact: drop = null }) {
+    update({ flying, x, z, ground, feet, speedRatio, bar, sink, landable, speed = 0, dropToImpact: drop = null, zone }) {
+      if (zone !== undefined && !(bar >= .35 && flying)) held = zone ? { low: zone.low, high: zone.high } : null;   // (held through the flare)
+      else if (zone === undefined) held = { low: ZONE_LOW, high: ZONE_HIGH };
+      showZone(held);
       const low = flying && feet < 40;
       shadow.visible = low;
       if (low) {
@@ -62,11 +76,11 @@ export function createLandingCues(THREE, scene, { onFlareCue } = {}) {
       if (diving) { pushBand.style.height = 100 - y(need.push) + '%'; freeBand.style.height = 100 - y(need.free) + '%'; level = height < need.push ? 'red' : height < need.free ? 'amber' : ''; }
       wrap.classList.toggle('amber', level === 'amber'); wrap.classList.toggle('red', level === 'red');
       // The cue: at approach speed, coming down, in the zone, and not already pushing out.
-      const inZone = showGauge && feet < ZONE_HIGH && feet > ZONE_LOW - .6 && speedRatio < 1.9 && sink > .15;
+      const inZone = showGauge && !!held && feet < held.high && feet > held.low - .6 && speedRatio < 1.9 && sink > .15;
       const on = inZone && bar < .35;
       prompt.classList.toggle('on', on);
       if (on && armed) { armed = false; onFlareCue?.(); }
-      if (!flying || feet > ZONE_HIGH + 1.5) armed = true;
+      if (!flying || feet > (held?.high ?? ZONE_HIGH) + 1.5) armed = true;
     },
     dispose() { scene.remove(shadow); texture.dispose(); material.dispose(); wrap.remove(); prompt.remove(); style.remove(); },
   };

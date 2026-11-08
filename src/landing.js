@@ -100,7 +100,8 @@ export function scoreLanding(touchdown = {}, target = null, rules = LANDING_RULE
 }
 
 /* ---------- the approach ---------- */
-// Where holding S gives a soft touchdown, measured on the flight model: the bar takes time, so the push starts this high.
+// Where holding S gives a soft touchdown for the default wing on a hands-off final, measured on the flight model: the bar takes
+// time, so the push starts this high. Any other wing, or speed: measureFlareZone (Glider.flareZone).
 export const ZONE_LOW = 2.7, ZONE_HIGH = 3.3;
 
 /**
@@ -128,3 +129,40 @@ export function dropToImpact({ x, feetY, z, vx, vy, vz, terrainHeight, seconds =
   return null;
 }
 
+
+/**
+ * Measures where a flare lands softly for a wing, at each approach speed: for each speed (a steady final from start m, 14 by default, the bar held
+ * for it; hands off at the trim speed), the heights of the body reference above flat ground, less footHeight, from which holding the bar fully out gives a soft touchdown. Flown on fresh gliders from
+ * makeGlider(init) (createGlider with the wing's config), in a light headwind. Returns
+ * { zones: [{ airspeed, low, high } | { airspeed, low: null, high: null }], at(airspeed) }, where at() interpolates the zone for any
+ * airspeed (null where no flare is soft: too slow to flare, or too fast to land). The longest run of soft heights is the zone.
+ */
+export function measureFlareZone(makeGlider, perf, { speeds = [1.1, 1.25, 1.4, 1.55, 1.7, 1.85], heights = { from: 0.4, to: 5, step: 0.2 }, footHeight = 2.4, start = 14, barFor } = {}) {
+  const stall = perf.stallSpeed(), trim = perf.trimSpeed(0), zones = [];
+  // (the trim speed itself is flown hands off: a free bar lets the pilot come upright on final, which changes the flare)
+  const grid = [...speeds.map(k => k * stall).filter(v => Math.abs(v - trim) > 0.04 * trim), trim].sort((a, b) => a - b);
+  for (const airspeed of grid) {
+    const bar = airspeed === trim ? 0 : barFor(airspeed);
+    let run = null, best = null, misses = 0;
+    for (let h = heights.from; h <= heights.to + 1e-9 && misses < 3; h += heights.step) {
+      const g = makeGlider({ y: footHeight + Math.max(start, h + 6), airspeed, pathAngle: perf.glideAngle(airspeed) });
+      g.state.bar = bar; let on = false;
+      for (let i = 0; i < 2400 && !g.contact(); i++) { if (g.height() - footHeight < h) on = true; g.step(1 / 60, { pitch: on ? 1 : bar, field: g.height() < 14 }); }
+      const soft = !!g.contact() && g.land().judged === 'soft';
+      misses = soft ? 0 : best || run ? misses + 1 : 0;   // (well past the soft heights: the rest are all hard)
+      if (soft) run = run ? { low: run.low, high: h } : { low: h, high: h };
+      if ((!soft || h + heights.step > heights.to + 1e-9) && run) { if (!best || run.high - run.low > best.high - best.low) best = run; run = null; }
+    }
+    zones.push({ airspeed, low: best?.low ?? null, high: best?.high ?? null });
+  }
+  const at = airspeed => {
+    if (!(airspeed >= zones[0].airspeed * 0.97 && airspeed <= zones.at(-1).airspeed * 1.03)) return null;
+    let i = zones.findIndex(z => z.airspeed >= airspeed);
+    if (i <= 0) i = i === 0 ? 1 : zones.length - 1;
+    const a = zones[i - 1], b = zones[i], t = clamp((airspeed - a.airspeed) / (b.airspeed - a.airspeed), 0, 1);
+    if (a.low === null && b.low === null) return null;
+    if (a.low === null || b.low === null) { const z = t < 0.5 ? a : b; return z.low === null ? null : { low: z.low, high: z.high }; }
+    return { low: a.low + (b.low - a.low) * t, high: a.high + (b.high - a.high) * t };
+  };
+  return { zones, at };
+}

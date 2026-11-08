@@ -14,8 +14,8 @@
 import { defineConfig, overridesOf } from './config.js';
 import { forceModel } from './flight.js';
 import { createWorld } from './world.js';
-import { LANDING_RULES, scoreLanding } from './landing.js';
-import { LAUNCH_DEFAULTS, createLaunch, stepLaunch, launchPose, windOnRun, shoulderPivot } from './launch.js';
+import { LANDING_RULES, scoreLanding, measureFlareZone } from './landing.js';
+import { LAUNCH_DEFAULTS, createLaunch, stepLaunch, launchPose, windOnRun, shoulderPivot, barForSpeed } from './launch.js';
 import { createTumble } from './tumble.js';
 import { updateSkimPose } from './assists/skim-pose.js';
 import { finite } from './math.js';
@@ -48,7 +48,7 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
   };
   let current = preset === null ? null : typeof preset === 'string' ? getPreset(preset) : preset;
   let vgSetting = current?.vg ? current.vg.default : 0, tuning = { ...config };
-  let base = baseOf(current, vgSetting), cfg = defineConfig(base, tuning, name), perf = null;
+  let base = baseOf(current, vgSetting), cfg = defineConfig(base, tuning, name), perf = null, flare = null;
   const landingRules = defineConfig(LANDING_RULES, rules, 'rules');
   const skimOptions = !skim ? null : { clearance: typeof skim === 'object' && typeof skim.clearance === 'function'
     ? state => skim.clearance(state, world) : typeof skim === 'object' ? skim.clearance : undefined };
@@ -106,6 +106,20 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
     polar(options) { return glider.performance ? polarOf(glider.performance, options) : null; },
     /** Static pitch stability for the current config (polar.js pitchStabilityOf), or null for a model without it. */
     pitchStability(options) { return pitchStabilityOf(glider.performance, { toAlpha: Math.max(0.35, (cfg.stallAlpha ?? 0.3) + 0.1), ...options }); },
+    /**
+     * Where to flare this wing, by approach speed (landing.js measureFlareZone): { zones, at(airspeed) → { low, high } | null },
+     * the heights of the feet from which holding the bar out lands softly. Measured by flying it (a few hundred ms), once per
+     * config; null for a model without performance.
+     */
+    flareZone() {
+      if (!glider.performance) return null;
+      if (flare?.cfg !== cfg) {
+        const p = glider.performance, flat = createWorld({ wind: { x: 0, z: -2 } }), at = cfg, skimless = model;
+        flare = { cfg, zone: measureFlareZone(init => createGlider({ world: flat, model: skimless, config: at, at: init, rules }), p,
+          { footHeight: cfg.contactHeight ?? 2.3, barFor: v => barForSpeed(v, b => p.trimSpeed(b)) }) };
+      }
+      return flare.zone;
+    },
     /** The reference data the preset was fitted to at the current VG (presets.js), or null. */
     get reference() { const r = current?.reference; return !r ? null : current.vg ? (vgSetting < 0.5 ? r.loose : r.tight) : r; },
     /** Starts over with a fresh flight state (as createGlider's at). */

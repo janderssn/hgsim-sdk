@@ -132,7 +132,7 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
     /** The air where the glider is: lift, wind and the ground below (World.airAt). */
     air() { return world.airAt(state.x, state.y, state.z); },
     /** Height of the body reference above the ground, m. */
-    height() { return state.y - world.heightAt(state.x, state.z); },
+    height() { return state.y - world.groundAt(state.x, state.z); },
 
     /**
      * The touchdown, once the glider is on the ground (its body lower than contactHeight over it, less tolerance), else null:
@@ -140,9 +140,9 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
      * It is what judgeTouchdown and scoreLanding read.
      */
     contact({ tolerance = 0 } = {}) {
-      const { x, z } = state, ground = world.heightAt(x, z);
+      const { x, z } = state, ground = world.groundAt(x, z);
       if (!(state.y < ground + finite(cfg.contactHeight, 2.3) - tolerance)) return null;
-      const gx = (world.heightAt(x + 12, z) - world.heightAt(x - 12, z)) / 24, gz = (world.heightAt(x, z + 12) - world.heightAt(x, z - 12)) / 24;
+      const gx = (world.groundAt(x + 12, z) - world.groundAt(x - 12, z)) / 24, gz = (world.groundAt(x, z + 12) - world.groundAt(x, z - 12)) / 24;
       const slope = Math.hypot(gx, gz), horizontal = state.airspeed * Math.cos(state.pathAngle || 0);
       const vx = Math.sin(state.heading) * horizontal + state.windX, vz = Math.cos(state.heading) * horizontal + state.windZ;
       return {
@@ -158,7 +158,7 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
     },
     /** A light, fast, level contact skips off the ground instead of landing: true when it did (the flight goes on). */
     scrape(contact = glider.contact()) {
-      return !!contact && !!model.scrape?.(state, contact, contact.ground ?? world.heightAt(state.x, state.z), landingRules, cfg);
+      return !!contact && !!model.scrape?.(state, contact, contact.ground ?? world.groundAt(state.x, state.z), landingRules, cfg);
     },
 
     /**
@@ -170,7 +170,7 @@ export function createGlider({ world = createWorld(), model = forceModel, preset
      */
     launch({ site = OPEN_GROUND, manual = false, config: launchConfig = {} } = {}) {
       const launchCfg = defineConfig(glider.launchConfig, launchConfig, 'launch config');
-      const groundAt = site.ground ?? world.heightAt;
+      const groundAt = site.ground ?? world.groundAt;
       state = model.createState({ x: state.x, y: groundAt(state.x, state.z) + cfg.contactHeight, z: state.z, heading: state.heading }, cfg);
       return createLaunchHandle({ glider, run: createLaunch(state), site, groundAt, manual, launchCfg });
     },

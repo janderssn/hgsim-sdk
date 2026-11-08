@@ -4,7 +4,8 @@
 //   node tools/config-types.mjs --check   exits 1 if it is out of date (the tests run this)
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { GLIDER_DEFAULTS, LAUNCH_DEFAULTS, LANDING_RULES, AIR_DEFAULTS, CLASSIC_DEFAULTS, WALKER_DEFAULTS, SITE_DEFAULTS } from '../src/index.js';
+import { GLIDER_DEFAULTS, LAUNCH_DEFAULTS, LANDING_RULES, AIR_DEFAULTS, CLASSIC_DEFAULTS, SITE_DEFAULTS } from '../src/index.js';
+import { WALKER_DEFAULTS } from '../src/ground/index.js';
 
 const typeOf = (v, pad) => Array.isArray(v) ? `readonly [${v.map(() => 'number').join(', ')}]`
   : v && typeof v === 'object' ? `{\n${fields(v, pad + '  ')}${pad}}` : typeof v;

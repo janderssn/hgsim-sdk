@@ -3,9 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  createWorld, createWalker, createHangGlider, terrainSite, MATERIALS, makePose, lerpPose, createPoseTrack, applyPose, anglesOf,
+  createWorld, createHangGlider, terrainSite, MATERIALS, makePose, lerpPose, createPoseTrack, applyPose, anglesOf,
   quaternionFrom, createSimulationLoop, SITES,
 } from '../src/index.js';
+import { createWalker } from '../src/ground/index.js';
 
 const walk = (world, input, seconds = 4, at = {}) => {
   const walker = createWalker({ world, at }), events = [];
@@ -24,6 +25,7 @@ test('the world answers every vehicle: ground, platforms, slope, normal, materia
   assert.ok(Math.abs(world.slopeAt(5, 4) - 0.5) < 1e-9);
   const n = world.normalAt(5, 4); assert.ok(Math.abs(Math.hypot(n.x, n.y, n.z) - 1) < 1e-9 && n.z < 0 && n.y > 0.8);
   assert.equal(world.materialAt(0, 0), MATERIALS.snow); assert.equal(world.materialAt(60, 0).name, 'ice'); assert.equal(world.materialAt(30, 0).grip, 0.9);
+  assert.deepEqual(Object.keys(MATERIALS.snow), ['name', 'grip', 'softness'], 'only what a vehicle uses');
   assert.equal(world.waterAt(0, -20), 0); assert.equal(world.waterAt(0, 0), null);
   assert.equal(world.solidAt(30, 1, 0), 'hut'); assert.equal(world.solidAt(30, 9, 0), null);
   assert.ok(world.inBounds(0, 0) && !world.inBounds(990, 0, 20));
@@ -118,6 +120,19 @@ test('the hang glider is a vehicle like the walker: pose, velocity, airborne, an
   hit.startAt({ x: 0, y: 300, z: 0, heading: 0 });
   for (let i = 0; i < 60 * 20 && !what.length; i++) hit.step(1 / 60);
   assert.equal(what[0].kind, 'solid'); assert.equal(what[0].hit, 'church');
+});
+
+test('one ground for every vehicle: a glider lands on a platform the walker stands on', () => {
+  const world = createWorld({ platform: (x, z) => (z > 30 && z < 400 && Math.abs(x) < 200 ? 12 : null), wind: { x: 0, z: -3 } });
+  const hg = createHangGlider({ world }), downs = [];
+  hg.on('touchdown', e => downs.push(e));
+  hg.startAt({ x: 0, y: 40, z: 0, heading: 0 });
+  for (let i = 0; i < 60 * 60 && hg.phase === 'flight'; i++) hg.step(1 / 60, { pitch: hg.glider.height() < 3 ? 1 : 0 });
+  assert.equal(downs.length, 1, 'it touched down');
+  assert.equal(downs[0].contact.ground, 12, 'on the platform, not the terrain under it');
+  assert.ok(downs[0].contact.z > 30 && hg.phase === 'landed', `${hg.phase} at z ${downs[0].contact.z.toFixed(0)}`);
+  const walker = createWalker({ world, at: { x: downs[0].contact.x, z: downs[0].contact.z } });
+  assert.equal(walker.state().y, 12, 'and the pilot stands on it');
 });
 
 test('a wreck stops against the solid things it flies into: walls, huts and pylons, and falls down a wall it hits high up', () => {

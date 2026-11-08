@@ -1,8 +1,9 @@
 /**
  * hgsim: a hang-glider simulation SDK. Plain ES modules with no dependencies; metres, seconds, radians; x east, y up, z north.
  *
- * Games move through the world in vehicles (docs/vehicles.md): the hang glider (createHangGlider, a round) and the walker
- * (createWalker) so far, each stepped at a fixed tick (createSimulationLoop) and drawn from its pose (lerpPose, applyPose).
+ * hgsim simulates air vehicles: the hang glider (createHangGlider, a round), with paragliders to follow. Each is a vehicle
+ * (docs/vehicles.md), stepped at a fixed tick (createSimulationLoop) and drawn from its pose (lerpPose, applyPose); hgsim/ground
+ * adds the vehicles on the ground (createWalker) on the same world.
  *
  * The flight's core is three things:
  * - createWorld: the ground, the wind and the air's rise (thermals, ridge lift, your own lift sources).
@@ -30,7 +31,6 @@ export { createTumble, stepTumble } from './tumble.js';
 export { createWind, describeWind, compassName, directionFromBearing, bearingFromDirection } from './wind.js';
 export { createFlightRecorder, FLIGHT_FIELDS, SAMPLE_PERIOD } from './recorder.js';
 export { createRound, createHangGlider, createTakeoffBar, takeoffPitch, ROUND_EVENTS } from './round.js';
-export { createWalker, WALKER_DEFAULTS, WALKER_EVENTS } from './walker.js';
 export { terrainSite, SITE_DEFAULTS } from './sites.js';
 export { createEmitter } from './events.js';
 export { makePose, poseFromQuaternion, quaternionFrom, anglesOf, lerpPose, createPoseTrack, applyPose } from './pose.js';

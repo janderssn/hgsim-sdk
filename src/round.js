@@ -61,8 +61,8 @@ export function takeoffPitch(bar, input, { age = 0, airspeed = 0 } = {}) {
 export function createRound({ glider, realistic = true, launch: launchConfig = {}, target = null, ground = null, solid = null, landable = null, bodyPose = null } = {}) {
   if (typeof glider?.step !== 'function' || typeof glider?.launch !== 'function') throw new TypeError('createRound: glider must come from createGlider()');
   for (const [key, f] of Object.entries({ ground, solid, landable, bodyPose })) if (f !== null && typeof f !== 'function') throw new TypeError(`createRound: ${key} must be a function or null`);
-  const world = glider.world, groundAt = ground ?? world.heightAt;
-  const landableAt = landable ?? ((x, z) => Math.hypot(world.heightAt(x + 6, z) - world.heightAt(x - 6, z), world.heightAt(x, z + 6) - world.heightAt(x, z - 6)) / 12 < 0.42);
+  const world = glider.world, groundAt = ground ?? world.groundAt;
+  const landableAt = landable ?? ((x, z) => Math.hypot(world.groundAt(x + 6, z) - world.groundAt(x - 6, z), world.groundAt(x, z + 6) - world.groundAt(x, z - 6)) / 12 < 0.42);
   const events = createEmitter(ROUND_EVENTS, 'round'), emit = events.emit;
   const r = {
     phase: 'ready', t: 0, site: null, launch: null, takeoff: null, stand: false, tumble: null, wreck: null, result: null, contact: null,
@@ -206,7 +206,7 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
       if (r.phase !== 'flight') return round;
 
       const s = glider.state, px = s.x, pz = s.z, tk = r.takeoff;
-      const field = input.field ?? (s.y - world.heightAt(s.x, s.z) < 14 && landableAt(s.x, s.z));
+      const field = input.field ?? (s.y - world.groundAt(s.x, s.z) < 14 && landableAt(s.x, s.z));
       const pitch = tk ? takeoffPitch(tk.bar, input.pitch, { age: tk.t, airspeed: s.airspeed }) : finite(input.pitch);
       glider.step(dt, { stand: r.stand, roll: finite(input.roll), pitch, field, landable: input.landable });
       r.distanceFlown += Math.hypot(s.x - px, s.z - pz); r.maxSpeed = Math.max(r.maxSpeed, s.airspeed);

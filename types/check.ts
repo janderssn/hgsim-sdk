@@ -3,7 +3,8 @@ import {
   createWorld, createGlider, createRound, createSimulationLoop, defineConfig, defineWing, runScenario, startScenario, SITES,
   GLIDER_DEFAULTS, LANDING_RULES, PRESETS, VERSION, type RoundEvent, type GliderConfig,
 } from 'hgsim';
-import { createWalker, createHangGlider, terrainSite, createPoseTrack, applyPose, MATERIALS, type Vehicle, type Pose } from 'hgsim';
+import { createHangGlider, terrainSite, createPoseTrack, applyPose, MATERIALS, type Vehicle, type Pose } from 'hgsim';
+import { createWalker } from 'hgsim/ground';
 import { createLandingCues } from 'hgsim/three';
 
 const world = createWorld({ wind: { x: 0, z: -3 }, thermals: [{ x: 0, z: 300, radius: 150, strength: 3 }], lift: [(x, y, z, air) => air.ridgeLift * 0.1] });
@@ -53,6 +54,8 @@ const drawnPose: Pose = track.at(0.5, active.pose());
 declare const mesh: { position: { set(x: number, y: number, z: number): void }; quaternion: { set(x: number, y: number, z: number, w: number): void } };
 applyPose(drawnPose, mesh);
 const iceGrip: number = MATERIALS.ice.grip; void iceGrip;
+// @ts-expect-error the walker is in hgsim/ground, not the air vehicles' entry
+import('hgsim').then(m => m.createWalker);
 
 // Misuse the types catch:
 // @ts-expect-error the walker has no such event

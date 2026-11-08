@@ -5,8 +5,8 @@
  * `Deg`); x east, y up, z north; a heading of 0 faces +z (north) and grows clockwise seen from above; a wind vector { x, z } is
  * where the air goes. Configs are frozen plain objects (defineConfig); state objects are plain data, safe to copy and record.
  */
-import type { GliderConfig, LaunchConfig, LandingRules, AirConfig, ClassicConfig, WalkerConfig, SiteConfig } from './configs.js';
-export type { GliderConfig, LaunchConfig, LandingRules, AirConfig, ClassicConfig, WalkerConfig, SiteConfig } from './configs.js';
+import type { GliderConfig, LaunchConfig, LandingRules, AirConfig, ClassicConfig, SiteConfig } from './configs.js';
+export type { GliderConfig, LaunchConfig, LandingRules, AirConfig, ClassicConfig, SiteConfig } from './configs.js';
 
 /** The SDK's version (semver). */
 export const VERSION: string;
@@ -80,47 +80,6 @@ export function createEmitter<T extends string>(types: readonly T[], owner?: str
   emit(type: T, detail?: object): { type: T; [key: string]: unknown };
 };
 
-/* ---------------------------------------------------------------- the walker */
-
-export interface WalkerInput {
-  /** -1 back .. +1 ahead: a gentle stick walks, full stick runs. */
-  forward?: number;
-  /** -1 left .. +1 right. */
-  turn?: number;
-  /** A heading to turn toward, instead of turn. */
-  face?: number;
-  strafe?: number;
-  sprint?: boolean;
-  jump?: boolean;
-}
-export type WalkerPhase = 'stand' | 'walk' | 'run' | 'sprint' | 'slide' | 'fall' | 'down';
-export interface WalkerEventMap extends VehicleEventMap {
-  airborne: { type: 'airborne'; reason: 'ledge' | 'jump' };
-  touchdown: { type: 'touchdown'; impact: number; water: boolean };
-  crash: { type: 'crash'; kind: 'fall'; impact: number; water: boolean };
-  blocked: { type: 'blocked'; by: 'water' | 'solid' | 'slope' | 'drop' | 'bounds' };
-}
-export interface WalkerState {
-  x: number; y: number; z: number; heading: number; vx: number; vy: number; vz: number;
-  onGround: boolean; phase: WalkerPhase; stride: number; blocked: WalkerEventMap['blocked']['by'] | null; downFor: number; material: string;
-}
-export interface Walker extends Vehicle<WalkerInput, WalkerEventMap> {
-  readonly kind: 'walker';
-  readonly world: World;
-  readonly config: WalkerConfig;
-  readonly phase: WalkerPhase;
-  readonly blocked: WalkerEventMap['blocked']['by'] | null;
-  /** The drawn stride's phase, 0..1 per two steps. */
-  readonly stride: number;
-  readonly speed: number;
-  place(where?: { x?: number; y?: number; z?: number; heading?: number }): this;
-  state(): WalkerState;
-  restore(state: WalkerState): this;
-}
-export const WALKER_DEFAULTS: WalkerConfig;
-export const WALKER_EVENTS: readonly (keyof WalkerEventMap)[];
-export function createWalker(options: { world: World; at?: { x?: number; y?: number; z?: number; heading?: number }; config?: Partial<WalkerConfig> }): Walker;
-
 /* ---------------------------------------------------------------- sites */
 
 export const SITE_DEFAULTS: SiteConfig;
@@ -141,14 +100,12 @@ export interface AirSample {
 /** What the ground is made of, as vehicles meet it (see MATERIALS). */
 export interface Material {
   readonly name: string;
-  /** The friction coefficient a foot or a tyre gets. */
+  /** The friction coefficient a foot gets. */
   readonly grip: number;
-  /** A wheel's rolling resistance coefficient. */
-  readonly rolling: number;
-  /** A ski's or a track's sliding friction. */
-  readonly glide: number;
-  /** 0 firm .. 1 deep. */
+  /** 0 firm .. 1 deep: how much it slows a foot. */
   readonly softness: number;
+  /** A world's own material may carry more, for a vehicle of its own. */
+  readonly [property: string]: unknown;
 }
 export type MaterialName = 'grass' | 'dirt' | 'gravel' | 'rock' | 'road' | 'wood' | 'sand' | 'mud' | 'snow' | 'ice';
 export const MATERIALS: Readonly<Record<MaterialName, Material>>;

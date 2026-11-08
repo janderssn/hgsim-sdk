@@ -6,14 +6,14 @@
  *   walker.step(dt, { forward: 1, turn: 0, sprint: false, jump: false });
  *
  * The pace comes from the ground: uphill is slower and too steep is a wall, soft ground (snow, sand, mud) is slower, and slippery
- * ground (ice, a steep snowfield) slides out from under the feet. Water, solid things and the map's edge stop it, sliding along them.
+ * ground (ice, a steep snowfield) slides out from under the feet, against a sliding friction of SLIDE_FRICTION of its grip. Water, solid things and the map's edge stop it, sliding along them.
  * A ledge deeper than a step is a fall (or, with stopAtDrop, a place it stops): it flies off with the speed it had, and lands; land hard enough and it is a crash, the
  * walker down for a moment. The reference point is the feet.
  */
-import { defineConfig } from './config.js';
-import { createEmitter } from './events.js';
-import { makePose } from './pose.js';
-import { clamp, finite } from './math.js';
+import { defineConfig } from '../config.js';
+import { createEmitter } from '../events.js';
+import { makePose } from '../pose.js';
+import { clamp, finite } from '../math.js';
 
 export const WALKER_DEFAULTS = Object.freeze({
   gravity: 9.81,
@@ -53,6 +53,8 @@ export const WALKER_DEFAULTS = Object.freeze({
 });
 
 export const WALKER_EVENTS = Object.freeze(['airborne', 'touchdown', 'crash', 'blocked']);
+/** Sliding friction as a share of the static grip: boots that have let go slide on a little less than they held with. */
+const SLIDE_FRICTION = 0.75;
 
 export function createWalker({ world, at = {}, config = {} } = {}) {
   if (typeof world?.groundAt !== 'function') throw new TypeError('createWalker: world must come from createWorld()');
@@ -154,7 +156,7 @@ export function createWalker({ world, at = {}, config = {} } = {}) {
         s.vx += dvx * take; s.vz += dvz * take;
         // Ground too steep for this grip slides out from under the feet, down the fall line, against the glide friction.
         if (slope > mat.grip * cfg.slideGrip) {
-          const sin = slope / Math.hypot(1, slope), cos = 1 / Math.hypot(1, slope), a = Math.max(0, cfg.gravity * (sin - mat.glide * cos));
+          const sin = slope / Math.hypot(1, slope), cos = 1 / Math.hypot(1, slope), a = Math.max(0, cfg.gravity * (sin - SLIDE_FRICTION * mat.grip * cos));
           s.vx -= gx / slope * a * dt; s.vz -= gz / slope * a * dt; s.phase = 'slide';
         }
         // The move, sliding along whatever stops it.

@@ -22,6 +22,10 @@
       "types": "./types/three.d.ts",
       "default": "./src/three/index.js"
     },
+    "./ground": {
+      "types": "./types/ground.d.ts",
+      "default": "./src/ground/index.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

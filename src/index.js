@@ -24,5 +24,6 @@ export { LANDING_RULES, judgeTouchdown, scoreLanding, measureFlareZone, ZONE_LOW
 export { createTumble, stepTumble } from './tumble.js';
 export { createWind, describeWind, compassName, directionFromBearing, bearingFromDirection } from './wind.js';
 export { createFlightRecorder, FLIGHT_FIELDS, SAMPLE_PERIOD } from './recorder.js';
+export { createRound, createTakeoffBar, takeoffPitch } from './round.js';
 export { SCENARIOS, SITES, getScenario, startScenario, runScenario, launchPilot } from './scenarios.js';
 export { bankedClearance } from './assists/skim-pose.js';

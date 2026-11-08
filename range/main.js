@@ -12,7 +12,7 @@
 import * as THREE from './vendor/three.module.js';
 import { GLTFLoader } from './vendor/GLTFLoader.js';
 import { createPilotRig, addSailFlutter, createLandingCues } from '../src/three/index.js';
-import { createWorld, createGlider, forceModel, classicModel, PRESETS, bankedClearance, createTumble, stepTumble, scoreLanding, LANDING_RULES, dropToImpact,
+import { createWorld, createGlider, createRound, forceModel, classicModel, PRESETS, bankedClearance, scoreLanding, LANDING_RULES, dropToImpact,
   createFlightRecorder, createWind, describeWind, compassName, directionFromBearing, bearingFromDirection } from '../src/index.js';
 import { createLaunch, launchPose, shoulderPivot } from '../src/launch.js';
 import { createWindsock, createStreamer, createWindRod, createWindIndicators } from './wind-indicators.js';
@@ -26,7 +26,7 @@ import { buildScenery } from './scenery.js';
 import { createPolarChart } from './polar-chart.js';
 import { createPitchChart } from './pitch-chart.js';
 import { createSimulationLoop } from './simulation-loop.js';
-import { readFlightControls, createTakeoffControls } from './controls.js';
+import { readFlightControls } from './controls.js';
 import { createRenderQuality } from './rendering.js';
 import { createHud } from './hud.js';
 import { interpolateMotion } from './motion.js';
@@ -63,20 +63,9 @@ const quality = createRenderQuality({
 // The resting wing, bar on the ground, for the pose while standing at a launch.
 const REST = createLaunch();
 // tumble: a launch or a landing gone wrong, carried on as a rigid body (src/tumble.js); wreck: where it came to rest.
-// pilotStand: sitting up in flight by choice (Space), for drag and a slow landing.
+// The round (src/round.js) owns the physics of a go, from standing at a launch to the end; these are drawn from it after every tick
+// (syncRound): tumble and wreck, a launch or a landing gone wrong carried on as a body; pilotStand, sitting up in flight by choice.
 let tumble = null, wreck = null, pilotStand = false;
-/** Carry the current simulation pose and velocity into the crash solver. */
-function tumbleFromFlight() {
-  const fx = Math.sin(heading), fz = Math.cos(heading), h = speed * Math.cos(soaring.pathAngle || 0);
-  const pose = getAirframePose({
-    position: pos, heading, pitch, bank, visualBank: soaring.visualBank ?? bank,
-    ground: terrainHeight(pos.x, pos.z), takeoff, lowest: rig?.lowest ?? -.65,
-    hasRig: !!rig, mode, settle,
-  });
-  tumble = createTumble({ ...pose,
-    velocity: [fx * h + (soaring.windX || 0), verticalSpeed, fz * h + (soaring.windZ || 0)], yawRate: soaring.headingRate || 0, ground: groundUnder, wind: { x: wind.x, z: wind.z } });
-  tumble.inRound = true; takeoff = null; mode = 'tumbling';
-}
 
 /* ---------- wind and its indicators ---------- */
 // The wind: ?wind (m/s, default 5) and ?from (the bearing it blows from; 180, the default, is straight up the launch).
@@ -128,6 +117,25 @@ const world = createWorld({ terrain: terrainHeight, wind, thermals: [THERMAL], a
 const PRESET = MODEL === 'original' ? null : (PRESETS[new URLSearchParams(location.search).get('glider')] ?? PRESETS.intermediate);
 const glider = createGlider({ world, model: MODEL === 'original' ? classicModel : forceModel, preset: PRESET, skim: SKIM_ASSIST && { clearance: bankedClearance } });
 const keys = new Set();
+/**
+ * The round: the range's world as the physics meets it. Its deck and rocks are solid; a crash's tumble starts from where the model
+ * is drawn (the rig's own lowest point), so nothing jumps between the flight and the wreck.
+ */
+const round = createRound({
+  glider, realistic: REAL_LAUNCH, target: MARK, ground: groundUnder, landable: landableAt,
+  solid: s => {
+    const onDeck = Math.abs(s.x - LAUNCH.x) < 3.6 && s.z > LAUNCH.z + DECK_BACK && s.z < LAUNCH.z + DECK_LIP;
+    return onDeck && s.y - 2.3 < deckY(s.z) - .3 && s.y + 1 > deckY(s.z) - 3 ? 'the ramp' : rockTop(s.x, s.z) > s.y - 1.6 ? 'the rock' : null;
+  },
+  bodyPose: s => getAirframePose({ position: { x: s.x, y: s.y, z: s.z }, heading: s.heading, pitch: s.pitch, bank: s.bank, visualBank: s.visualBank ?? s.bank,
+    ground: terrainHeight(s.x, s.z), takeoff, lowest: rig?.lowest ?? -.65, hasRig: !!rig, mode: 'gliding', settle }),
+});
+/**
+ * The controls this tick: the keyboard, a controller or the touch stick, or a scripted pilot when the lab hands the wing to one
+ * (pilotOverride: () => { roll, pitch, nose, push, go, jump }).
+ */
+let pilotOverride = null, pendingJump = false;
+const controlsNow = () => pilotOverride ? { roll: 0, pitch: 0, nose: 0, push: 0, ...pilotOverride() } : readFlightControls(keys, pad);
 // New code on the server is picked up on its own, but never in the air or over a landing result: the page reloads as soon as
 // you are standing at launch, or when you next start a round.
 let loadedVersion = null, staleVersion = false;
@@ -173,40 +181,46 @@ const site = () => LAUNCH_SITES[launchSite];
 const nextSite = () => SITE_ORDER[(SITE_ORDER.indexOf(launchSite) + 1) % SITE_ORDER.length];
 /** Stand at a launch site (ramp, cliff or slope; by default the current one), the wing resting, ready to launch. */
 function standAtSite(name = launchSite) {
-  tumble = wreck = null; launchSite = name; runOut = null; takeoff = null; runUp = null; rigSnap = true; recorder.end({ outcome: 'abandoned' });
-  const { x, z, heading: h } = site().start;
-  pos.set(x, site().ground(x, z) + 2.3, z); heading = h; pitch = .05; bank = 0; speed = verticalSpeed = 0; mode = 'ready';
-  soaring = glider.reset({ x, y: pos.y, z, heading }).state; resetMotion(); snapCamera();
+  launchSite = name; runOut = null; takeoffLook = null; rigSnap = true; recorder.end({ outcome: 'abandoned' });
+  round.standAt(site()); syncRound();
+  pos.set(soaring.x, soaring.y, soaring.z); heading = soaring.heading; pitch = .05; bank = 0; speed = verticalSpeed = 0;
+  resetMotion(); snapCamera();
 }
 function launch() {
   if (reloadIfStale()) return;
   if (runOut || runUp) return;
   if (mode === 'gliding') return;
   if (mode === 'landed' || mode === 'crashed') standAtSite();
-  hideCard(); glider.place({ x: pos.x, y: pos.y, z: pos.z, heading });
-  const handle = glider.launch({ site: site(), manual: REAL_LAUNCH }); soaring = glider.state; runUp = { t: 0, handle, launch: handle.state };
+  hideCard(); pendingJump = false;
+  round.launch(); syncRound();
+}
+/**
+ * Draws the range's variables from the round, after anything that moves it: the mode, the run-up, the take-off (the round's own,
+ * with the look of the moment the feet left), the tumble and the wreck.
+ */
+let takeoffLook = null;
+function syncRound() {
+  const ph = round.phase;
+  soaring = glider.state;
+  mode = ph === 'flight' ? 'gliding' : ph === 'tumble' ? 'tumbling' : ph === 'launch' ? 'ready' : ph;
+  runUp = ph === 'launch' ? { handle: round.run, launch: round.run.state } : null;
+  tumble = round.tumble; wreck = round.wreck; pilotStand = round.stand; result = round.result ?? result;
+  if (!round.takeoff) takeoffLook = null;
+  takeoff = round.takeoff ? Object.assign(takeoffLook ?? {}, round.takeoff) : null;
 }
 /**
  * The launch (src/launch.js): the wing is picked up, balanced and run with until it flies or the ground ends, then the flight takes
  * over from the wing's own place and speed. Off the edge below flying speed it dives for its airspeed. A crosswind that lifts a
  * wing ends the launch.
  */
-function stepRunUp(dt) {
-  if (mode !== 'ready') { runUp = null; return; }
-  const { handle } = runUp, s = handle.state; runUp.t += dt;
+function stepRunUp(dt, controls) {
   // The launch reads the run's ground from the site (its fall along the run, and how far ahead it ends: the ramp's lip or a side
   // of its deck, the cliff's edge; a slope carries on) and the wind and rising air from the world, and moves the glider along it.
-  const controls = readFlightControls(keys, pad);
-  handle.step(dt, { nose: controls.nose, balance: controls.roll, push: controls.push, go: !!s.go, jump: !!runUp.jump }); runUp.jump = false;
-  pos.set(soaring.x, soaring.y, soaring.z); heading = soaring.heading; speed = s.airspeed;
-  if (handle.failed) {   // it went wrong: the glider and pilot carry on as a body, from exactly this state, until they come to rest
-    tumble = handle.tumble({ stride: rig?.step ?? 0, ground: groundUnder }); runUp = null; mode = 'tumbling';
-    return;
-  }
-  if (!handle.airborne) return;
-  // The flight carries on from the launch's own state: the same wing, speed, path and angle of attack, nothing handed over.
-  const flyingOff = s.reason === 'flying', pose = handle.pose(rig?.step ?? 0);
-  runUp = null; leaveGround(s, pose, !flyingOff);
+  // It goes wrong (a tumble from exactly that state) or the feet leave (the flight carries on from it): see the round's events.
+  const l = round.run;
+  round.step(dt, { roll: controls.roll, nose: controls.nose, push: controls.push, pitch: controls.pitch, go: !!controls.go, jump: pendingJump || !!controls.jump, stride: rig?.step ?? 0 });
+  pendingJump = false; syncRound();
+  if (round.phase === 'launch') { pos.set(soaring.x, soaring.y, soaring.z); heading = soaring.heading; speed = l.state.airspeed; }
 }
 /**
  * The flight starts where the wing is, at its speed. The legs stop holding the body up over the next third of a second (plant, from
@@ -214,32 +228,26 @@ function stepRunUp(dt) {
  * the flight's. dropped: off the edge before it flew, so the pilot goes prone on the bar for the dive; otherwise the pilot holds the
  * bar out (holdBar) to fly away at the lift-off speed, easing it in over the next seconds.
  */
-function leaveGround(launchState, pose, dropped) {
-  pilotStand = false;
+function leaveGround(launchHandle, dropped) {
   // The reference stays 2.3 m over the ground as on the run; the contact offset that draws the model is the run's own height, so
   // the wing is drawn exactly where the last running frame drew it (the rig's smoothed feet point would lag a fast stride).
+  const launchState = launchHandle.state, pose = launchHandle.pose(rig?.step ?? 0);
+  pos.set(soaring.x, soaring.y, soaring.z); heading = soaring.heading;
   const ground = site().ground(pos.x, pos.z), lowest = -pose.height;
-  pos.y = ground + 2.3;
-  glider.place({ x: pos.x, y: pos.y, z: pos.z, heading }); soaring = glider.state; speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0;
-  mode = 'gliding'; result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; rounds++; beginRound(site().round);
-  takeoff = { t: 0, dropped, site: launchSite, launch: launchState, ground, lowest0: lowest, pitch0: pose.pitch, roll0: pose.roll, yaw0: pose.yaw, lean0: pose.lean, run0: pose.run,
+  speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0;
+  result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; rounds++; beginRound(site().round);
+  takeoffLook = { site: launchSite, launch: launchState, ground, lowest0: lowest, pitch0: pose.pitch, roll0: pose.roll, yaw0: pose.yaw, lean0: pose.lean, run0: pose.run,
     lift0: pose.lift, carry0: pose.carry, shoulders0: pose.shoulders, plant0: pose.plant, ground0: -pose.height / Math.cos(pose.pitch), tilt0: Math.tan(pose.pitch) - site().fall(pos.x, pos.z, heading),
-    holdBar: dropped ? 0 : launchState.barHold,
-    controls: createTakeoffControls({
-      heldPitch: readFlightControls(keys, pad).pitch,
-      holdBar: dropped ? 0 : launchState.barHold,
-      dropped, cliff: launchState.cliff, realistic: REAL_LAUNCH,
-    }),
-  };
+    holdBar: dropped ? 0 : launchState.barHold };
 }
 /** Start in the air over the field: downwind at 110 m, on the downwind side, so the round is only the pattern and the landing. */
-function overhead() { if (reloadIfStale()) return; tumble = wreck = null; pilotStand = false;
-  runOut = null; takeoff = null; runUp = null; rigSnap = true;
+function overhead() { if (reloadIfStale()) return;
+  runOut = null; takeoffLook = null; rigSnap = true;
   const d = wind.direction;                                 // start 260 m upwind of the mark, flying downwind past it
   const x = MARK.x - Math.sin(d) * 260, z = MARK.z - Math.cos(d) * 260;
-  pos.set(x, terrainHeight(x, z) + 110, z); heading = wrapAngle(d + .35);
-  soaring = glider.reset({ x, y: pos.y, z, heading, airspeed: 22 }).state; speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0;
-  mode = 'gliding'; result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; rounds++; beginRound('overhead'); resetMotion(); snapCamera();
+  round.startAt({ x, y: terrainHeight(x, z) + 110, z, heading: wrapAngle(d + .35), airspeed: 22 }); syncRound();
+  pos.set(soaring.x, soaring.y, soaring.z); heading = soaring.heading; speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0;
+  result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; rounds++; beginRound('overhead'); resetMotion(); snapCamera();
 }
 // Xbox-style controller, the same as the game: left stick steers and moves the bar, RT dives, LT pushes out, A launches.
 // Its buttons arrive as key events: X (KeyE) starts over the field, D-pad up (KeyR) returns to launch, View (KeyM) toggles the panel.
@@ -249,8 +257,8 @@ const gamepad = createGamepad({ context: () => 'world', onActive: on => { padAct
 const touch = createTouchControls({ root: document.querySelector('.hud') });
 const fullscreen = createFullscreen([...document.querySelectorAll('[data-fullscreen]')]);
 const pad = { get lx() { return gamepad.state.lx + touch.state.lx; }, get ly() { return gamepad.state.ly + touch.state.ly; }, get lt() { return gamepad.state.lt; }, get rt() { return gamepad.state.rt; } };
-function updateFlight(dt) {
-  const { roll: turn, pitch: pitchInput } = readFlightControls(keys, pad);
+function updateFlight(dt, controls) {
+  const { roll: turn, pitch: pitchInput } = controls;
   const fx = Math.sin(heading), fz = Math.cos(heading);
   const landable = pitchInput <= .1 || landableAt(pos.x, pos.z) || landableAt(pos.x + fx * 30, pos.z + fz * 30) || landableAt(pos.x + fx * 60, pos.z + fz * 60);
   const groundLandable = pos.y - terrainHeight(pos.x, pos.z) < 14 && landableAt(pos.x, pos.z);
@@ -258,47 +266,39 @@ function updateFlight(dt) {
   const edge = Math.max(Math.abs(pos.x), Math.abs(pos.z)) > 1450, steer = edge ? clamp(-wrapAngle(Math.atan2(-pos.x, -pos.z) - heading) * 2.5, -1, 1) : 0;
   edgeTurning = edge;
   pilotShift = edge ? steer : turn;
-  // Through a take-off the pilot flies the wing: off an edge below flying speed the bar comes in for the dive (unless pushed out); off
-  // a run it is held out to fly away at the lift-off speed, eased in over the next seconds, until the pilot takes the bar themselves.
-  const barInput = takeoff
-    ? takeoff.controls.pitch(pitchInput, { age: takeoff.t, airspeed: soaring.airspeed })
-    : pitchInput;
-  glider.step(dt, { stand: pilotStand, roll: edge ? steer : turn, pitch: barInput, landable, field: groundLandable });
-  const px = pos.x, pz = pos.z;
-  pos.set(soaring.x, soaring.y, soaring.z); heading = soaring.heading; bank = soaring.bank; pitch = soaring.pitch; speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed;
-  roundClock += dt; recorder.sample(roundClock, { x: pos.x, y: pos.y, z: pos.z, clear: pos.y - terrainHeight(pos.x, pos.z) - 2.3, kmh: speed * 3.6, vs: verticalSpeed, heading, bank, pitch, path: soaring.pathAngle, alpha: soaring.alpha ?? 0, load: soaring.loadFactor ?? 1, bar: soaring.bar, inRoll: edge ? steer : turn, inPitch: pitchInput, upright: soaring.upright ?? 0, stalled: soaring.stalled ? 1 : 0, windX: soaring.windX, windZ: soaring.windZ });
-  distanceFlown += Math.hypot(pos.x - px, pos.z - pz); maxSpeed = Math.max(maxSpeed, speed);
-  // Solid things: the ramp's deck and the frame under it, and the rocks. (Not in the first moments of the launch off them.)
-  if (!(takeoff && takeoff.t < .25)) {
-    const onDeck = Math.abs(pos.x - LAUNCH.x) < 3.6 && pos.z > LAUNCH.z + DECK_BACK && pos.z < LAUNCH.z + DECK_LIP;
-    const hit = onDeck && pos.y - 2.3 < deckY(pos.z) - .3 && pos.y + 1 > deckY(pos.z) - 3 ? 'the ramp' : rockTop(pos.x, pos.z) > pos.y - 1.6 ? 'the rock' : null;
-    if (hit) { touchdown({ verticalSpeed: 9, groundSpeed: speed, slope: 0, bank, heading, airspeed: speed, wind: { x: soaring.windX, z: soaring.windZ }, x: pos.x, z: pos.z, flare: { pressed: false } }); return; }
-  }
-  const ground = terrainHeight(pos.x, pos.z);
-  // Just off the ground the feet may still brush it: that is the end of the run, not a landing.
-  if (pos.y < ground + 2.3 - (takeoff && takeoff.t < 1.2 ? .3 : 0)) {
-    const gx = (terrainHeight(pos.x + 12, pos.z) - terrainHeight(pos.x - 12, pos.z)) / 24, gz = (terrainHeight(pos.x, pos.z + 12) - terrainHeight(pos.x, pos.z - 12)) / 24;
-    const slope = Math.hypot(gx, gz), horizontal = speed * Math.cos(soaring.pathAngle || 0), vx = fx * horizontal + soaring.windX, vz = fz * horizontal + soaring.windZ;
-    const groundSpeed = Math.hypot(vx, vz), contact = (gx * vx + gz * vz - verticalSpeed) / Math.sqrt(1 + slope * slope);
-    if (glider.scrape({ verticalSpeed: contact, groundSpeed, slope, bank, ground })) {
-      pos.y = soaring.y; speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; scrapes++;
-      impact = Math.max(impact, clamp(.25 + contact / 5, .25, .9)); kickDust(pos.x, ground, pos.z, 4 + Math.round(contact * 2)); audio.emit('touchdown', { speed, contact }); toast('Scraped', .8);
-      return;
-    }
-    touchdown({ verticalSpeed: contact, groundSpeed, slope, bank, heading, airspeed: speed, wind: { x: soaring.windX, z: soaring.windZ }, x: pos.x, z: pos.z,
-      flare: { pressed: !!soaring.flarePressed, feet: soaring.flareFeet, ratio: soaring.flareRatio, balloon: soaring.flareBalloon } });
-  }
+  // Through a take-off the round keeps the bar the pilot held on the run until they take it themselves (src/round.js); the deck and the
+  // rocks are solid; a light, fast touch scrapes; anything else is a touchdown, judged, or a crash carried on as a body.
+  round.step(dt, { roll: edge ? steer : turn, pitch: pitchInput, landable, field: groundLandable });
+  syncRound();
+  if (mode === 'gliding') { pos.set(soaring.x, soaring.y, soaring.z); heading = soaring.heading; bank = soaring.bank; pitch = soaring.pitch; speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; }
+  distanceFlown = round.distanceFlown; maxSpeed = round.maxSpeed; scrapes = round.scrapes;
+  roundClock += dt; recorder.sample(roundClock, { x: soaring.x, y: soaring.y, z: soaring.z, clear: soaring.y - terrainHeight(soaring.x, soaring.z) - 2.3, kmh: soaring.airspeed * 3.6, vs: soaring.verticalSpeed, heading: soaring.heading, bank: soaring.bank, pitch: soaring.pitch, path: soaring.pathAngle, alpha: soaring.alpha ?? 0, load: soaring.loadFactor ?? 1, bar: soaring.bar, inRoll: edge ? steer : turn, inPitch: pitchInput, upright: soaring.upright ?? 0, stalled: soaring.stalled ? 1 : 0, windX: soaring.windX, windZ: soaring.windZ });
 }
-function touchdown(contact) {
-  // A crash is not decided here: the glider carries on as a body, from the flight's own state, until it comes to rest (src/tumble.js).
-  if (!contact.settled && scoreLanding(contact, MARK, glider.rules).judged === 'crash') { tumbleFromFlight(); return; }
-  result = scoreLanding(contact, MARK, glider.rules);
+// What the range does with what happens in a round: the take-off's look, a scrape's dust, the landing's card.
+round.on(e => {
+  if (e.type === 'liftoff') { syncRound(); leaveGround(e.launch, e.dropped); syncRound(); }
+  else if (e.type === 'scrape') {
+    const c = e.contact.verticalSpeed, ground = terrainHeight(soaring.x, soaring.z);
+    impact = Math.max(impact, clamp(.25 + c / 5, .25, .9)); kickDust(soaring.x, ground, soaring.z, 4 + Math.round(c * 2)); audio.emit('touchdown', { speed: soaring.airspeed, contact: c }); toast('Scraped', .8);
+  }
+  else if (e.type === 'crash') takeoffLook = null;
+  else if (e.type === 'touchdown') {
+    if (e.contact.settled && !wreckWasFlying()) beginRound(site().round);
+    touchdown(e.contact, e.result);
+  }
+});
+let tumbleFromFlightSeen = false;
+const wreckWasFlying = () => tumbleFromFlightSeen;
+function touchdown(contact, scored) {
+  // A crash is decided by the round: the glider carries on as a body, from the flight's own state, until it comes to rest (src/tumble.js).
+  result = scored;
   // (a wreck that has tumbled to rest was heard when it hit: its crash is not played again now)
   if (result.judged === 'crash') { if (!contact.settled) audio.emit('crash', { severity: clamp(contact.verticalSpeed / 7, .25, 1), kind: 'terrain' }); }
   else audio.emit('touchdown', { speed: contact.airspeed, contact: contact.verticalSpeed, soft: result.judged === 'soft' });
   result.contact = contact; result.distanceFlown = distanceFlown; result.maxSpeed = maxSpeed;
   recorder.end({ outcome: result.judged, scrapes, result: { judged: result.judged, points: result.points, stars: result.stars, notes: result.notes, noStep: result.noStep, distance: result.distance, headwind: result.headwind, sink: contact.verticalSpeed, groundSpeed: contact.groundSpeed, airspeed: contact.airspeed, bank: contact.bank, flare: contact.flare, maxSpeed } });
-  mode = result.judged === 'crash' ? 'crashed' : 'landed'; keys.clear();
+  syncRound(); keys.clear();
+  pos.set(contact.settled ? contact.x : soaring.x, soaring.y, contact.settled ? contact.z : soaring.z);   // (a wreck at rest: where it lies)
   pos.y = terrainHeight(pos.x, pos.z) + 2.4; verticalSpeed = 0; settle = 0;
   // The feet take it: an impact felt in the camera, dust, and a run-out as long as the ground speed asks for.
   const crash = mode === 'crashed', g = contact.groundSpeed, h = Math.hypot(contact.groundSpeed, 0) || 1;
@@ -446,7 +446,7 @@ addEventListener('keydown', e => {
   if (e.code === 'Tab') { e.preventDefault(); togglePanel(); return; }
   if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
   audio.unlock(); if (e.repeat) return; keys.add(e.code);
-  if (e.code === 'Space' || e.code === 'Enter') { if (runUp) { const s = runUp.launch; if (s.phase === 'balance') s.go = true; else if (s.phase === 'run') runUp.jump = true; } else if (mode === 'gliding') { pilotStand = !pilotStand; if (takeoff) takeoff.ownStance = true; } else launch(); }
+  if (e.code === 'Space' || e.code === 'Enter') { if (runUp) { const s = runUp.launch; if (s.phase === 'balance') s.go = true; else if (s.phase === 'run') pendingJump = true; } else if (mode === 'gliding') { round.stand = !round.stand; syncRound(); } else launch(); }
   if (e.code === 'Digit1' || e.code === 'KeyE') overhead();
   if (e.code === 'KeyV' && !e.repeat && glider.hasVG) { vgTarget = vgTarget > .5 ? 0 : 1; toast(vgTarget ? 'VG on: tight for the glide' : 'VG off: loose to turn and land', 1.4); }
   if (e.code === 'KeyM') togglePanel();
@@ -472,33 +472,24 @@ function stepSimulation(dt) {
   elapsed += dt;
   gamepad.poll();
   wind.update(dt);
+  const controls = controlsNow();
   if (runUp) {
-    stepRunUp(dt);
+    stepRunUp(dt, controls);
   } else if (tumble) {
-    stepTumble(tumble, dt);
-    pos.set(tumble.x, tumble.y + 1.3, tumble.z);
-    speed = Math.hypot(tumble.v[0], tumble.v[2]);
-    verticalSpeed = tumble.v[1];
-    if (tumble.impact > 2.5 && !tumble.felt) {
-      tumble.felt = true;
-      impact = Math.max(impact, clamp(tumble.impact / 7, .3, .9));
-      audio.emit('crash', { severity: clamp(tumble.impact / 8, .25, 1), kind: 'terrain' });
-    }
-    if (tumble.done) {
-      wreck = tumble;
-      tumble = null;
-      if (!wreck.inRound) beginRound(site().round);
-      touchdown({ settled: true, verticalSpeed: Math.max(6, wreck.impact), groundSpeed: wreck.speed0, slope: 0, bank: 0, heading, airspeed: wreck.speed0, wind: { x: wind.x, z: wind.z }, x: pos.x, z: pos.z, flare: { pressed: false } });
+    // (the body is taken before the step: a wreck coming to rest ends the tumble inside it, and the touchdown places the pilot)
+    const body = tumble; tumbleFromFlightSeen = !!body.fromFlight;
+    round.step(dt, {}); syncRound();
+    if (tumble) { pos.set(body.x, body.y + 1.3, body.z); speed = Math.hypot(body.v[0], body.v[2]); verticalSpeed = body.v[1]; }
+    if (body.impact > 2.5 && !body.felt) {
+      body.felt = true;
+      impact = Math.max(impact, clamp(body.impact / 7, .3, .9));
+      audio.emit('crash', { severity: clamp(body.impact / 8, .25, 1), kind: 'terrain' });
     }
   } else if (mode === 'gliding') {
-    updateFlight(dt);
+    updateFlight(dt, controls);
   }
   updateFeel(dt);
   if (mode === 'landed' || mode === 'crashed') settle = Math.min(1, settle + dt / .8);
-  const flying = mode === 'gliding';
-  if (takeoff) { takeoff.t += dt; if (takeoff.t > 8 || !flying) takeoff = null; }
-  // The pilot goes prone once the wing is flying (or as they pull in to dive for it).
-  if (takeoff && takeoff.proneAt == null && (takeoff.launch?.cliff || soaring.airspeed >= 1.05 * glider.performance.stallSpeed() || (soaring.bar || 0) < -.25)) takeoff.proneAt = takeoff.t;
 }
 
 function renderFrame(dt, alpha) {
@@ -594,5 +585,5 @@ standAtSite('ramp'); syncWindPanel(); syncTunePanel(); drawPolar(true); updateBe
 { const other = new URLSearchParams(location.search); if (REAL_LAUNCH) other.set('launch', 'easy'); else other.delete('launch'); const q = other.toString();
   $('launchName').textContent = REAL_LAUNCH ? 'Realistic launch: you balance, run and jump' : 'Easy launch: it runs itself'; $('launchSwitch').textContent = REAL_LAUNCH ? 'Switch to easy launches' : 'Switch to realistic launches'; $('launchSwitch').href = location.pathname + (q ? '?' + q : ''); }
 $('loading').hidden = true; $('world').focus();
-window.rangeDemo = window.microDemo = { get quality() { return quality.level; }, pad: gamepad.state, model: MODEL, audio, get rig() { return rig; }, camera, player, scene, renderer, deckY, get soaring() { return soaring; }, get launchSite() { return launchSite; }, get takeoff() { return takeoff; }, get runUp() { return runUp; }, get tumble() { return tumble; }, get wreck() { return wreck; }, standAtSite, standAtCliff: () => standAtSite('cliff'), standAtSlope: () => standAtSite('slope'), CLIFF, SLOPE, measure() { player.updateMatrixWorld(true); const g = terrainHeight(pos.x, pos.z), pb = new THREE.Box3().setFromObject(pilot), wb = new THREE.Box3().setFromObject(wing); return { mode, bodyAboveGround: +(pos.y - g).toFixed(2), pilotLowAboveGround: +(pb.min.y - g).toFixed(2), wingLowAboveGround: +(wb.min.y - g).toFixed(2), pilotLowBelowBody: +(pos.y - pb.min.y).toFixed(2), wingLowBelowBody: +(pos.y - wb.min.y).toFixed(2), upright: +pilotUpright.toFixed(2) }; }, startAt({ x, z, agl = 12, heading: h = 0, kmh = 0, pathDeg = 0 }) { tumble = wreck = null; pilotStand = false; runOut = null; takeoff = null; rigSnap = true; pos.set(x, terrainHeight(x, z) + agl, z); heading = h; soaring = glider.reset({ x, y: pos.y, z, heading: h }).state; if (kmh) { soaring.airspeed = kmh / 3.6; soaring.pathAngle = pathDeg * Math.PI / 180; soaring.verticalSpeed = soaring.airspeed * Math.sin(soaring.pathAngle); soaring.alpha = -1.5 * Math.PI / 180; } speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0; mode = 'gliding'; result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; beginRound('final'); resetMotion(); snapCamera(); }, recorder, getState: () => ({ mode, position: pos.toArray(), speed, heading, bank, verticalSpeed, airspeed: soaring.airspeed, pathAngle: soaring.pathAngle, clearance: pos.y - terrainHeight(pos.x, pos.z), wind: { x: wind.x, z: wind.z, speed: wind.speed }, result, rounds, best }), setKey: (code, down) => down ? keys.add(code) : keys.delete(code), launch, overhead, wind, tune: patch => glider.tune(patch), glider, world, terrainHeight, MARK, LAUNCH };
+window.rangeDemo = window.microDemo = { get quality() { return quality.level; }, pad: gamepad.state, model: MODEL, audio, get rig() { return rig; }, camera, player, scene, renderer, deckY, get soaring() { return soaring; }, get launchSite() { return launchSite; }, get takeoff() { return takeoff; }, get runUp() { return runUp; }, get tumble() { return tumble; }, get wreck() { return wreck; }, standAtSite, standAtCliff: () => standAtSite('cliff'), standAtSlope: () => standAtSite('slope'), CLIFF, SLOPE, measure() { player.updateMatrixWorld(true); const g = terrainHeight(pos.x, pos.z), pb = new THREE.Box3().setFromObject(pilot), wb = new THREE.Box3().setFromObject(wing); return { mode, bodyAboveGround: +(pos.y - g).toFixed(2), pilotLowAboveGround: +(pb.min.y - g).toFixed(2), wingLowAboveGround: +(wb.min.y - g).toFixed(2), pilotLowBelowBody: +(pos.y - pb.min.y).toFixed(2), wingLowBelowBody: +(pos.y - wb.min.y).toFixed(2), upright: +pilotUpright.toFixed(2) }; }, startAt({ x, z, agl = 12, heading: h = 0, kmh = 0, pathDeg = 0 }) { runOut = null; takeoffLook = null; rigSnap = true; pos.set(x, terrainHeight(x, z) + agl, z); heading = h; round.startAt({ x, y: pos.y, z, heading: h }); syncRound(); if (kmh) { soaring.airspeed = kmh / 3.6; soaring.pathAngle = pathDeg * Math.PI / 180; soaring.verticalSpeed = soaring.airspeed * Math.sin(soaring.pathAngle); soaring.alpha = -1.5 * Math.PI / 180; } speed = soaring.airspeed; verticalSpeed = soaring.verticalSpeed; pitch = bank = 0; result = null; hideCard(); distanceFlown = 0; maxSpeed = 0; beginRound('final'); resetMotion(); snapCamera(); }, recorder, round, getState: () => ({ mode, position: pos.toArray(), speed, heading, bank, verticalSpeed, airspeed: soaring.airspeed, pathAngle: soaring.pathAngle, clearance: pos.y - terrainHeight(pos.x, pos.z), wind: { x: wind.x, z: wind.z, speed: wind.speed }, result, rounds, best }), setKey: (code, down) => down ? keys.add(code) : keys.delete(code), launch, overhead, wind, tune: patch => glider.tune(patch), glider, world, terrainHeight, MARK, LAUNCH };
 requestAnimationFrame(frame);

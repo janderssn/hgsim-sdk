@@ -296,6 +296,7 @@ export interface WalkerConfig {
   readonly slideGrip: number;
   readonly stepUp: number;
   readonly stepDown: number;
+  readonly stopAtDrop: number;
   readonly jumpSpeed: number;
   readonly airControl: number;
   readonly injuryImpact: number;

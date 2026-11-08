@@ -41,7 +41,7 @@ createLandingCues(THREE, scene, { onFlareCue() {} });
 // Vehicles: a walker carries the pilot to a launch, a hang glider takes over there.
 const valley = createWorld({ terrain: (x, z) => z * 0.2, material: (x, z) => (z > 100 ? 'snow' : { grip: 0.7 }), water: () => null, solid: () => null });
 const walker = createWalker({ world: valley, at: { x: 0, z: 0 }, config: { runSpeed: 14 } });
-walker.on('blocked', e => { const by: 'water' | 'solid' | 'slope' | 'bounds' = e.by; void by; });
+walker.on('blocked', e => { const by: 'water' | 'solid' | 'slope' | 'drop' | 'bounds' = e.by; void by; });
 let active: Vehicle<any, any> = walker;
 active.step(1 / 60, { forward: 1, sprint: true });
 const here = walker.state();

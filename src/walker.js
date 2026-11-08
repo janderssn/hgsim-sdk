@@ -7,7 +7,7 @@
  *
  * The pace comes from the ground: uphill is slower and too steep is a wall, soft ground (snow, sand, mud) is slower, and slippery
  * ground (ice, a steep snowfield) slides out from under the feet. Water, solid things and the map's edge stop it, sliding along them.
- * A ledge higher than a step is a fall: it flies off with the speed it had, and lands; land hard enough and it is a crash, the
+ * A ledge deeper than a step is a fall (or, with stopAtDrop, a place it stops): it flies off with the speed it had, and lands; land hard enough and it is a crash, the
  * walker down for a moment. The reference point is the feet.
  */
 import { defineConfig } from './config.js';
@@ -38,6 +38,8 @@ export const WALKER_DEFAULTS = Object.freeze({
   /** Up a ledge higher than this is a wall; down a drop deeper than stepDown (plus what the pace runs down) is a fall. m. */
   stepUp: 0.6,
   stepDown: 0.5,
+  /** Deeper drops than this (m) are stopped at, as a careful person would ('drop'), instead of walked off and fallen from. Infinity: walks off. */
+  stopAtDrop: Infinity,
   jumpSpeed: 3.2,
   /** Steering in the air, as a share of the acceleration. */
   airControl: 0.15,
@@ -74,6 +76,7 @@ export function createWalker({ world, at = {}, config = {} } = {}) {
     // A ledge too high to step up, or ground rising steeper than the legs can climb along the way they go.
     const rise = g - fromGround, run = Math.hypot(x - s.x, z - s.z);
     if (rise > cfg.stepUp) return 'slope';
+    if (-rise > cfg.stopAtDrop) return 'drop';
     if (run > 1e-9) {
       // Looked at a little ahead of the feet (so tiny steps can neither creep up a wall nor stop short of one). Steeper than the legs
       // climb there: a slope if the ground past it is steep too, a step (a kerb, a deck) if it is walkable again beyond.
@@ -107,7 +110,7 @@ export function createWalker({ world, at = {}, config = {} } = {}) {
     get config() { return cfg; },
     get phase() { return s.phase; },
     get airborne() { return !s.onGround; },
-    /** What stopped the last move ('water', 'solid', 'slope', 'bounds'), or null. */
+    /** What stopped the last move ('water', 'solid', 'slope', 'drop', 'bounds'), or null. */
     get blocked() { return s.blocked; },
     /** The drawn stride's phase, 0..1 per two steps. */
     get stride() { return s.stride; },

@@ -50,7 +50,8 @@ export function takeoffPitch(bar, input, { age = 0, airspeed = 0 } = {}) {
  * options:
  * - glider (createGlider), whose world is the ground and the air.
  * - realistic: the launch is the pilot's own (balance, nose, go, jump); false flies it for them. launch: LAUNCH_DEFAULTS overrides.
- * - target: the landing mark { x, z, radius } scored against, or null.
+ * - target: the landing mark { x, z, radius } scored against, or null; or (contact) => mark or null, chosen at the touchdown (the
+ *   nearest clearing, say).
  * - ground(x, z): what the feet and a wreck stand on (default the world's terrain): a deck, a rock.
  * - solid({ x, y, z }): a solid thing the glider has flown into ('the ramp', 'the rock'), or null.
  * - landable(x, z): ground a glider may land on (default: gentler than about 23 degrees).
@@ -78,11 +79,12 @@ export function createRound({ glider, realistic = true, launch: launchConfig = {
   }
   function touchdown(contact) {
     r.contact = contact;
-    if (!contact.settled && scoreLanding(contact, target, glider.rules).judged === 'crash') {
+    const mark = typeof target === 'function' ? target(contact) : target;
+    if (!contact.settled && scoreLanding(contact, mark, glider.rules).judged === 'crash') {
       tumbleFromFlight({ kind: contact.water ? 'water' : contact.hit ? 'solid' : 'terrain', impact: Math.max(0, finite(contact.verticalSpeed)), hit: contact.hit ?? null, contact });
       return;
     }
-    r.result = scoreLanding(contact, target, glider.rules);
+    r.result = scoreLanding(contact, mark, glider.rules);
     r.phase = r.result.judged === 'crash' ? 'crashed' : 'landed'; r.takeoff = null;
     emit('touchdown', { result: r.result, contact, impact: Math.max(0, finite(contact.verticalSpeed)) });
   }

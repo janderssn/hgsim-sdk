@@ -70,6 +70,8 @@ test('the walker: the ground sets the pace, water, solids and walls stop it, led
     assert.deepEqual(r.events.map(e => e.type + ':' + e.by), [`blocked:${why}`], `${why}: one event while pressing on`);
   }
   assert.equal(walk(createWorld({ platform: (x, z) => (z > 5 ? 0.4 : null) }), { forward: 1 }).s.y, 0.4, 'a step up onto a deck');
+  const careful = (() => { const w = createWalker({ world: createWorld({ terrain: (x, z) => (z > 5 ? -20 : 0) }), config: { stopAtDrop: 1 } }), e = []; w.on(x => e.push(x.type + ':' + (x.by ?? ''))); for (let i = 0; i < 240; i++) w.step(1 / 60, { forward: 1 }); return { s: w.state(), e }; })();
+  assert.ok(careful.s.z <= 5.001 && careful.s.onGround, 'a careful walker stops at the cliff'); assert.deepEqual(careful.e, ['blocked:drop']);
   const cliff = walk(createWorld({ terrain: (x, z) => (z > 5 ? -20 : 0) }), { forward: 1 });
   assert.deepEqual(cliff.events.map(e => e.type), ['airborne', 'crash']); assert.ok(cliff.events[1].impact > 15 && cliff.s.phase === 'down');
   const ledge = walk(createWorld({ terrain: (x, z) => (z > 5 ? -1.5 : 0) }), { forward: 1 });

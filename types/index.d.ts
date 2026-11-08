@@ -98,7 +98,7 @@ export interface WalkerEventMap extends VehicleEventMap {
   airborne: { type: 'airborne'; reason: 'ledge' | 'jump' };
   touchdown: { type: 'touchdown'; impact: number; water: boolean };
   crash: { type: 'crash'; kind: 'fall'; impact: number; water: boolean };
-  blocked: { type: 'blocked'; by: 'water' | 'solid' | 'slope' | 'bounds' };
+  blocked: { type: 'blocked'; by: 'water' | 'solid' | 'slope' | 'drop' | 'bounds' };
 }
 export interface WalkerState {
   x: number; y: number; z: number; heading: number; vx: number; vy: number; vz: number;
@@ -490,7 +490,8 @@ export interface RoundOptions {
   /** The launch is the pilot's own (balance, nose, go, jump); false flies it for them. Default true. */
   realistic?: boolean;
   launch?: Partial<LaunchConfig>;
-  target?: Target | null;
+  /** The landing mark, or a function choosing it at the touchdown. */
+  target?: Target | null | ((contact: Contact) => Target | null);
   ground?: ((x: number, z: number) => number) | null;
   solid?: ((at: { x: number; y: number; z: number }) => unknown) | null;
   landable?: ((x: number, z: number) => boolean) | null;
@@ -556,6 +557,8 @@ export function createSimulationLoop(options: {
 /* ---------------------------------------------------------------- launch, landing, tumble */
 
 export function windOnRun(wind: Vec2, heading: number): { headwind: number; crosswind: number };
+/** How far to move the wing's reference point so the wing, drawn at this attitude, turns about the pilot's shoulders (w: 0..1 resting on them). */
+export function shoulderPivot(pitch: number, heading: number, roll: number, w?: number, out?: number[]): [number, number, number];
 export function runProfile(air: { headwind?: number; crosswind?: number; airLift?: number }, distance: number, slope?: number, config?: GliderConfig, launch?: LaunchConfig): LaunchState;
 
 export function judgeTouchdown(touchdown: { verticalSpeed?: number; groundSpeed?: number; slope?: number; bank?: number; tailwind?: number }, rules?: LandingRules): Judgement;
@@ -612,6 +615,8 @@ export interface FlightRecorder {
 }
 export function createFlightRecorder(options?: { storage?: Pick<Storage, 'getItem' | 'setItem' | 'removeItem'> | null; send?: ((flight: object) => unknown) | null; now?: () => number }): FlightRecorder;
 
+/** The terrain-skimming assist's target body clearance, m (bankedClearance adds a wing-tip allowance in a bank). */
+export const SKIM_CLEARANCE: number;
 export function bankedClearance(state: FlightState, world: World): number;
 
 /* ---------------------------------------------------------------- scenarios */

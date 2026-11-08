@@ -14,6 +14,7 @@ The public API is what `hgsim` and `hgsim/three` export, as declared in `types/`
 - `createHangGlider`, a glider and its round in one call. The round is the hang glider as a vehicle: `kind`, `airborne`, `pose()`, `velocity()`.
 - `terrainSite`: a launch site read from the world, its fall and its edge (a drop, water, a solid thing, the map's edge).
 - Poses: `makePose`, `lerpPose`, `createPoseTrack` and `applyPose`, to draw any vehicle between fixed ticks.
+- For games, from migrating Above onto the SDK: `shoulderPivot` (drawing the launch run), a round's `target` as a function chosen at the touchdown (the nearest clearing), the walker's `stopAtDrop` (a careful walker stops at a cliff), and `SKIM_CLEARANCE`.
 - Type declarations for the whole public API (`types/index.d.ts`, `types/three.d.ts`), with the config interfaces generated from the frozen defaults, and `npm run check:types`.
 - `VERSION`.
 - Glider presets from a 1975 Rogallo to a topless competition wing, and `defineWing`, `wingConfig`, `handlingFor` and `vgConfig` to make your own. A preset's launch comes from its build: the wing's mass, span, dihedral and carried angle of attack.

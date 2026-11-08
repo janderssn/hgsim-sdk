@@ -10,7 +10,9 @@
  *
  *   const run = startScenario('ramp-calm', { preset: 'falcon-170', pilot: 'you' });   // live, one frame at a time:
  *   run.step(dt, { roll, pitch, stand, go, jump, push });   // your controls (ignored for a scripted pilot)
- *   run.glider, run.launch, run.site, run.phase ('launch' | 'flight' | 'tumble' | 'done'), run.samples, run.result once run.done
+ *   run.glider, run.round, run.launch, run.site, run.phase ('launch' | 'flight' | 'tumble' | 'done'), run.samples, run.result once run.done
+ *
+ *   flyScenario('land-cue', { round, place })   // the same scenario on a round a game steps and draws (start(), input(), record(dt))
  *
  * Nothing is cut short: a launch that goes wrong, or a crash, is played out as the rigid-body tumble (tumble.js) until the wreck
  * comes to rest (phase 'tumble', samples with the wreck's position and quaternion q). The outcome is what happened when it went
@@ -22,7 +24,7 @@
 import { createWorld } from './world.js';
 import { createGlider } from './glider.js';
 import { createWind } from './wind.js';
-import { createTumble, stepTumble } from './tumble.js';
+import { createRound } from './round.js';
 import { barForSpeed } from './launch.js';
 import { clamp, finite, DEG } from './math.js';
 
@@ -40,7 +42,7 @@ const DECK = 18, DECK_FALL = Math.tan(20 * DEG), SLOPE_FALL = Math.tan(20 * DEG)
  * top with a sheer edge 1.5 m ahead; the slope a steady 20-degree hillside that runs on down to the field. Each is 60 m up.
  */
 export const SITES = Object.freeze({
-  field: Object.freeze({ name: 'field', label: 'the field', terrain: () => 0, start: { x: 0, z: 0 }, site: null }),
+  field: Object.freeze({ name: 'field', label: 'the field', terrain: () => 0, start: { x: 0, z: 0 }, site: null, mark: { x: 0, z: 0 }, finalHeading: 0 }),
   ramp: Object.freeze({
     name: 'ramp', label: 'the ramp',
     terrain: (x, z) => z < -DECK ? RIDGE : z <= 0 ? RIDGE - DECK_FALL * (z + DECK) : Math.max(0, RIDGE - DECK_FALL * DECK - 1.6 * z),
@@ -85,19 +87,6 @@ export function launchPilot({ skill = 1, noseAt = -1, runNose = -4, flyAt = 1.2,
   };
 }
 
-/**
- * The pilot just off a launch, as the range flies it: holds the bar where it was on the run for 1.5 s, then eases it back to
- * hands off over the next 2.5 s, so the wing gathers speed without settling back. Hanging over the launch in a strong wind (barely
- * moving over the ground) the pilot pulls in for speed to get away from the hill.
- */
-function afterLiftoff(glider, barHold, from) {
-  const away = holdSpeed(glider, 1.35 * glider.performance.stallSpeed());
-  return (t, s) => {
-    const feet = s.y - glider.world.heightAt(s.x, s.z) - glider.config.contactHeight, hovering = s.groundSpeed < 1.5 && feet > 0.05 && t - from > 0.6;
-    return { pitch: hovering ? Math.min(0, away(s)) : finite(barHold) * clamp(1 - (t - from - 1.5) / 2.5, 0, 1) };
-  };
-}
-
 /** Holds the bar where it gives this airspeed (m/s), with a little of the pilot's correction on top: a speed-holding pilot. */
 const holdSpeed = (g, target) => { const bar = barForSpeed(target, b => g.performance.trimSpeed(b)); return s => clamp(bar + (s.airspeed - target) * 0.08, -1, 1); };
 
@@ -107,10 +96,14 @@ const flightStart = (g, { height = 600, kmh = null, trimShare = null } = {}) => 
   const p = g.performance, v = kmh ? kmh / KMH : trimShare ? p.trimSpeed() * trimShare : p.trimSpeed();
   return { x: 0, y: height, z: 0, heading: 0, airspeed: v, pathAngle: p.glideAngle(v) };
 };
-/** A final: on the glide toward the field from this height (m of feet above it), at the hands-off trim or a given airspeed. */
-const finalStart = (g, { feet = 30, airspeed = null } = {}) => {
-  const p = g.performance, v = airspeed ?? p.trimSpeed(), path = p.glideAngle(v);
-  return { x: 0, y: feet + g.config.contactHeight, z: -feet / Math.tan(Math.max(0.02, -path)), heading: 0, airspeed: v, pathAngle: path };
+/**
+ * A final: on the glide toward the place's mark (place.mark, along place.finalHeading) from 30 m of feet above the ground, at the
+ * hands-off trim.
+ */
+const finalStart = (g, place = {}) => {
+  const p = g.performance, v = p.trimSpeed(), path = p.glideAngle(v), feet = 30, back = feet / Math.tan(Math.max(0.02, -path));
+  const mark = place.mark ?? { x: 0, z: 0 }, h = place.finalHeading ?? 0, x = mark.x - Math.sin(h) * back, z = mark.z - Math.cos(h) * back;
+  return { x, y: g.world.heightAt(x, z) + feet + g.config.contactHeight, z, heading: h, airspeed: v, pathAngle: path };
 };
 /**
  * A landing pilot: flies the approach (approach: 'trim', hands off, or 'fast', holding 1.5 x the stall speed) and flares from
@@ -141,9 +134,9 @@ const LAND = { kind: 'landing', site: 'field', wind: 2, seconds: 60, start: fina
 /**
  * Every scenario, by kind. Each: id, kind ('launch' | 'flight' | 'landing'), name, look (what to watch for), site, wind (m/s from
  * ahead; or { head, cross, gusts }), seconds (the longest it runs), and how it is flown: a launch has manual (a realistic launch)
- * and pilot (launchPilot options); a landing has start(glider) (the flight state to begin from) and pilot (landingPilot options);
- * a flight has start(glider) and pilot(t, state, ctx), a plain function of the time and the flight state. A fresh scripted pilot
- * is made for every run.
+ * and pilot (launchPilot options); a landing has start(glider, place) (the flight state to begin from) and pilot (landingPilot
+ * options); a flight has start(glider, place) and pilot(t, state, ctx), a plain function of the time and the flight state. A fresh
+ * scripted pilot is made for every run.
  */
 export const SCENARIOS = Object.freeze([
   // Launches: the run, the balance, the nose and the speed, off each site in its wind.
@@ -195,15 +188,100 @@ export function getScenario(id) {
   return s;
 }
 
-/* ---------- running one ---------- */
+/* ---------- flying one ---------- */
 
 const windOf = w => typeof w === 'number' ? { head: w, cross: 0, gusts: 0 } : { head: finite(w?.head), cross: finite(w?.cross), gusts: finite(w?.gusts) };
 const SAMPLE = 1 / 60;   // (every frame: a run can be stepped through frame by frame)
 
+/** A scenario's wind, as { head, cross, gusts } (m/s from ahead along the run or the final, across it, and how gusty). */
+export function scenarioWind(id) { return windOf(getScenario(id).wind); }
+
 /**
- * Starts a scenario on a wing. options: preset (id or object), vg (0..1), config (force-model overrides, as glider.tune), launch
- * (LAUNCH_DEFAULTS overrides), pilot ('script', the default, or 'you': your controls in step()), wind (overrides the scenario's).
- * Returns a run: step(dt, controls) advances it; phase, samples, glider and launch are live; result is set once done.
+ * Flies a scenario on a round (createRound) someone else steps: the SDK's own runner (startScenario), or a game that draws it. Puts
+ * the round at the scenario's start (start()), gives each tick's input (input(): the scripted pilot's, or yours with pilot 'you'),
+ * and after the tick samples the round and decides whether it is over (record(dt)); result once done.
+ * place: the scenario's site in the host's world ({ site, start, mark, finalHeading }; default SITES), for where to stand or fly.
+ */
+export function flyScenario(id, { round, pilot = 'script', place = null } = {}) {
+  const sc = getScenario(id), glider = round.glider, world = glider.world, where = place ?? SITES[sc.site] ?? SITES.field, you = pilot === 'you';
+  const notes = {}, samples = [], feetNow = () => glider.state.y - world.heightAt(glider.state.x, glider.state.z) - glider.config.contactHeight;
+  const ctx = { glider, world, notes, note: (k, v) => { notes[k] = v; }, hold: v => holdSpeed(glider, v), feet: 0 };
+  let t = 0, script = null, liftoff = null, failed = null, maxRoll = 0, maxNose = -Infinity, impact = 0, done = false, result = null, lastInput = {};
+  const stop = round.on(e => {
+    if (e.type === 'liftoff') { const s = e.launch.state; liftoff = { t, distance: s.liftDistance ?? s.distance, airspeed: glider.state.airspeed, reason: s.reason, groundSpeed: s.groundSpeed }; }
+    if (e.type === 'failed') failed = e.reason;
+  });
+  const sample = () => {
+    const s = glider.state, l = round.run?.state, ph = round.phase, w = round.tumble ?? round.wreck;
+    if (w) {
+      const last = samples.at(-1) ?? {}, v = w.v ?? [0, 0, 0];
+      samples.push({ ...last, t: +t.toFixed(3), phase: 'tumble', x: w.x, y: w.y, z: w.z, q: [...w.q], airspeed: Math.hypot(v[0], v[1], v[2]), verticalSpeed: v[1], feet: w.y - world.heightAt(w.x, w.z), controls: {} });
+      return;
+    }
+    const launching = ph === 'launch';
+    samples.push({ t: +t.toFixed(3), phase: launching ? 'launch' : 'flight', x: s.x, y: s.y, z: s.z, heading: s.heading, bank: launching ? finite(l?.roll) : s.bank,
+      pitch: s.pitch, alpha: s.alpha, airspeed: launching ? finite(l?.airspeed) : s.airspeed, pathAngle: s.pathAngle, verticalSpeed: s.verticalSpeed, load: finite(s.loadFactor, 1),
+      bar: finite(s.bar), feet: feetNow(), stalled: !!s.stalled, upright: finite(s.upright), groundSpeed: finite(launching ? l?.groundSpeed : s.groundSpeed),
+      yaw: finite(l?.yaw), lift: finite(l?.lift, 1), launchPhase: l?.phase ?? null, controls: { ...lastInput }, pose: launching ? round.run.pose() : null });
+  };
+  const finish = outcome => {
+    done = true; stop();
+    const landed = round.result && sc.kind !== 'launch';
+    const info = { notes, liftoff, maxRoll, maxNose, glider, landing: landed ? round.result : null, touchdown: landed ? round.contact : null };
+    result = { scenario: sc.id, kind: sc.kind, preset: glider.preset?.id ?? null, vg: glider.vg, outcome, at: t, landing: info.landing, touchdown: info.touchdown, metrics: measure(sc, samples, info), samples };
+    if (impact > 0) result.metrics.impactMs = +impact.toFixed(1);
+  };
+
+  return {
+    scenario: sc, samples,
+    get t() { return t; },
+    get done() { return done; },
+    get result() { return result; },
+    /** Puts the round at the scenario's start: standing at the site with the launch begun, or in the air. */
+    start() {
+      if (sc.kind === 'launch') {
+        round.standAt({ ...where.site, start: { heading: 0, ...where.start } }).launch();
+        script = launchPilot(sc.pilot);
+      } else {
+        round.startAt(sc.start(glider, where));
+        script = sc.kind === 'landing' ? landingPilot(sc.pilot) : sc.pilot;
+      }
+      sample();
+      return this;
+    },
+    /** The round's input for this tick: the scripted pilot's, or yours (pilot 'you'). */
+    input(controls = {}) {
+      ctx.feet = feetNow();
+      let input;
+      if (you) input = controls;
+      else if (round.phase === 'launch') { const c = script(t + SAMPLE, round.run.state, { stallSpeed: glider.performance.stallSpeed() }); input = { roll: c.balance, nose: c.nose, push: c.push, go: c.go, jump: c.jump }; }
+      else if (sc.kind === 'launch') input = {};   // (off the ground: hands off, the round keeps the bar the run ended with)
+      else input = script(t + SAMPLE, glider.state, ctx);
+      lastInput = input;
+      return input;
+    },
+    /** After the round's tick: samples it and decides whether the scenario is over. */
+    record(dt) {
+      if (done) return true;
+      t += dt;
+      const l = round.run?.state;
+      if (l) { maxRoll = Math.max(maxRoll, Math.abs(finite(l.roll))); maxNose = Math.max(maxNose, finite(l.noseCmd)); }
+      const w = round.tumble ?? round.wreck; if (w) impact = Math.max(impact, finite(w.impact));
+      sample();
+      const ph = round.phase;
+      if (ph === 'landed' || ph === 'crashed') finish(sc.kind === 'launch' ? (failed ?? (ph === 'crashed' ? 'crash' : 'sank back')) : round.result.judged);
+      else if (sc.kind === 'launch' && liftoff && ph === 'flight' && t - liftoff.t > 6) finish('flying');
+      else if (t >= sc.seconds && ph !== 'tumble') finish(ph === 'launch' ? 'no launch' : 'done');
+      return done;
+    },
+  };
+}
+
+/**
+ * Starts a scenario on a wing, in its own world (SITES): the SDK's runner. options: preset (id or object), vg (0..1), config
+ * (force-model overrides, as glider.tune), launch (LAUNCH_DEFAULTS overrides), pilot ('script', the default, or 'you': your controls
+ * in step()), wind (overrides the scenario's). Returns a run: step(dt, controls) advances it; phase, samples, glider and round are
+ * live; result is set once done.
  */
 export function startScenario(id, { preset = 'intermediate', vg = null, config = null, launch: launchConfig = {}, pilot = 'script', wind: windOverride = null } = {}) {
   const sc = getScenario(id), place = SITES[sc.site] ?? SITES.field, w = windOf(windOverride ?? sc.wind);
@@ -213,90 +291,29 @@ export function startScenario(id, { preset = 'intermediate', vg = null, config =
   const glider = createGlider({ world, preset });
   if (glider.hasVG && vg !== null) glider.setVG(vg);
   if (config && Object.keys(config).length) glider.tune(config);
-  const you = pilot === 'you', notes = {}, samples = [];
-  const ctx = { glider, world, notes, note: (k, v) => { notes[k] = v; }, hold: v => holdSpeed(glider, v), feet: 0 };
-  let phase, handle = null, script = null, t = 0, nextSample = 0, liftoff = null, result = null, maxRoll = 0, maxNose = -Infinity, wreck = null, ending = null;
-  if (sc.kind === 'launch') {
-    glider.reset({ ...place.start, y: place.terrain(place.start.x, place.start.z) + glider.config.contactHeight, heading: 0 });
-    handle = glider.launch({ site: place.site, manual: sc.manual, config: launchConfig });
-    script = launchPilot(sc.pilot); phase = 'launch';
-  } else {
-    glider.reset(sc.start(glider)); phase = 'flight';
-    script = sc.kind === 'landing' ? landingPilot(sc.pilot) : sc.pilot;
-  }
-
-  const feetNow = () => glider.state.y - world.heightAt(glider.state.x, glider.state.z) - glider.config.contactHeight;
-  const sample = controls => {
-    const s = glider.state, l = handle?.state;
-    samples.push({ t: +t.toFixed(3), phase, x: s.x, y: s.y, z: s.z, heading: s.heading, bank: phase === 'launch' ? finite(l?.roll) : s.bank,
-      pitch: s.pitch, alpha: s.alpha, airspeed: s.airspeed, pathAngle: s.pathAngle, verticalSpeed: s.verticalSpeed, load: finite(s.loadFactor, 1),
-      bar: finite(s.bar), feet: feetNow(), stalled: !!s.stalled, upright: finite(s.upright), groundSpeed: finite(phase === 'launch' ? l?.groundSpeed : s.groundSpeed),
-      yaw: finite(l?.yaw), lift: finite(l?.lift, 1), launchPhase: l?.phase ?? null, controls: { ...controls },
-      pose: phase === 'launch' ? handle.pose() : null });   // (where the wing and pilot are on the run, to draw it again later)
-  };
-  const finish = (outcome, extra = {}) => { phase = 'done'; result = { scenario: sc.id, kind: sc.kind, preset: glider.preset?.id ?? null, vg: glider.vg, outcome, ...extra, metrics: measure(sc, samples, { ...extra, notes, liftoff, maxRoll, maxNose, glider }), samples };
-    if (wreck) result.metrics.impactMs = +wreck.impact.toFixed(1); };
-  // It went wrong: the glider and pilot carry on as one body from exactly this state, and the run ends when the wreck is still.
-  const crash = (outcome, extra, body) => { wreck = body; ending = { outcome, extra }; phase = 'tumble'; };
-  const fromFlight = () => {
-    const st = glider.state, horizontal = st.airspeed * Math.cos(st.pathAngle || 0), drop = glider.config.contactHeight - 0.65;
-    return createTumble({ x: st.x, y: st.y - drop, z: st.z, pitch: -st.pitch, heading: st.heading, roll: st.visualBank ?? st.bank, ground: world.heightAt, wind: { x: air.x, z: air.z },
-      velocity: [Math.sin(st.heading) * horizontal + finite(st.windX), st.verticalSpeed, Math.cos(st.heading) * horizontal + finite(st.windZ)], yawRate: finite(st.headingRate) });
-  };
-  const sampleWreck = () => {
-    const last = samples.at(-1) ?? {}, v = wreck.v;
-    samples.push({ ...last, t: +t.toFixed(3), phase: 'tumble', x: wreck.x, y: wreck.y, z: wreck.z, q: [...wreck.q], airspeed: Math.hypot(v[0], v[1], v[2]), verticalSpeed: v[1],
-      feet: wreck.y - world.heightAt(wreck.x, wreck.z), controls: {} });
-  };
-
+  const round = createRound({ glider, realistic: sc.manual ?? true, launch: launchConfig, target: sc.kind === 'landing' ? { x: place.mark?.x ?? 0, z: place.mark?.z ?? 0, radius: 60 } : null, ground: place.site?.ground });
+  const flight = flyScenario(sc, { round, pilot, place });
+  flight.start();
   const run = {
-    scenario: sc, glider, world, wind: air, site: place,
-    get launch() { return handle; },
-    /** The wreck (tumble.js) once something went wrong, else null: x, y, z and the quaternion q to draw it with. */
-    get wreck() { return wreck; },
-    get phase() { return phase; },
-    get t() { return t; },
-    get done() { return phase === 'done'; },
-    get result() { return result; },
-    samples,
+    scenario: sc, glider, world, wind: air, site: place, round,
+    get launch() { return round.run; },
+    get wreck() { return round.tumble ?? round.wreck; },
+    get phase() { return flight.done ? 'done' : round.phase === 'tumble' ? 'tumble' : round.phase === 'launch' ? 'launch' : 'flight'; },
+    get t() { return flight.t; },
+    get done() { return flight.done; },
+    get result() { return flight.result; },
+    samples: flight.samples,
     /** Advances by dt seconds (stepped at most 1/60 s at a time). controls: yours, when the pilot is 'you'. */
     step(dt, controls = {}) {
-      for (let left = Math.min(dt, 0.25); left > 1e-9 && phase !== 'done'; left -= 1 / 60) {
-        const h = Math.min(left, 1 / 60); t += h; air.update(h); ctx.feet = feetNow();
-        let input;
-        if (phase === 'tumble') {
-          wreck.wind = { x: air.x, z: air.z }; stepTumble(wreck, h);
-          if (t >= nextSample) { sampleWreck(); nextSample += SAMPLE; }
-          if (wreck.done) { sampleWreck(); finish(ending.outcome, ending.extra); break; }
-          continue;
-        }
-        if (phase === 'launch') {
-          input = you ? controls : script(t, handle.state, { stallSpeed: glider.performance.stallSpeed() });
-          handle.step(h, input);
-          const l = handle.state; maxRoll = Math.max(maxRoll, Math.abs(l.roll)); maxNose = Math.max(maxNose, finite(l.noseCmd));
-          if (handle.failed) { sample(input); crash(handle.failed, { at: t }, handle.tumble({ ground: world.heightAt })); continue; }
-          if (handle.airborne) { liftoff = { t, distance: l.liftDistance ?? l.distance, airspeed: glider.state.airspeed, reason: l.reason, groundSpeed: l.groundSpeed }; phase = 'flight';
-            script = afterLiftoff(glider, handle.barHold, t); }
-        } else {
-          input = you ? controls : script(t, glider.state, ctx);
-          glider.step(h, input);
-          // (just off a launch the feet may brush the ground for a moment: the end of the run, not a landing)
-          const contact = glider.contact({ tolerance: liftoff && t - liftoff.t < 1.2 ? 0.3 : 0 });
-          if (contact) {
-            const landed = glider.land(null, contact), extra = sc.kind === 'launch' ? { at: t } : { at: t, landing: landed, touchdown: contact }, outcome = sc.kind === 'launch' && landed.judged !== 'crash' ? 'sank back' : landed.judged;
-            sample(input);
-            if (landed.judged === 'crash') { crash(outcome, extra, fromFlight()); continue; }
-            finish(outcome, extra); break;
-          }
-          if (sc.kind === 'launch' && liftoff && t - liftoff.t > 6) { finish('flying', { at: t }); break; }
-        }
-        if (t >= nextSample) { sample(input); nextSample += SAMPLE; }
-        if (t >= sc.seconds) { finish(phase === 'launch' ? 'no launch' : 'done', { at: t }); break; }
+      for (let left = Math.min(dt, 0.25); left > 1e-9 && !flight.done; left -= 1 / 60) {
+        const h = Math.min(left, 1 / 60);
+        air.update(h);
+        round.step(h, flight.input(controls));
+        flight.record(h);
       }
       return run;
     },
   };
-  sample({});
   return run;
 }
 

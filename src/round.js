@@ -42,7 +42,7 @@ export function takeoffPitch(bar, input, { age = 0, airspeed = 0 } = {}) {
 /**
  * options:
  * - glider (createGlider), whose world is the ground and the air.
- * - realistic: the launch is the pilot's own (balance, nose, go, jump); false flies it for them.
+ * - realistic: the launch is the pilot's own (balance, nose, go, jump); false flies it for them. launch: LAUNCH_DEFAULTS overrides.
  * - target: the landing mark { x, z, radius } scored against, or null.
  * - ground(x, z): what the feet and a wreck stand on (default the world's terrain): a deck, a rock.
  * - solid({ x, y, z }): a solid thing the glider has flown into ('the ramp', 'the rock'), or null.
@@ -50,7 +50,7 @@ export function takeoffPitch(bar, input, { age = 0, airspeed = 0 } = {}) {
  * - bodyPose(state): where the glider and pilot are drawn as one body ({ x, y, z, pitch, heading, roll }), for a crash's tumble
  *   to start from (default: the reference point lowered to the bar).
  */
-export function createRound({ glider, realistic = true, target = null, ground = null, solid = null, landable = null, bodyPose = null } = {}) {
+export function createRound({ glider, realistic = true, launch: launchConfig = {}, target = null, ground = null, solid = null, landable = null, bodyPose = null } = {}) {
   const world = glider.world, groundAt = ground ?? world.heightAt;
   const landableAt = landable ?? ((x, z) => Math.hypot(world.heightAt(x + 6, z) - world.heightAt(x - 6, z), world.heightAt(x, z + 6) - world.heightAt(x, z - 6)) / 12 < 0.42);
   const listeners = new Set(), emit = (type, detail = {}) => { for (const f of listeners) f({ type, ...detail }); };
@@ -110,7 +110,7 @@ export function createRound({ glider, realistic = true, target = null, ground = 
     /** Picks the wing up and starts the launch (from standing ready at a site). */
     launch() {
       if (r.phase !== 'ready' || !r.site) return round;
-      r.launch = glider.launch({ site: r.site, manual: realistic }); r.phase = 'launch';
+      r.launch = glider.launch({ site: r.site, manual: realistic, config: launchConfig }); r.phase = 'launch';
       emit('launch');
       return round;
     },

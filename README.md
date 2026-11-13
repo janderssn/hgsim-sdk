@@ -20,7 +20,7 @@ The units are metres, seconds and radians throughout.
 
 ```bash
 npm start          # the landing range at http://127.0.0.1:4180/range/
-npm test           # unit tests (Node 20+)
+npm test           # unit tests (Node 22+)
 npm run check:range  # flies the range end to end in a headless Chrome or Edge
 ```
 

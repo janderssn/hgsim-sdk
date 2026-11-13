@@ -47,6 +47,6 @@
     "types:configs": "node tools/config-types.mjs"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }

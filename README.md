@@ -429,7 +429,7 @@ frame limit, so fast machines may reach the refresh-rate ceiling.
 
 ## Deploy
 
-Every push to `main` runs the tests and, if they pass, deploys the range to Fly.io at **https://hgsim.fly.dev**. It uses `.github/workflows/deploy.yml` with `Dockerfile` and `fly.toml`. The workflow needs one repository secret, `FLY_API_TOKEN`, a Fly.io organisation token. The first run creates the `hgsim` app. The deployed server saves no flights, so rounds stay in the browser and can be downloaded from the panel.
+Every push to `main` runs the tests and, if they pass, deploys the range to Fly.io at **https://hgsim.fly.dev**. It uses `.github/workflows/deploy.yml` with `Dockerfile` and `fly.toml`. The workflow needs one repository secret, `FLY_API_TOKEN`, an app-scoped deploy token for the existing `hgsim` app (`fly tokens create deploy -a hgsim`). The deployed server saves no flights, so rounds stay in the browser and can be downloaded from the panel.
 
 ## Sound credits
 
